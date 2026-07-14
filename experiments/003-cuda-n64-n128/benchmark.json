@@ -1,0 +1,21 @@
+{
+  "mode": "benchmark",
+  "note": "Modal B200, L2-clear method. Two CUDA designs compared against cuSOLVER for n=64/128. Neither beats cuSOLVER; experiment rejected. cuSOLVER reference numbers measured same-method in experiment 002 iteration.",
+  "cusolver_reference_us": {
+    "64": 135.7,
+    "128": 201.5
+  },
+  "cuda_block_per_matrix_128threads_syncthreads_us": {
+    "64": 205.1,
+    "128": 413.3
+  },
+  "cuda_warp_per_matrix_32threads_syncwarp_us": {
+    "64": 213.9,
+    "128": 693.5
+  },
+  "triton_session2_reference_us": {
+    "64": 152.0,
+    "128": 429.0
+  },
+  "verdict": "rejected - cuSOLVER wins at n=64 and n=128"
+}

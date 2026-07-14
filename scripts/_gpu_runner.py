@@ -163,6 +163,11 @@ def main():
     if len(sys.argv) > 2 and sys.argv[2].strip():
         filter_ns = {int(x) for x in sys.argv[2].split(",") if x.strip()}
     print(f"torch={torch.__version__} cuda={torch.version.cuda} device={torch.cuda.get_device_name(0)}", flush=True)
+    import submission as _sub
+    print(f"custom_cuda_loaded={getattr(_sub, '_CUDA_MOD', None) is not None}", flush=True)
+    _err = getattr(_sub, "_CUDA_LOAD_ERROR", None)
+    if _err:
+        print("CUDA_LOAD_ERROR:\n" + _err, flush=True)
     result = run_benchmark(filter_ns) if mode == "benchmark" else run_verify()
     print("RESULT_JSON:" + json.dumps(result), flush=True)
 

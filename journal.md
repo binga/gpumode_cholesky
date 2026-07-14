@@ -4,6 +4,52 @@ Running log of work, results, and findings. Newest entries at the top.
 
 ---
 
+## 2026-07-15 — Session 3: CUDA n=64/128 attempt → REJECTED (cuSOLVER wins)
+
+### Goal
+Beat the board leader (~1924μs) via a **warp/block-per-matrix CUDA kernel for
+n=64 and n=128** (experiment `003`), keeping Triton n=32 + cuSOLVER elsewhere.
+
+### Infra unlocked (kept — enables all future CUDA experiments)
+- Switched the Modal image to **`nvidia/cuda:13.0.0-devel-ubuntu24.04`** (has
+  `nvcc`) + `pip install torch numpy ninja` + `.entrypoint([])`. This lets
+  `torch.utils.cpp_extension.load_inline` compile CUDA on the B200 sandbox
+  (the plain pip-torch image has no nvcc). torch resolved to 2.13.0+cu130.
+- **Gotcha:** without `ninja`, `load_inline` fails `verify_ninja_availability()`
+  and the try/except silently falls back to cuSOLVER. Caught it because the
+  n=64/128 residuals were byte-identical to cuSOLVER. Added a
+  `custom_cuda_loaded=<bool>` + `_CUDA_LOAD_ERROR` diagnostic to `_gpu_runner.py`
+  / `submission.py` so a failed compile is never mistaken for a working kernel.
+
+### Result — REJECTED, nothing submitted
+CUDA kernel is **correct** (Modal verify 19/19, all families, `custom_cuda_loaded=True`,
+residuals ~1000× inside tolerance) but **slower than cuSOLVER** at both shapes:
+
+| shape | cuSOLVER | Triton | CUDA block (128-thr, `__syncthreads`) | CUDA warp (32-lane, `__syncwarp`) |
+|---|---|---|---|---|
+| 1024×64 | **135.7μs** | 152 | 205 | 214 |
+| 256×128 | **201.5μs** | 429 | 413 | 693 |
+
+Block-per-matrix is sync-bound (3N `__syncthreads`, ~3 blocks/SM at 64KB shared
+for n=128); warp-per-matrix has too little per-matrix parallelism + a load-
+imbalanced rank-1 update (n=128 → 693μs). Adopting either would **regress** the
+geomean, so per the guardrail no ranked submission was made.
+
+- **Ranked quota used this session: 0** (still **2 of 3** remaining overall).
+- **Current best unchanged: `#877091`** (exp 002, Triton n=32, ~2062μs).
+- Modal spend this session ≈ **~$1–2** (one heavy image build + ~4 short runs).
+
+### Insight
+cuSOLVER's batched `potrf` is near-optimal at n=64/128 on B200; a *naive* right-
+looking kernel can't beat it. Winning would need a **blocked/recursive** kernel
+(panel factorization + batched-GEMM trailing update), likely **tensor-core
+(tf32/bf16) Schur updates with FP32 accumulation** (the tolerance has ~1000×
+headroom), and multiple matrices per block for occupancy. That's a multi-hour
+kernel effort with uncertain payoff — deferred. Details in
+`experiments/003-cuda-n64-n128/notes.md`.
+
+---
+
 ## 2026-07-15 — Session 2: first custom kernel (Triton n=32) → ranked #877091
 
 ### Goal

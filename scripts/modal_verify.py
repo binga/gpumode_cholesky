@@ -24,11 +24,17 @@ import modal
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# torch cu128 wheels support the Blackwell (sm_100) B200. If a future wheel drops
-# Blackwell support, pin an explicit cu128 index_url here.
+# CUDA *devel* base so `nvcc` is available for torch.utils.cpp_extension.load_inline
+# (the plain pip-torch image has no nvcc). 13.0.0 matches the popcorn runner's
+# torch 2.12.0+cu130. pip `torch` currently resolves to the same cu130 wheel, so
+# nvcc 13.0 and torch's CUDA agree. The Blackwell (sm_100) kernels ship in that
+# wheel. `.entrypoint([])` clears the nvidia image's default entrypoint script.
 IMAGE = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch", "numpy")
+    modal.Image.from_registry(
+        "nvidia/cuda:13.0.0-devel-ubuntu24.04", add_python="3.11"
+    )
+    .entrypoint([])
+    .pip_install("torch", "numpy", "ninja")
     .add_local_dir(str(ROOT / "reference"), "/root/reference", copy=True)
     .add_local_file(str(ROOT / "submission.py"), "/root/submission.py", copy=True)
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
