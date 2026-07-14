@@ -1,0 +1,27 @@
+{
+  "submission_id": 876988,
+  "leaderboard": "cholesky",
+  "gpu": "B200",
+  "status": "done",
+  "approach": "cuSOLVER baseline (torch.linalg.cholesky_ex)",
+  "tests": "17/17",
+  "ranked_geomean_us": 2080.0,
+  "ranked_per_shape_us": {
+    "4096x32": 113,
+    "1024x64": 110,
+    "256x128": 152,
+    "64x256": 276,
+    "16x512": 597,
+    "640x512": 3810,
+    "4x1024": 1282,
+    "60x1024": 2900,
+    "2x2048": 3220,
+    "8x2048": 4910,
+    "1x4096": 1535,
+    "2x4096": 11400,
+    "1x8192": 6400,
+    "1x16384": 34200,
+    "1x32768": 221000
+  },
+  "captured": "2026-07-15"
+}
