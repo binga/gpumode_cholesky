@@ -4,6 +4,58 @@ Running log of work, results, and findings. Newest entries at the top.
 
 ---
 
+## 2026-07-15 — Session 5: `640×512` probe (REJECTED) + `8×2048` own-goal fix → ranked #877956
+
+### Result
+
+Two things this session, driven by "which shape is the biggest bottleneck to
+progress" analysis:
+
+1. **`640×512` (biggest attackable shape, unexplored): REJECTED.** A characterization
+   probe on B200 (batched vs loop vs streamed vs chunk64/128) proved cuSOLVER's
+   batched `potrf` **already saturates** the GPU for hundreds of medium matrices —
+   `streamed` is **6.5× slower** than batched (25730 vs 3955μs), the exact opposite
+   of the exp-004 few-large headroom signal. Chunked batched (the shippable idea) is
+   1.8–2.7× slower. No non-stream approach can win; a custom kernel would have to beat
+   a saturated vendor routine (exp-003 already showed naive kernels lose at n≤128).
+   Shape closed, like exp-003. See `experiments/005-highbatch-mid-n/notes.md`.
+
+2. **`8×2048` own-goal fix: SHIPPED, ranked `#877956`.** The exp-004 loop region
+   `2<=batch<=8, n>=1024` had regressed `8×2048` on popcorn (5010 batched → 5370
+   loop). Trimmed the region to `2<=batch<=4` so `8×2048` returns to batched cuSOLVER.
+   Shipped on the last ranked slot: **`8×2048` 5370 → 5060μs (−5.8%)**, all other
+   shapes unchanged (low-drift run). Ranked geomean ≈ **1744μs** (from ~1746). Small,
+   clean, no regressions. 17/17 on B200 (`verify_local` 10/10, popcorn test `#877955`).
+
+### Bottleneck analysis (the framing)
+
+Ranking is a geometric mean, so the bottleneck to progress = the shape with the
+biggest *achievable* speedup ratio, not the slowest in μs. Huge single matrices
+(8192/16384/32768) dominate the clock but are compute-bound (no headroom). Small-`n`
+overhead shapes + `60×1024` were already proven cuSOLVER-optimal (exp-003, exp-004
+probe). `640×512` was the largest unexplored lever (~6% geomean at 2.5×) — probed
+and found saturated. `8×2048` had proven headroom via streams but streams are banned;
+the only realizable gain was reverting it to batched (the fix shipped here).
+
+### Correctness
+
+The `8×2048` fix is correct by construction (routes to the already-validated batched
+path). popcorn test + leaderboard both 17/17 across all families.
+
+### Quota / cost
+
+**Ranked quota now fully used: 3 of 3** (`#877091`, `#877941`, `#877956`). Modal spend
+this session ≈ **~$0.2–0.4** (one probe run; the `8×2048` fix needed no Modal benchmark
+— see notes on the Modal↔popcorn gap). popcorn test+leaderboard run on GPU MODE infra.
+
+### Next steps
+
+- Ranked quota exhausted for this run. Every shape is at/near its frontier; leader
+  beaten by ~9–10%. Only speculative lever left is a blocked tensor-core mid-`n`
+  kernel, but the `640×512` saturation evidence makes it a poor bet.
+
+---
+
 ## 2026-07-15 — Session 5: `640×512` probe → REJECTED (cuSOLVER-saturated)
 
 ### Goal

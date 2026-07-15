@@ -1,10 +1,30 @@
-# Experiment 005 — high-batch mid-`n` (`640×512`): probe → REJECTED
+# Experiment 005 — high-batch mid-`n` (`640×512`): probe → REJECTED; `8×2048` fix → SHIPPED
 
-**Status: REJECTED (primary target). Nothing ranked-submitted.**
+**Status: primary target `640×512` REJECTED (cuSOLVER-saturated). Secondary
+`8×2048` own-goal fix ADOPTED + ranked-submitted `#877956` on supervisor go-ahead.**
+
+## UPDATE — `8×2048` fix SHIPPED (ranked `#877956`)
+Supervisor elected to spend the last ranked slot on the `8×2048` cleanup.
+Adopted the `batch<=4` candidate to root `submission.py`, shipped it:
+- `verify_local.py`: **10/10**. popcorn `--mode test`: **17/17** on B200 (`#877955`).
+- Ranked `--mode leaderboard`: **`#877956`, done, 17/17**. This run had unusually
+  low drift, so the numbers are clean.
+- **`8×2048`: 5370 → 5060μs (−5.8%)** — exactly the predicted fix; the loop region
+  no longer captures `8×2048`, so it uses batched cuSOLVER (faster on popcorn).
+- All other shapes essentially unchanged (see ranked table below). Computed ranked
+  geomean ≈ **1744μs** (vs `#877941` ~1746μs) — a small, clean improvement, no
+  regressions. **Ranked quota now fully used: 3 of 3.**
+
+Ranked per-shape (`#877956`, μs): 4096×32 64.2 · 1024×64 110 · 256×128 152 ·
+64×256 276 · 16×512 604 · 640×512 3780 · 4×1024 1303 · 60×1024 2900 · 2×2048 1359 ·
+**8×2048 5060** · 1×4096 1534 · 2×4096 3210 · 1×8192 6400 · 1×16384 34200 ·
+1×32768 221000. Raw log: `results/leaderboard-exp005-*.txt`.
+
+---
+
+**Status (probe portion): REJECTED (primary target).**
 `640×512` is proven **cuSOLVER-batched-saturated** on B200 — no non-stream approach
-can beat it. The current best `#877941` (~1746μs) stays the root submission. A ready
-`8×2048` own-goal-fix candidate is included but NOT submitted (marginal; supervisor
-decision on the last ranked slot).
+can beat it. Below is the original probe analysis that closed the primary target.
 
 ## Hypothesis (from the goal)
 `640×512` is slow because `torch.linalg.cholesky_ex` routes batch≥2 to

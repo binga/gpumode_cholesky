@@ -1,22 +1,29 @@
 #!POPCORN leaderboard cholesky
 #!POPCORN gpu B200
 
-"""GPU MODE `cholesky` submission.
+"""GPU MODE `cholesky` submission — experiment 005 candidate.
 
-Batched dense Cholesky factorization. Input `A` is a `batch x n x n` float32
-CUDA tensor, SPD up to FP32 roundoff. Return lower-triangular float32 `L` with
-positive diagonal such that `A = L @ L.T`.
+Same as the current best (`#877941`, exp 004) EXCEPT the small-batch/large-n loop
+region is restricted to `2 <= batch <= 4` (was `2 <= batch <= 8`). This returns
+`8×2048` to the batched cuSOLVER path, which was ~1.07x FASTER on popcorn (5010 vs
+5370) — the known exp-004 own-goal.
+
+NOTE: This candidate was NOT ranked-submitted. exp 005's primary target, `640×512`,
+was proven cuSOLVER-saturated (see notes.md), so the only change this file carries
+is the marginal (~0.05% geomean) `8×2048` cleanup. Spending the last ranked slot on
+it is a supervisor decision. Root `submission.py` is kept EXACTLY as `#877941`.
 
 Shape dispatcher:
   * n == 32                         -> Triton batched kernel, one warp per matrix
     (experiment 002). Beats cuSOLVER's batched-launch overhead for tiny matrices.
-  * 2 <= batch <= 8 and n >= 1024   -> per-matrix factorization in a sequential
-    loop (experiment 004). `torch.linalg` routes batch>=2 to
-    `cusolverDnSpotrfBatched`, which is tuned for many-small matrices and is
-    ~1.2-4x too slow for few-large ones; factorizing each matrix on its own with
-    the fast single-matrix blocked `potrf` is much faster.
+  * 2 <= batch <= 4 and n >= 1024   -> per-matrix factorization in a sequential
+    loop (experiment 004, region trimmed by exp 005). `torch.linalg` routes
+    batch>=2 to `cusolverDnSpotrfBatched`, which is tuned for many-small matrices
+    and is ~1.2-4x too slow for few-large ones; factorizing each matrix on its own
+    with the fast single-matrix blocked `potrf` is much faster. batch>=8 (e.g.
+    8×2048) stays on batched cuSOLVER (faster on popcorn).
   * everything else                 -> batched cuSOLVER via cholesky_ex (best for
-    batch=1 large-n and high-batch small/mid-n).
+    batch=1 large-n and high-batch small/mid-n, incl. the saturated 640×512).
 """
 
 import torch
@@ -103,7 +110,7 @@ if _HAVE_TRITON:
 
 
 # ---------------------------------------------------------------------------
-# Small-batch / large-n path (experiment 004).
+# Small-batch / large-n path (experiment 004, region trimmed by exp 005).
 # ---------------------------------------------------------------------------
 def _loop_cholesky(data: torch.Tensor) -> torch.Tensor:
     """Sequential per-matrix single-matrix potrf, then stack. Avoids the slow
@@ -125,7 +132,8 @@ def custom_kernel(data: input_t) -> output_t:
         return _triton_cholesky(data)
 
     # Few-but-large matrices: avoid cusolverDnSpotrfBatched (see module docstring).
-    if is_f32_cuda and 2 <= batch <= 8 and n >= 1024:
+    # exp 005: upper bound trimmed 8->4 so 8x2048 stays on batched cuSOLVER.
+    if is_f32_cuda and 2 <= batch <= 4 and n >= 1024:
         return _loop_cholesky(data)
 
     # Default: batched cuSOLVER. Correct for every input family.
