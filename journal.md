@@ -176,6 +176,10 @@ Popcorn quota used was zero. CUTLASS headers were not available in the
 self-contained submission environment, so no unshippable external dependency
 was counted as a CUTLASS/tcgen05 candidate.
 
+Publication: rejected experiment commit `c9f2977` was pushed to
+`origin/codex/exp010-1x16384-blackwell`; remote containment and exact local/remote
+commit equality were verified. No ranked submission was launched.
+
 ---
 
 ## 2026-07-15 — Session 9: combined shape frontiers → ranked #878273 (NEW BEST 1500.704μs)
