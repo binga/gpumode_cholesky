@@ -1,0 +1,31 @@
+{
+  "mode": "emuprobe",
+  "emu_env": {
+    "CUBLAS_FP32_EMULATED_BF16X9_MATH": "1",
+    "CUBLAS_EMULATE_SINGLE_PRECISION": "1",
+    "TORCH_BLAS_PREFER_CUBLASLT": "1"
+  },
+  "results": [
+    {
+      "blas": "default",
+      "times_us": {
+        "8192": 6249.6575355529785,
+        "16384": 57215.257263183594
+      }
+    },
+    {
+      "blas": "cublas",
+      "times_us": {
+        "8192": 7997.1391677856445,
+        "16384": 58828.56979370117
+      }
+    },
+    {
+      "blas": "cublaslt",
+      "times_us": {
+        "8192": 7461.030387878418,
+        "16384": 75989.71405029297
+      }
+    }
+  ]
+}

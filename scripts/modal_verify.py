@@ -43,7 +43,7 @@ IMAGE = (
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", nargs="?", default="verify", choices=["verify", "benchmark", "probe", "precprobe"])
+    parser.add_argument("mode", nargs="?", default="verify", choices=["verify", "benchmark", "probe", "precprobe", "emuprobe"])
     parser.add_argument("--gpu", default="B200")
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--json", default=None, help="write RESULT_JSON payload to this path")
@@ -51,6 +51,11 @@ def main() -> int:
         "--shapes",
         default=None,
         help="comma-separated n values to restrict the benchmark grid (cost saver), e.g. 32,64,128",
+    )
+    parser.add_argument(
+        "--emu",
+        action="store_true",
+        help="enable cuBLAS BF16x9 FP32 emulation (CUBLAS_FP32_EMULATED_BF16X9_MATH=1) in the sandbox",
     )
     args = parser.parse_args()
 
@@ -64,6 +69,8 @@ def main() -> int:
     runner_args = ["python", "-u", "/root/_gpu_runner.py", args.mode]
     if args.shapes:
         runner_args.append(args.shapes)
+    if args.emu:
+        runner_args.append("emu")
 
     with modal.enable_output():
         sandbox = modal.Sandbox.create(

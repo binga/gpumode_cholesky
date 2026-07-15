@@ -2,6 +2,159 @@
 
 Running log of work, results, and findings. Newest entries at the top.
 
+The **Optimization Tracker** immediately below is a *living* document (not a
+dated session entry): update its cells as paths are shipped, rejected, or newly
+identified. The dated session log starts after it.
+
+---
+
+## Optimization Tracker (living — update on progress/regress)
+
+Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
+
+- **✓** — shipped / current winning path for that shape (see the referenced session).
+- **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
+- **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
+
+Current best: **`#878015` ≈ 1559μs geomean** (Session 6). `nb` = block size.
+
+| Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
+|---|---|---|---|---|---|---|---|---|---|
+| 4096×32  | ✗ | ✗ | **✓** (S2) | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
+| 1024×64  | **✓** | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | TBD |
+| 256×128  | **✓** | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | TBD |
+| 64×256   | **✓** | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | TBD |
+| 16×512   | **✓** | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | TBD |
+| 640×512  | **✓** | ✗ (S5) | TBD | TBD | ✗ (S5) | TBD | TBD | TBD | ✗ (S5) |
+| 4×1024   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 60×1024  | **✓** | ✗ (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 2×2048   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 8×2048   | **✓** (S5) | ✗ (S5) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
+| 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
+| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓** (S6) | ✗ 1.15× (S7) | TBD | ✗ |
+| 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓** (S6) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
+
+Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
+popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
+BF16x9) were tried in the blocked path and **lost to TF32** on B200 (S6), so
+they're folded into the TF32 result rather than tracked separately.
+
+### Blackwell B200-specific candidate solutions (the "what else")
+
+These are the levers that are *specific to* / most leveraged by the B200
+(sm_100, 5th-gen tensor cores, `tcgen05.mma`, block-scaled MX formats). Ordered
+roughly by expected ROI given the loose accuracy gate (`‖A−LLᵀ‖₁ ≤ 20·n·eps·‖A‖₁`,
+which *grows with n* → the huge shapes have the most numerical headroom).
+
+1. **BF16x9 FP32 emulation on tensor cores** — ✗ **REJECTED (S7).** Engages on the
+   B200 via `CUBLAS_EMULATE_SINGLE_PRECISION=1` + `CUBLAS_FP32_EMULATED_BF16X9_MATH=1`
+   (the BF16X9 var alone does nothing; the PyTorch `fp32_precision` knob only exposes
+   ieee/tf32, no BF16x9). Confirmed engaged (standalone 8192 FP32 matmul 16.7→6.3ms,
+   2.6×) and ≈FP32-accurate (margins 65k–139k× vs TF32's ~100–210×; and *robust* where
+   TF32 NaNs on lowrank). **But slower than the shipped paths:** 8192 0.95× vs cuSOLVER,
+   16384 bf16x9 1.15× vs TF32's 1.60×. Reason: BF16x9 ≈ 6–9 BF16 products per FP32
+   GEMM, so ~3× slower than a single-product TF32 GEMM — TF32 tensor cores are the real
+   bar, not native FP32. Speed order TF32 > BF16x9 > native FP32. See exp 007.
+2. **FP8 / MXFP8 trailing update + mixed-precision iterative refinement** — factor
+   the trailing Schur update in FP8 (E4M3) or block-scaled MXFP8 on 5th-gen
+   tensor cores (~2× FP16, ~4× TF32 throughput), then run 1–2 steps of SPD
+   iterative refinement (LAPACK `posv`-IR style) to recover accuracy. The loose,
+   n-scaled gate is exactly what makes this viable. Higher effort/risk than (1)
+   but larger ceiling. *Target: 1×16384, 1×32768.*
+3. **CUTLASS 3.x Blackwell fused kernel (`tcgen05.mma`, TMA, 2-SM MMA)** — a
+   warp-specialized collective kernel that fuses panel + trailing SYRK, using the
+   Tensor Memory Accelerator for async bulk copies and CTA-pair (2-SM) MMA. Beats
+   the PyTorch-op blocked path by avoiding per-step launch + global-memory
+   materialization. See CUTLASS example 78 (`blackwell_emulated_bf16x9_gemm`).
+   High effort. *Target: large-n; possibly a real n=64/128 blocked kernel.*
+4. **CUDA Graphs (legal — not streams)** — capture the many small launches in the
+   blocked path and the per-matrix loop into a graph to amortize launch overhead.
+   Cheap, shippable, Blackwell-agnostic but complementary. *Target: launch-bound
+   small-n shapes, the Python-loop blocked path, 1×32768 (2-level).*
+5. **Latest cuSOLVER + expert `cusolverDnXpotrf[Batched]` API** — ensure the
+   toolkit ships Blackwell-tuned `potrf`; try algorithm selection / the 64-bit
+   expert API vs `cholesky_ex`. Low effort, may quietly improve mid-batch shapes.
+6. **Two-level blocked scheme for 1×32768** — recurse the diagonal `potrf` so the
+   FP32 diagonal factorization also becomes tensor-core work. Diminishing returns
+   (S6) but 32768 is ~76% of the clock, so even a few % moves the geomean most.
+7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
+   cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
+   (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-15 — Session 7: BF16x9 FP32-emu trailing update (large-n) → REJECTED (slower than TF32)
+
+### Result — REJECTED, nothing submitted
+
+exp 007. BF16x9 FP32 emulation **engages** on the Modal B200 and is **≈FP32-accurate
+and more robust than TF32**, but it is **decisively slower than the shipped paths**,
+so no shape was adopted and no ranked slot was spent. Current best unchanged:
+`#878015` (~1559μs). This closes the *BF16x9 FP32-emu* column for the large-n shapes.
+
+### How to engage it (the API answer)
+
+Set, **before `import torch`** (cuBLAS reads env at handle creation):
+
+```
+CUBLAS_EMULATE_SINGLE_PRECISION=1     # the MASTER switch that actually engages it
+CUBLAS_FP32_EMULATED_BF16X9_MATH=1    # pins the algorithm to BF16x9
+```
+
+- `CUBLAS_FP32_EMULATED_BF16X9_MATH=1` **alone did NOT engage** — measured identical
+  to native (standalone 8192 FP32 matmul 16712μs off → 16729μs with just this var).
+  Adding `CUBLAS_EMULATE_SINGLE_PRECISION=1` dropped it to **6333μs (2.64×)**.
+- `torch.backends.cuda.matmul.fp32_precision` exposes only `ieee`/`tf32` (no BF16x9),
+  so the PyTorch knob can't reach it. `preferred_blas_library("cublaslt")` is *harmful*
+  (forces the slower cuBLASLt path); the default heuristic already picks the fast
+  emulated GEMM. Shipped-style config = the two env vars only, BLAS left on default.
+- No non-default queues involved; nothing for popcorn's source scan to flag.
+
+### The numbers (Modal B200 precprobe; margin = tol/residual)
+
+| shape | current ship | best BF16x9 | verdict |
+|---|---|---|---|
+| 1×8192 | cuSOLVER 6410μs | 6733μs nb4096 (**0.95×**) | slower → keep cuSOLVER |
+| 1×16384 | TF32 21,533μs (1.60×) | 29,990μs nb4096 (1.15× vs cuSOLVER) | slower than TF32 → keep TF32 |
+| 1×32768 | TF32 ~77,200μs (2.86×) | not measured (would lose) | keep TF32 |
+
+Accuracy: every BF16x9 variant PASSES all families (dense/spectrum/lowrank) at
+8192/16384 with margins **65,000–139,000×** inside tolerance (vs TF32's ~100–210×,
+which additionally **NaNs on lowrank**). The manual-split genuine-accuracy proxy
+tracks the emulated residual, so the global-emulation "checker reconstructs with a
+matmul" pitfall did not flatter the result.
+
+### Why it loses
+
+BF16x9 emulates one FP32 product with ~6–9 BF16 tensor-core products; TF32 uses one.
+BF16 is only ~2× TF32 throughput on B200, so BF16x9 ≈ 3× slower than TF32 per
+FP32-equivalent GEMM. Ordering: **TF32 > BF16x9 > native FP32** in speed. NVIDIA's
+"3–4× faster than native FP32" is true but native FP32 isn't the bar — the shipped
+TF32 tensor-core path already is, and BF16x9 can't beat it. At 8192 the FP32 diagonal
+`potrf` + FP32 panel TRSM are also a large fixed cost the GEMM emulation can't touch.
+
+### Infra kept
+
+Added an `emuprobe` mode + `--emu` flag (finds the engaging config), `blocked_fp32`
+(native/emulated) and `bf16x9split` (manual 3-way split) trailing modes, and
+ill-conditioned family specs to `precprobe`. Root `submission.py` unchanged.
+
+### Quota / cost
+
+Ranked used: **0**. Modal spend ≈ **$3–5** (5 B200 runs; the bulk was one `emuprobe`
+that hung after GPU init ~9.7 min and was killed — same transient noted in S6 — then
+re-ran clean in ~40s). popcorn quota untouched.
+
+### Next steps
+
+- The remaining large-n lever is **FP8/MXFP8 + iterative refinement** (tracker
+  candidate #2): FP8 is ~2× BF16 throughput, so a lossy FP8 trailing update + 1–2 SPD
+  IR steps could beat TF32 on 32768 where the n-scaled gate has the most headroom.
+  Higher effort/risk. BF16x9's accuracy edge is real but not monetizable on the
+  dense ranked grid.
+
 ---
 
 ## 2026-07-15 — Session 6: large-n TF32 tensor-core blocked Cholesky → ranked #878015 (NEW BEST ~1559μs)

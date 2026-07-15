@@ -7,8 +7,25 @@ driver to parse.
 """
 
 import json
+import os
 import sys
 import time
+
+# BF16x9 FP32 emulation (exp 007): cuBLAS 12.9+/CUDA 13 emulates a true FP32 GEMM
+# as 9 BF16 products on Blackwell BF16 tensor cores (~3-4x native FP32, >=FP32
+# accuracy). The env var must be set BEFORE the cuBLAS handle is created (first
+# CUDA matmul), so we set it here at the very top, before `import torch`, when the
+# runner is invoked with the `emu` token. Pass A (no token) = genuine native math
+# controls; Pass B (`emu`) = the same blocked_fp32 variant runs as fused BF16x9.
+_EMU = "emu" in sys.argv
+if _EMU:
+    # CUBLAS_EMULATE_SINGLE_PRECISION=1 is the master switch that actually engages
+    # FP32 emulation through PyTorch's default cuBLAS path (the BF16X9 var alone
+    # did NOT engage -- measured). CUBLAS_FP32_EMULATED_BF16X9_MATH=1 pins the
+    # algorithm to BF16x9. Do NOT prefer cuBLASLt: the emulated matmul is faster on
+    # the default heuristic; forcing cuBLASLt was measurably slower on the B200.
+    os.environ["CUBLAS_EMULATE_SINGLE_PRECISION"] = "1"
+    os.environ["CUBLAS_FP32_EMULATED_BF16X9_MATH"] = "1"
 
 sys.path.insert(0, "/root/reference")
 sys.path.insert(0, "/root")
@@ -316,12 +333,45 @@ def run_probe(filter_ns=None):
 # accumulate) can beat cuSOLVER's all-FP32 potrf on n >= 8192 while still
 # passing the reconstruction gate. Pure torch, DEFAULT STREAM ONLY.
 # ---------------------------------------------------------------------------
+def _bf16x9_syrk(L21):
+    """Genuine BF16x9 numerics for `L21 @ L21^T`, computed in pure torch as a
+    manual 3-way BF16 split with FP32 accumulation.
+
+    An FP32 value is represented exactly by three BF16 values
+    (b0 + b1 + b2, each successive term ~2^-8 smaller). Rounding the operands to
+    BF16 and doing the products/sums in FP32 reproduces exactly what the cuBLAS
+    BF16x9 tensor-core path does (bf16 operands, fp32 accumulate). Used as a
+    ground-truth accuracy proxy: run with emulation OFF so the fp32 GEMMs here are
+    genuinely native FP32 (not themselves emulated). Slow (9 GEMMs) -- accuracy
+    probe only, never for the shipped speed path.
+    """
+    b0 = L21.bfloat16()
+    r1 = L21 - b0.float()
+    b1 = r1.bfloat16()
+    r2 = r1 - b1.float()
+    b2 = r2.bfloat16()
+    parts = [b0.float(), b1.float(), b2.float()]
+    upd = None
+    for i in range(3):
+        for j in range(3):
+            term = parts[i] @ parts[j].transpose(-1, -2)
+            upd = term if upd is None else upd + term
+    return upd
+
+
 def _blocked_cholesky(mat, nb, trailing):
     """Right-looking blocked Cholesky on a single (n, n) FP32 matrix.
 
-    trailing in {"tf32", "fp16", "bf16"} selects the precision of the O(n^3)
-    trailing Schur update `A22 -= L21 @ L21^T`. The diagonal block potrf and the
-    panel triangular solve stay FP32 for stability. Returns FP32 lower-triangular.
+    trailing selects the precision of the O(n^3) trailing Schur update
+    `A22 -= L21 @ L21^T`. The diagonal block potrf and the panel triangular solve
+    stay FP32 for stability. Returns FP32 lower-triangular. Options:
+      * "tf32"     -- allow_tf32=True, TF32 tensor-core GEMM (exp 006 ship path).
+      * "fp16"/"bf16" -- cast operands to fp16/bf16, GEMM, back to fp32.
+      * "fp32"     -- allow_tf32=False, plain FP32 GEMM. With the cuBLAS BF16x9
+                      env var set (Pass B) this GEMM becomes fused BF16x9-emulated
+                      FP32; without it (Pass A) it is native FP32. Same source ->
+                      timing delta between the two passes proves BF16x9 engaged.
+      * "bf16x9"   -- manual 3-way BF16 split (genuine BF16x9 numerics, slow).
     """
     A = mat.clone()
     n = A.shape[0]
@@ -343,8 +393,10 @@ def _blocked_cholesky(mat, nb, trailing):
             )
             A[j:, k : k + kb] = L21
             # Trailing Schur update on tensor cores.
-            if trailing == "tf32":
+            if trailing in ("tf32", "fp32"):
                 upd = L21 @ L21.transpose(-1, -2)
+            elif trailing == "bf16x9":
+                upd = _bf16x9_syrk(L21)
             else:
                 dt = torch.float16 if trailing == "fp16" else torch.bfloat16
                 lh = L21.to(dt)
@@ -386,31 +438,84 @@ def _recon_ratio(data, output):
 
 
 # Precision x block-size variants for the large-n probe. batched is the control.
-def _precprobe_variants(n):
-    # For the very expensive 1x32768 case, run a lean TF32 nb-sweep (plus one
-    # fp16 reference) to keep B200 cost down while picking the best block size.
-    if n >= 32768:
+# exp 007: the `blocked_fp32_nb*` variants are the STAR -- a plain-FP32 blocked
+# Cholesky whose trailing GEMM becomes fused BF16x9-emulated FP32 when the cuBLAS
+# env var is set (run the runner with the `emu` token, Pass B). Comparing Pass B
+# (emu on) vs Pass A (emu off) on the SAME `blocked_fp32_*` variant proves BF16x9
+# engaged and gives its speedup vs native FP32 blocked; comparing against
+# `blocked_tf32_*` / `batched` gives the ship decision. `blocked_bf16x9split_*`
+# gives a genuine (native-GEMM) accuracy proxy -- run it with emu OFF.
+def _precprobe_variants(spec):
+    n = spec["n"]
+    case = spec.get("case", "dense")
+    if case != "dense":
+        # Ill-conditioned families (spectrum/lowrank/...): accuracy is the concern,
+        # not speed (speed is conditioning-independent). Run a minimal set focused
+        # on residual margins at the ship block size.
         return [
             ("batched", _batched_call),
-            ("blocked_tf32_nb1024", _make_blocked_call(1024, "tf32")),
             ("blocked_tf32_nb2048", _make_blocked_call(2048, "tf32")),
+            ("blocked_fp32_nb2048", _make_blocked_call(2048, "fp32")),
+            ("blocked_bf16x9split_nb2048", _make_blocked_call(2048, "bf16x9")),
+        ]
+    if n >= 32768:
+        # Very expensive (~200ms/iter): lean sweep at the sizes that matter.
+        return [
+            ("batched", _batched_call),
             ("blocked_tf32_nb4096", _make_blocked_call(4096, "tf32")),
-            ("blocked_fp16_nb2048", _make_blocked_call(2048, "fp16")),
+            ("blocked_fp32_nb2048", _make_blocked_call(2048, "fp32")),
+            ("blocked_fp32_nb4096", _make_blocked_call(4096, "fp32")),
         ]
     variants = [("batched", _batched_call)]
-    for nb in (512, 1024, 2048):
+    for nb in (1024, 2048):
         variants.append((f"blocked_tf32_nb{nb}", _make_blocked_call(nb, "tf32")))
-    for nb in (512, 1024, 2048):
-        variants.append((f"blocked_fp16_nb{nb}", _make_blocked_call(nb, "fp16")))
-    variants.append(("blocked_bf16_nb1024", _make_blocked_call(1024, "bf16")))
+    for nb in (1024, 2048, 4096):
+        variants.append((f"blocked_fp32_nb{nb}", _make_blocked_call(nb, "fp32")))
+    # Genuine BF16x9 numerics (manual split, native FP32 GEMMs) -- accuracy proxy.
+    variants.append(("blocked_bf16x9split_nb2048", _make_blocked_call(2048, "bf16x9")))
     return variants
+
+
+def _engagement_bench(m=8192, iters=5):
+    """Time a standalone large FP32 A @ B (tf32 disabled). With the BF16x9 env var
+    set this GEMM is emulated (should be several x faster on B200); without it, it
+    is native FP32. The ratio across the two passes proves engagement -- do not
+    trust the blocked speedups blindly."""
+    a = torch.randn((m, m), device="cuda", dtype=torch.float32)
+    b = torch.randn((m, m), device="cuda", dtype=torch.float32)
+    old_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.cuda.synchronize()
+        for _ in range(2):
+            _ = a @ b
+        torch.cuda.synchronize()
+        durs = []
+        for _ in range(iters):
+            _l2_flush()
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            torch.cuda.synchronize()
+            start.record()
+            _ = a @ b
+            end.record()
+            torch.cuda.synchronize()
+            durs.append(start.elapsed_time(end) * 1e3)
+        durs.sort()
+        return sum(durs) / len(durs)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = old_tf32
 
 
 # 1x32768 is HELD OUT of the default sweep (it is ~221ms/iter and expensive);
 # probe it explicitly with `precprobe 32768` only once the approach works.
 PRECPROBE_SPECS = [
     {"batch": 1, "n": 8192, "cond": 2, "seed": 48192},
+    {"batch": 1, "n": 8192, "cond": 5, "seed": 68193, "case": "spectrum"},
+    {"batch": 1, "n": 8192, "cond": 4, "seed": 68194, "case": "lowrank"},
     {"batch": 1, "n": 16384, "cond": 2, "seed": 48284},
+    {"batch": 1, "n": 16384, "cond": 5, "seed": 68285, "case": "spectrum"},
+    {"batch": 1, "n": 16384, "cond": 4, "seed": 68286, "case": "lowrank"},
     {"batch": 1, "n": 32768, "cond": 2, "seed": 48368},
 ]
 
@@ -421,11 +526,19 @@ def run_precprobe(filter_ns=None):
         specs = [s for s in PRECPROBE_SPECS if s["n"] in filter_ns]
     else:
         specs = [s for s in PRECPROBE_SPECS if s["n"] != 32768]
+    emu = os.environ.get("CUBLAS_FP32_EMULATED_BF16X9_MATH") == "1"
+    eng = _engagement_bench()
+    print(
+        f"BF16x9_EMU={'ON' if emu else 'OFF'}  "
+        f"standalone_fp32_matmul_8192(tf32off)={eng:.1f}us  "
+        f"(emu-on should be several x faster -> proves BF16x9 engaged)",
+        flush=True,
+    )
     results = []
     for spec in specs:
         data = generate_input(**spec)
         n = spec["n"]
-        variants = _precprobe_variants(n)
+        variants = _precprobe_variants(spec)
         iters = 8 if n <= 8192 else (5 if n <= 16384 else 3)
         warmup = 2 if n <= 16384 else 1
         base_us = None
@@ -460,15 +573,88 @@ def run_precprobe(filter_ns=None):
                 flush=True,
             )
         results.append({"spec": _spec_label(spec), "n": n, "variants": rows})
-    return {"mode": "precprobe", "shapes": results}
+    return {
+        "mode": "precprobe",
+        "bf16x9_emu": emu,
+        "engagement_fp32_matmul_8192_us": eng,
+        "shapes": results,
+    }
+
+
+def _time_matmul(m, iters=5):
+    a = torch.randn((m, m), device="cuda", dtype=torch.float32)
+    b = torch.randn((m, m), device="cuda", dtype=torch.float32)
+    old_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.cuda.synchronize()
+        for _ in range(2):
+            _ = a @ b
+        torch.cuda.synchronize()
+        durs = []
+        for _ in range(iters):
+            _l2_flush()
+            s = torch.cuda.Event(enable_timing=True)
+            e = torch.cuda.Event(enable_timing=True)
+            torch.cuda.synchronize()
+            s.record()
+            _ = a @ b
+            e.record()
+            torch.cuda.synchronize()
+            durs.append(s.elapsed_time(e) * 1e3)
+        durs.sort()
+        return sum(durs) / len(durs)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = old_tf32
+
+
+def run_emuprobe(filter_ns=None):
+    """Find which config (if any) makes PyTorch route FP32 matmul through cuBLAS
+    BF16x9 emulation on the B200. Times a standalone FP32 A@B (tf32 off) under
+    each preferred BLAS backend; engagement shows as a several-x speedup."""
+    emu_env = {
+        k: os.environ.get(k)
+        for k in (
+            "CUBLAS_FP32_EMULATED_BF16X9_MATH",
+            "CUBLAS_EMULATE_SINGLE_PRECISION",
+            "TORCH_BLAS_PREFER_CUBLASLT",
+        )
+    }
+    print(f"emu_env={emu_env}", flush=True)
+    try:
+        print(f"fp32_precision={torch.backends.cuda.matmul.fp32_precision}", flush=True)
+    except Exception as exc:
+        print(f"fp32_precision attr unavailable: {exc}", flush=True)
+    ms = sorted(filter_ns) if filter_ns else [8192, 16384]
+    results = []
+    for lib in ("default", "cublas", "cublaslt"):
+        try:
+            torch.backends.cuda.preferred_blas_library(lib)
+        except Exception as exc:
+            print(f"preferred_blas_library({lib}) failed: {exc}", flush=True)
+            continue
+        row = {"blas": lib, "times_us": {}}
+        for m in ms:
+            t = _time_matmul(m)
+            row["times_us"][str(m)] = t
+            print(f"blas={lib:<9} m={m:<6} fp32_matmul(tf32off)={t:.1f}us", flush=True)
+        results.append(row)
+    return {"mode": "emuprobe", "emu_env": emu_env, "results": results}
 
 
 def main():
-    mode = sys.argv[1] if len(sys.argv) > 1 else "verify"
+    # argv may contain the mode, an optional comma-separated shapes filter, and
+    # an optional `emu` token (handled at import time). Ignore `emu` here.
+    args = [a for a in sys.argv[1:] if a.strip() and a != "emu"]
+    mode = args[0] if args else "verify"
     filter_ns = None
-    if len(sys.argv) > 2 and sys.argv[2].strip():
-        filter_ns = {int(x) for x in sys.argv[2].split(",") if x.strip()}
+    if len(args) > 1 and args[1].strip():
+        filter_ns = {int(x) for x in args[1].split(",") if x.strip()}
     print(f"torch={torch.__version__} cuda={torch.version.cuda} device={torch.cuda.get_device_name(0)}", flush=True)
+    print(
+        f"BF16x9_EMU={'ON' if os.environ.get('CUBLAS_FP32_EMULATED_BF16X9_MATH') == '1' else 'OFF'}",
+        flush=True,
+    )
     import submission as _sub
     print(f"custom_cuda_loaded={getattr(_sub, '_CUDA_MOD', None) is not None}", flush=True)
     _err = getattr(_sub, "_CUDA_LOAD_ERROR", None)
@@ -480,6 +666,8 @@ def main():
         result = run_probe(filter_ns)
     elif mode == "precprobe":
         result = run_precprobe(filter_ns)
+    elif mode == "emuprobe":
+        result = run_emuprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

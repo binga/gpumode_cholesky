@@ -52,6 +52,16 @@ popcorn submissions                                # view your entries
 - **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.
 - **Ranked submission `#877956`** (exp 005): `done`, 17/17 on B200. Fixes the exp-004 `8×2048` own-goal by trimming the loop region to `2<=batch<=4` so `8×2048` returns to batched cuSOLVER: **5370→5060μs (−5.8%)**; all other shapes unchanged. Ranked geomean ≈ **1744μs**. exp 005's primary target, `640×512`, was probed and **rejected** (cuSOLVER-batched-saturated — max-concurrency queues 6.5× slower than `batched`; no default-queue path beats it). See `journal.md` Session 5 and `experiments/005-highbatch-mid-n/`.
 - **Ranked submission `#878015`** (exp 006 — current best): `done`, 17/17 on B200. Blocked right-looking Cholesky for large single matrices (`batch==1, n>=16384`): FP32 diagonal potrf + FP32 panel solve, **O(n³) trailing Schur update on TF32 tensor cores** (FP32 accumulate), with an `isfinite` fallback to cuSOLVER for ill-conditioned inputs. **1×16384 34200→19400μs (1.76×)**, **1×32768 221000→77200μs (2.86×)**; `1×8192` (only ~1.07×) stays on cuSOLVER; all other shapes unchanged (no regressions). Ranked geomean ≈ **1559μs (−10.6% vs `#877956`)**. TF32 beat FP16/BF16 in the probe; nb=4096 for n≥32768 else 2048. See `journal.md` Session 6 and `experiments/006-large-n-tensorcore/`.
+- **exp 007 (BF16x9 FP32-emu, large-n): rejected — nothing submitted.** BF16x9 FP32
+  emulation engages on the B200 (`CUBLAS_EMULATE_SINGLE_PRECISION=1` +
+  `CUBLAS_FP32_EMULATED_BF16X9_MATH=1`, set before `import torch`; the BF16X9 var
+  alone does nothing, and the PyTorch `fp32_precision` knob has no BF16x9 value) and
+  is ≈FP32-accurate — far more accurate/robust than TF32 (margins 65k–139k× vs
+  ~100–210×; passes lowrank where TF32 NaNs). **But it's slower than the shipped
+  paths** (8192 0.95× vs cuSOLVER; 16384 bf16x9 1.15× vs TF32's 1.60×) because
+  BF16x9 ≈ 6–9 BF16 products per FP32 GEMM ≈ 3× slower than a single-product TF32
+  GEMM. Current best stays `#878015`. See `journal.md` Session 7 and
+  `experiments/007-bf16x9-large-n/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 
