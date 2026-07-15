@@ -1,0 +1,45 @@
+{
+  "mode": "probe",
+  "note": "Characterization probe for exp 005. 3-5 way comparison (batched vs loop vs streamed vs chunk64 vs chunk128) on Modal B200 with L2-clear. streamed and chunk* are DIAGNOSTIC ONLY (streams forbidden in submission; chunking loses). Primary target 640x512 is cuSOLVER-saturated: batched is fastest by 1.8x-26x over every decomposition.",
+  "shapes": [
+    {
+      "spec": "batch=640 n=512 case=dense",
+      "batch": 640,
+      "n": 512,
+      "times_us": {
+        "batched": 3954.8736095428467,
+        "loop": 104887.09983825684,
+        "streamed": 25729.93745803833,
+        "chunk64": 10494.87042427063,
+        "chunk128": 7007.599997520447
+      },
+      "best_approach": "batched"
+    },
+    {
+      "spec": "batch=2 n=2048 case=dense",
+      "batch": 2,
+      "n": 2048,
+      "times_us": {
+        "batched": 4627.348828315735,
+        "loop": 1384.1824054718018,
+        "streamed": 1467.079997062683,
+        "chunk64": 4674.214434623718,
+        "chunk128": 4669.676780700684
+      },
+      "best_approach": "loop"
+    },
+    {
+      "spec": "batch=8 n=2048 case=dense",
+      "batch": 8,
+      "n": 2048,
+      "times_us": {
+        "batched": 5738.0863428115845,
+        "loop": 5427.867221832275,
+        "streamed": 3478.0816078186035,
+        "chunk64": 5890.6896114349365,
+        "chunk128": 5883.729553222656
+      },
+      "best_approach": "streamed"
+    }
+  ]
+}

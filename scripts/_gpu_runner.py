@@ -213,7 +213,24 @@ def _time_callable(data, fn, warmup, iters, l2_clear=True):
     return sum(durations) / len(durations), durations[0]
 
 
+def _make_chunked_call(chunk):
+    """Split the batch into sub-batches of `chunk` and call batched cuSOLVER on
+    each, then concatenate. Diagnostic for whether a better-occupancy code path
+    is hit at a smaller batch (pure default stream, shippable if it wins)."""
+
+    def _call(data):
+        batch = data.shape[0]
+        parts = [
+            torch.linalg.cholesky_ex(data[i : i + chunk], check_errors=False).L
+            for i in range(0, batch, chunk)
+        ]
+        return torch.cat(parts)
+
+    return _call
+
+
 PROBE_SPECS = [
+    {"batch": 640, "n": 512, "cond": 2, "seed": 510512},
     {"batch": 2, "n": 4096, "cond": 2, "seed": 514096},
     {"batch": 2, "n": 2048, "cond": 2, "seed": 44048},
     {"batch": 8, "n": 2048, "cond": 2, "seed": 512048},
@@ -222,7 +239,13 @@ PROBE_SPECS = [
     {"batch": 1, "n": 4096, "cond": 2, "seed": 48096},
 ]
 
-_APPROACHES = [("batched", _batched_call), ("loop", _loop_call), ("streamed", _streamed_call)]
+_APPROACHES = [
+    ("batched", _batched_call),
+    ("loop", _loop_call),
+    ("streamed", _streamed_call),
+    ("chunk64", _make_chunked_call(64)),
+    ("chunk128", _make_chunked_call(128)),
+]
 
 
 def run_probe(filter_ns=None):
