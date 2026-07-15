@@ -8,6 +8,50 @@ identified. The dated session log starts after it.
 
 ---
 
+## Required end-to-end experiment workflow
+
+Every experiment, whether **adopted or rejected**, is complete only after this
+entire workflow has run and the result is present on GitHub:
+
+1. **Synchronize** — start from a clean checkout and `git pull --ff-only` so the
+   experiment is based on the latest remote history.
+2. **Frame the goal** — record the current ranked baseline, target shapes,
+   hypothesis, success threshold, correctness constraints, cost/submission
+   guardrails, and a bounded fallback ladder in `docs/goal-expNNN-*.md`.
+3. **Isolate one change** — preserve the baseline and every serious candidate in
+   `experiments/NNN-*/`; do not bundle unrelated optimizations before the first
+   causal measurement.
+4. **Run free checks first** — property/correctness tests, syntax/compile checks,
+   artifact parsing, and `git diff --check` must pass before remote GPU spend.
+5. **Measure progressively** — use paired same-process B200 probes on the smallest
+   representative target first; expand to expensive shapes only after a credible
+   win. Record raw JSON and compare against the current shipped path.
+6. **Validate the changed dispatch region** — cover dense, diagonal, spectrum,
+   low-rank, row-scaled, and tridiagonal families, including every fallback path.
+7. **Run the full grid** — a credible finalist must pass all 15 ranked shapes and
+   must not regress shapes outside its dispatch region.
+8. **Use Popcorn gates in order** — require test mode 17/17, then make at most one
+   justified ranked submission and wait for the leaderboard result. Rejected or
+   unpromising experiments do not spend a ranked submission.
+9. **Adopt or reject explicitly** — copy a winner to root `submission.py`, or
+   leave it isolated if rejected. Update experiment notes/artifacts, the root
+   README, `experiments/README.md`, this journal's Optimization Tracker, and a
+   dated session entry with results, costs, failures, insights, and next ideas.
+10. **Commit the complete experiment** — stage only the experiment's code,
+    artifacts, goal, harness changes, and documentation; run final checks; create
+    one descriptive commit (or a clearly documented follow-up completion commit).
+11. **Push and verify GitHub** — `git push origin <branch>` and verify the remote
+    branch contains the experiment commit. A local commit, successful leaderboard
+    run, or journal entry alone is **not done**. Record the commit and publication
+    state in the session entry.
+
+The supervising task owns the terminal gates: prevent duplicate ranked
+submissions, recover transient failures, ensure documentation is complete, and
+do not report success until both the ranked/adoption decision and GitHub push are
+confirmed.
+
+---
+
 ## Optimization Tracker (living — update on progress/regress)
 
 Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
@@ -132,6 +176,57 @@ under the experiment guardrail; approximately <$0.5–1 depending on billing).
 Artifacts: `experiments/008-fused-triangular-schur/` contains the exact submitted
 source, paired probes, all-family verify JSON, full-grid benchmark, ranked summary,
 and notes. Root `submission.py` is the adopted implementation with updated metadata.
+
+### End-to-end execution trail
+
+1. Fast-forwarded local `main` from `566a4e9` to experiment-007 commit `1efca55`.
+2. Reviewed experiments 004–007 and wrote
+   `docs/goal-exp008-fused-triangular-schur.md` with a four-stage optimization
+   ladder, correctness gates, one-submission limit, and `<1559μs` ranked target.
+3. Ran the work in a dedicated isolated task/worktree while the supervising task
+   monitored checkpoints and redirected it past an unavailable evo workspace and
+   one transient task failure.
+4. Isolated Stage A (`addmm_`) and passed the free local property check 10/10.
+5. Established causality with paired B200 probes: 1.087× at 16384 and 1.080× at
+   32768, with identical reconstruction residuals.
+6. Expanded to all six input families at both changed sizes (12/12), preserving
+   the difficult-input cuSOLVER fallback.
+7. Ran the full 15-shape Modal grid; all shapes passed and only the intended two
+   dispatch shapes changed.
+8. Popcorn test `#878107` passed 17/17. Exactly one ranked run, `#878108`, was
+   launched, monitored to completion, and confirmed at 1542.9137409531085μs.
+9. Adopted the exact submitted source to root, saved raw artifacts and notes,
+   updated both READMEs, the Optimization Tracker, and this dated entry.
+10. Final checks passed: local 10/10, Python compilation, JSON parsing, and
+    whitespace validation. The complete experiment was committed on `main` as
+    `5604cc0` (`exp 008: fused TF32 Schur update — ranked 1542.914us`).
+11. `main`, including the experiment commit and this workflow completion update,
+    was pushed to `origin/main`; remote containment of `5604cc0` is the terminal
+    completion check.
+
+### Session insights
+
+- **Fuse memory traffic before writing a custom kernel.** Replacing a materialized
+  product plus subtraction with `addmm_` captured a robust 8–9% win on the two
+  dominant shapes without changing the numerical algorithm. This cheap library
+  formulation should precede a costly triangular CUDA/CUTLASS implementation.
+- **Paired measurements are the promotion signal.** The full-grid geomean drifted
+  because untouched cuSOLVER shapes vary between sessions; same-process A/B probes
+  isolated the causal speedup and accurately predicted the ranked result.
+- **Identical residuals sharply reduce promotion risk.** The fused call preserved
+  TF32 inputs and FP32 accumulation, so the checker margins and fallback behavior
+  were unchanged rather than merely still under tolerance.
+- **Stop the ladder after a confirmed win.** Stage A met the ranked objective, so
+  lower-triangular tensor-core code, hierarchical blocking, and the batched pivot
+  remained available future ideas instead of adding risk to a proven candidate.
+- **Supervision is part of correctness.** The parent task prevented a duplicate
+  leaderboard submission after a worker failure, independently confirmed the
+  existing job, and required adoption, documentation, commit, and push before
+  declaring the experiment complete.
+- **Publication is a hard gate.** A leaderboard improvement that exists only in a
+  detached worktree or local `main` is not reproducible team state. Future sessions
+  must finish with a verified GitHub push, including rejected experiments because
+  their negative evidence prevents repeated GPU spend.
 
 ---
 
