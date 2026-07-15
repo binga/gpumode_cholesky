@@ -1,0 +1,14 @@
+{
+  "experiment": 8,
+  "status": "adopted",
+  "test_submission_id": 878107,
+  "ranked_submission_id": 878108,
+  "passed": "17/17",
+  "public_geomean_seconds": 0.0015429137409531085,
+  "public_geomean_us": 1542.9137409531085,
+  "secret_geomean_seconds": 0.0015451284990962687,
+  "secret_geomean_us": 1545.1284990962687,
+  "previous_ranked_submission_id": 878015,
+  "previous_public_geomean_us_approx": 1559.0,
+  "leaderboard_submissions_used": 1
+}

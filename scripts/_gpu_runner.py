@@ -81,7 +81,10 @@ TEST_SPECS = [
     {"batch": 1, "n": 16384, "cond": 5, "seed": 68288, "case": "diagonal"},
     {"batch": 1, "n": 16384, "cond": 1, "seed": 68289, "case": "tridiagonal"},
     {"batch": 1, "n": 32768, "cond": 2, "seed": 68368},
+    {"batch": 1, "n": 32768, "cond": 5, "seed": 68371, "case": "spectrum"},
     {"batch": 1, "n": 32768, "cond": 4, "seed": 68369, "case": "lowrank"},
+    {"batch": 1, "n": 32768, "cond": 4, "seed": 68372, "case": "rowscale"},
+    {"batch": 1, "n": 32768, "cond": 5, "seed": 68373, "case": "diagonal"},
     {"batch": 1, "n": 32768, "cond": 1, "seed": 68370, "case": "tridiagonal"},
 ]
 
@@ -365,7 +368,9 @@ def _blocked_cholesky(mat, nb, trailing):
     trailing selects the precision of the O(n^3) trailing Schur update
     `A22 -= L21 @ L21^T`. The diagonal block potrf and the panel triangular solve
     stay FP32 for stability. Returns FP32 lower-triangular. Options:
-      * "tf32"     -- allow_tf32=True, TF32 tensor-core GEMM (exp 006 ship path).
+      * "tf32"     -- allow_tf32=True, TF32 GEMM plus separate subtraction
+                       (exp 006 ship path; Stage-A control).
+      * "tf32_addmm" -- fused in-place TF32 addmm into the trailing view.
       * "fp16"/"bf16" -- cast operands to fp16/bf16, GEMM, back to fp32.
       * "fp32"     -- allow_tf32=False, plain FP32 GEMM. With the cuBLAS BF16x9
                       env var set (Pass B) this GEMM becomes fused BF16x9-emulated
@@ -377,7 +382,7 @@ def _blocked_cholesky(mat, nb, trailing):
     n = A.shape[0]
     old_tf32 = torch.backends.cuda.matmul.allow_tf32
     try:
-        torch.backends.cuda.matmul.allow_tf32 = trailing == "tf32"
+        torch.backends.cuda.matmul.allow_tf32 = trailing in ("tf32", "tf32_addmm")
         for k in range(0, n, nb):
             kb = min(nb, n - k)
             A11 = A[k : k + kb, k : k + kb]
@@ -393,6 +398,11 @@ def _blocked_cholesky(mat, nb, trailing):
             )
             A[j:, k : k + kb] = L21
             # Trailing Schur update on tensor cores.
+            if trailing == "tf32_addmm":
+                A[j:, j:].addmm_(
+                    L21, L21.transpose(-1, -2), beta=1.0, alpha=-1.0
+                )
+                continue
             if trailing in ("tf32", "fp32"):
                 upd = L21 @ L21.transpose(-1, -2)
             elif trailing == "bf16x9":
@@ -581,6 +591,67 @@ def run_precprobe(filter_ns=None):
     }
 
 
+# exp 008 Stage A: paired same-process comparison so B200 timing drift cannot
+# masquerade as an improvement. Both variants use identical blocking, panel
+# factorization, panel solve, result construction, and checker; only the Schur
+# update expression differs.
+FUSIONPROBE_SPECS = [
+    {"batch": 1, "n": 16384, "cond": 2, "seed": 48284},
+    {"batch": 1, "n": 32768, "cond": 2, "seed": 48368},
+]
+
+
+def run_fusionprobe(filter_ns=None):
+    specs = FUSIONPROBE_SPECS
+    if filter_ns:
+        specs = [s for s in specs if s["n"] in filter_ns]
+    else:
+        specs = [s for s in specs if s["n"] == 16384]
+    results = []
+    for spec in specs:
+        data = generate_input(**spec)
+        n = spec["n"]
+        nb = 4096 if n >= 32768 else 2048
+        variants = [
+            ("separate_tf32", _make_blocked_call(nb, "tf32")),
+            ("fused_addmm_tf32", _make_blocked_call(nb, "tf32_addmm")),
+        ]
+        rows = []
+        for name, fn in variants:
+            out = fn(data.clone())
+            torch.cuda.synchronize()
+            good, message = check_implementation(data, out)
+            ratio = _recon_ratio(data, out)
+            mean_us, best_us = _time_callable(
+                data, fn, warmup=2 if n <= 16384 else 1,
+                iters=7 if n <= 16384 else 4,
+            )
+            rows.append(
+                {
+                    "variant": name,
+                    "passed": bool(good),
+                    "mean_us": mean_us,
+                    "best_us": best_us,
+                    "tol_frac": ratio,
+                    "margin_x": (1.0 / ratio) if ratio > 0 else float("inf"),
+                    "message": message,
+                }
+            )
+        control = rows[0]["mean_us"]
+        for row in rows:
+            row["speedup_vs_separate"] = control / row["mean_us"]
+            print(
+                f"n={n:<6} {row['variant']:<20} "
+                f"{'PASS' if row['passed'] else 'FAIL'} "
+                f"mean={row['mean_us']:>9.1f}us best={row['best_us']:>9.1f}us "
+                f"speedup={row['speedup_vs_separate']:.3f}x "
+                f"tol_frac={row['tol_frac']:.3e}",
+                flush=True,
+            )
+        results.append({"spec": _spec_label(spec), "n": n, "nb": nb, "variants": rows})
+    return {"mode": "fusionprobe", "shapes": results}
+
+
 def _time_matmul(m, iters=5):
     a = torch.randn((m, m), device="cuda", dtype=torch.float32)
     b = torch.randn((m, m), device="cuda", dtype=torch.float32)
@@ -668,6 +739,8 @@ def main():
         result = run_precprobe(filter_ns)
     elif mode == "emuprobe":
         result = run_emuprobe(filter_ns)
+    elif mode == "fusionprobe":
+        result = run_fusionprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

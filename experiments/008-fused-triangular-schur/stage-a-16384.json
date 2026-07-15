@@ -1,0 +1,32 @@
+{
+  "mode": "fusionprobe",
+  "shapes": [
+    {
+      "spec": "batch=1 n=16384 case=dense",
+      "n": 16384,
+      "nb": 2048,
+      "variants": [
+        {
+          "variant": "separate_tf32",
+          "passed": true,
+          "mean_us": 18924.8046875,
+          "best_us": 18904.38461303711,
+          "tol_frac": 0.004795732907950878,
+          "margin_x": 208.5187017696697,
+          "message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+          "speedup_vs_separate": 1.0
+        },
+        {
+          "variant": "fused_addmm_tf32",
+          "passed": true,
+          "mean_us": 17411.515372140067,
+          "best_us": 17399.263381958008,
+          "tol_frac": 0.004795732907950878,
+          "margin_x": 208.5187017696697,
+          "message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+          "speedup_vs_separate": 1.0869131309375475
+        }
+      ]
+    }
+  ]
+}

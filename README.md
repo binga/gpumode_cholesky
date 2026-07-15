@@ -51,7 +51,7 @@ popcorn submissions                                # view your entries
 - **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.
 - **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.
 - **Ranked submission `#877956`** (exp 005): `done`, 17/17 on B200. Fixes the exp-004 `8×2048` own-goal by trimming the loop region to `2<=batch<=4` so `8×2048` returns to batched cuSOLVER: **5370→5060μs (−5.8%)**; all other shapes unchanged. Ranked geomean ≈ **1744μs**. exp 005's primary target, `640×512`, was probed and **rejected** (cuSOLVER-batched-saturated — max-concurrency queues 6.5× slower than `batched`; no default-queue path beats it). See `journal.md` Session 5 and `experiments/005-highbatch-mid-n/`.
-- **Ranked submission `#878015`** (exp 006 — current best): `done`, 17/17 on B200. Blocked right-looking Cholesky for large single matrices (`batch==1, n>=16384`): FP32 diagonal potrf + FP32 panel solve, **O(n³) trailing Schur update on TF32 tensor cores** (FP32 accumulate), with an `isfinite` fallback to cuSOLVER for ill-conditioned inputs. **1×16384 34200→19400μs (1.76×)**, **1×32768 221000→77200μs (2.86×)**; `1×8192` (only ~1.07×) stays on cuSOLVER; all other shapes unchanged (no regressions). Ranked geomean ≈ **1559μs (−10.6% vs `#877956`)**. TF32 beat FP16/BF16 in the probe; nb=4096 for n≥32768 else 2048. See `journal.md` Session 6 and `experiments/006-large-n-tensorcore/`.
+- **Ranked submission `#878015`** (exp 006): `done`, 17/17 on B200. Blocked right-looking Cholesky for large single matrices (`batch==1, n>=16384`): FP32 diagonal potrf + FP32 panel solve, **O(n³) trailing Schur update on TF32 tensor cores** (FP32 accumulate), with an `isfinite` fallback to cuSOLVER for ill-conditioned inputs. **1×16384 34200→19400μs (1.76×)**, **1×32768 221000→77200μs (2.86×)**; `1×8192` stays on cuSOLVER. Ranked geomean ≈ **1559μs**. Superseded by exp 008.
 - **exp 007 (BF16x9 FP32-emu, large-n): rejected — nothing submitted.** BF16x9 FP32
   emulation engages on the B200 (`CUBLAS_EMULATE_SINGLE_PRECISION=1` +
   `CUBLAS_FP32_EMULATED_BF16X9_MATH=1`, set before `import torch`; the BF16X9 var
@@ -62,6 +62,14 @@ popcorn submissions                                # view your entries
   BF16x9 ≈ 6–9 BF16 products per FP32 GEMM ≈ 3× slower than a single-product TF32
   GEMM. Current best stays `#878015`. See `journal.md` Session 7 and
   `experiments/007-bf16x9-large-n/`.
+- **Ranked submission `#878108`** (exp 008 — current best): `done`, 17/17 on B200,
+  public geomean **1542.9137409531085μs** (secret **1545.1284990962687μs**).
+  Replaces the temporary TF32 product plus subtraction with a fused in-place
+  `addmm_` on the strided trailing view. Paired Modal B200: **1×16384
+  18924.8→17411.5μs (1.087×)** and **1×32768 73700.7→68246.1μs (1.080×)**,
+  with identical residuals; all six families pass at both sizes and the existing
+  numerical fallback remains intact. Test `#878107` passed 17/17. See `journal.md`
+  Session 8 and `experiments/008-fused-triangular-schur/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 
@@ -84,4 +92,4 @@ leaderboard — use them for *relative* per-shape targeting.
 **Optimization targets (deferred work), by ROI for the geomean:**
 - **Highest ROI — small-`n` / high-batch** (`n ∈ {32,64,128}`, 141–202μs): these are launch/overhead-bound, not compute-bound (a 32×32 factorization is trivial). Custom batched kernels (cf. `triton_cholesky32.py`) can cut these to tens of μs — this is the leaders' trick.
 - **Medium ROI — high-batch mid-size** (`640×512`, `8×2048`, `2×4096`): batch-parallelism/occupancy tuning.
-- **DONE (exp 006) — large single matrices** (`n ≥ 16384`, esp. `32768²`): a blocked Cholesky with a TF32 tensor-core trailing update beats cuSOLVER's all-FP32 `potrf` (16384 1.76×, 32768 2.86× ranked). `1×8192` was only ~1.07× so it stays on cuSOLVER. The loose reconstruction gate (`20·n·eps·‖A‖₁`, tolerance grows with n) leaves ample headroom (residuals >100× inside tolerance).
+- **DONE (exp 006 + 008) — large single matrices** (`n ≥ 16384`, esp. `32768²`): blocked TF32 Cholesky beats cuSOLVER, and exp 008 fuses the dense trailing update in-place for another ~8% paired speedup. `1×8192` stays on cuSOLVER. The loose reconstruction gate (`20·n·eps·‖A‖₁`) retains >200× margin on ranked dense inputs.

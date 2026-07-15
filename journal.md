@@ -16,7 +16,8 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#878015` ≈ 1559μs geomean** (Session 6). `nb` = block size.
+Current best: **`#878108` = 1542.9137409531085μs public geomean** (Session 8;
+secret 1545.1284990962687μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,8 @@ Current best: **`#878015` ≈ 1559μs geomean** (Session 6). `nb` = block size.
 | 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
-| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓** (S6) | ✗ 1.15× (S7) | TBD | ✗ |
-| 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓** (S6) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
+| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓ fused** (S8) | ✗ 1.15× (S7) | TBD | ✗ |
+| 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓ fused** (S8) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
 
 Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
@@ -82,6 +83,55 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-15 — Session 8: fused in-place TF32 Schur update → ranked #878108 (NEW BEST 1542.914μs)
+
+### Result
+
+**ADOPTED.** Ranked `#878108` passed 17/17 and scored exactly
+**1542.9137409531085μs public** / **1545.1284990962687μs secret**, improving the
+previous `#878015` (~1559μs). Popcorn test `#878107` passed 17/17. One ranked
+submission was used; no retry or duplicate was launched.
+
+### Change and paired B200 evidence
+
+Experiment 006 performed `A22 -= L21 @ L21.T`, creating a full temporary product
+and launching a separate subtraction. Experiment 008 replaces only that operation
+with `A22.addmm_(L21, L21.T, beta=1, alpha=-1)`, writing directly to the strided
+trailing view while keeping TF32 inputs and FP32 accumulation.
+
+| shape | exp006 separate | exp008 fused | speedup | tolerance used |
+|---|---:|---:|---:|---:|
+| 1×16384 | 18924.8μs | **17411.5μs** | **1.087×** | identical 0.004796 (208.5× margin) |
+| 1×32768 | 73700.7μs | **68246.1μs** | **1.080×** | identical 0.002397 (417.1× margin) |
+
+The paired same-process probe isolates the fused update and avoids cuSOLVER
+run-to-run drift. The full 15-shape Modal run passed at **1738.1μs**; its changed
+shapes were 18531.4μs and 73463.5μs versus experiment-006 Modal 19981.6μs and
+78357.1μs. Untouched dispatch regions are source-identical.
+
+### Correctness and fallback
+
+- Local checker: **10/10**.
+- Modal changed-size matrix: **12/12** — dense, spectrum, lowrank, rowscale,
+  diagonal, and tridiagonal at both 16384 and 32768.
+- Spectrum/lowrank retain the experiment-006 `isfinite` safety fallback to exact
+  FP32 cuSOLVER; stable families use the fast fused path.
+- Popcorn test `#878107`: **17/17**. Ranked `#878108`: **17/17**.
+
+### Ladder decision and cost
+
+Stage A alone achieved the ranked objective, so the lower-triangular custom
+kernel, hierarchical blocking, and bounded batched pivot were not invoked. This
+kept the winning change minimal and avoided repeating rejected approaches. Four
+targeted/full Modal jobs consumed roughly 2–3 minutes of B200 wall time (well
+under the experiment guardrail; approximately <$0.5–1 depending on billing).
+
+Artifacts: `experiments/008-fused-triangular-schur/` contains the exact submitted
+source, paired probes, all-family verify JSON, full-grid benchmark, ranked summary,
+and notes. Root `submission.py` is the adopted implementation with updated metadata.
 
 ---
 
@@ -672,4 +722,3 @@ kernel work can be validated on the exact hardware without burning ranked quota.
 2. Re-benchmark on Modal (`modal_verify.py benchmark`) before each ranked submission.
 3. Tune high-batch mid-size shapes (`640×512`, `8×2048`, `2×4096`) for occupancy.
 4. Leave `n ≥ 8192` on cuSOLVER.
-

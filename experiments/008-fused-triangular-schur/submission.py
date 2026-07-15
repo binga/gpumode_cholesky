@@ -1,22 +1,25 @@
 #!POPCORN leaderboard cholesky
 #!POPCORN gpu B200
 
-"""GPU MODE `cholesky` submission — experiment 008 (current best).
+"""GPU MODE `cholesky` submission — experiment 006 (current best).
 
-Builds on exp 006 (`#878015`) by fusing its TF32 trailing Schur product and
-subtraction into an in-place `addmm_` on the trailing view. This removes the full
-temporary product and subtraction launch while preserving identical TF32/FP32
-numerics. Ranked `#878108`: 17/17, public geomean 1542.914 us (secret 1545.128
-us), improving the prior ~1559 us. Pure `torch`, default-queue only.
+Builds on exp 005 (`#877956`) by adding a right-looking BLOCKED Cholesky for the
+large single matrices (`batch == 1, n >= 16384`). The diagonal block potrf and the
+panel triangular solve stay FP32 (stability), but the O(n^3) trailing Schur update
+`A22 -= L21 @ L21^T` runs on B200 tensor cores via TF32, which is several times
+faster than cuSOLVER's all-FP32 `potrf` at these sizes. The cholesky checker gates
+only `||A - LL^T||_1 <= 20*n*eps*||A||_1`, whose tolerance grows with n; measured
+residual margins stay 200-400x inside tolerance across families. Pure `torch`,
+default-queue only (popcorn disqualifies any non-default CUDA-queue use).
 
 Shape dispatcher:
   * n == 32                         -> Triton batched kernel, one warp per matrix
     (experiment 002). Beats cuSOLVER's batched-launch overhead for tiny matrices.
   * batch == 1 and n >= 16384       -> blocked right-looking Cholesky with a
-    fused in-place TF32 tensor-core trailing update (experiment 008). Paired B200
-    measurements vs exp 006: 16384 18925->17412 us, 32768 73701->68246 us,
-    with identical reconstruction residuals. nb=4096 for n>=32768, else 2048.
-    8192 (only ~1.07x in exp 006) stays on cuSOLVER.
+    TF32 tensor-core trailing update (experiment 006). Measured on B200:
+    16384 1.80x, 32768 2.94x vs batched cuSOLVER, all families correct. nb=4096
+    for n>=32768 (trailing GEMM dominates -> bigger blocks win), else nb=2048.
+    8192 (only ~1.07x) stays on cuSOLVER.
   * 2 <= batch <= 4 and n >= 1024   -> per-matrix factorization in a sequential
     loop (experiment 004, region trimmed by exp 005). `torch.linalg` routes
     batch>=2 to `cusolverDnSpotrfBatched`, which is tuned for many-small matrices
@@ -126,9 +129,8 @@ def _loop_cholesky(data: torch.Tensor) -> torch.Tensor:
 
 
 # ---------------------------------------------------------------------------
-# Large single-matrix path (experiments 006 + 008): blocked right-looking
-# Cholesky with a fused in-place TF32 trailing update. Diagonal block + panel
-# solve stay FP32.
+# Large single-matrix path (experiment 006): blocked right-looking Cholesky with
+# a TF32 tensor-core trailing update. Diagonal block + panel solve stay FP32.
 # ---------------------------------------------------------------------------
 def _blocked_cholesky_tf32(mat: torch.Tensor, nb: int) -> torch.Tensor:
     """Right-looking blocked Cholesky of a single (n, n) FP32 SPD matrix.
@@ -175,8 +177,7 @@ def custom_kernel(data: input_t) -> output_t:
         return _triton_cholesky(data)
 
     # Large single matrices: blocked Cholesky with a TF32 tensor-core trailing
-    # update beats cuSOLVER's all-FP32 potrf (exp 006), with the product and
-    # subtraction fused in-place by exp 008. Only the measured-win
+    # update beats cuSOLVER's all-FP32 potrf (exp 006). Only the measured-win
     # region (batch==1, n>=16384); 8192 was only ~1.07x so it stays on cuSOLVER.
     if is_f32_cuda and batch == 1 and n >= 16384:
         nb = 4096 if n >= 32768 else 2048
