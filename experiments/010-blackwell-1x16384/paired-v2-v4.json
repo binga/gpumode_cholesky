@@ -1,0 +1,159 @@
+{
+  "mode": "paired",
+  "device": "NVIDIA B200",
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "target": {
+    "batch": 1,
+    "n": 16384,
+    "cond": 2,
+    "seed": 48284,
+    "case": "dense"
+  },
+  "results": [
+    {
+      "variant": "v2_cublas_syrk",
+      "rotating_inputs": 1,
+      "baseline_passed": true,
+      "candidate_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+      "candidate_message": "scaled_reconstruction_residual=0.000539; batch=1; n=16384",
+      "candidate_tol_fraction": 2.6933017579722218e-05,
+      "retained_baseline_passed": true,
+      "retained_candidate_passed": true,
+      "baseline": {
+        "mean_us": 18518.975893656414,
+        "best_us": 18491.872787475586,
+        "worst_us": 18589.4718170166,
+        "samples_us": [
+          18491.872787475586,
+          18492.095947265625,
+          18505.34439086914,
+          18517.311096191406,
+          18517.759323120117,
+          18589.4718170166
+        ]
+      },
+      "candidate": {
+        "mean_us": 48929.23227945963,
+        "best_us": 48892.19284057617,
+        "worst_us": 48970.11184692383,
+        "samples_us": [
+          48892.19284057617,
+          48916.32080078125,
+          48923.87390136719,
+          48925.34255981445,
+          48947.55172729492,
+          48970.11184692383
+        ]
+      },
+      "speedup": 0.37848490628026127,
+      "strict_2x": false,
+      "backend": {
+        "triton": true,
+        "syrk_loaded": true,
+        "syrk_error": null,
+        "fp8_dtype": true,
+        "scaled_mm": true,
+        "graph_captured": false,
+        "graph_error": null
+      }
+    },
+    {
+      "variant": "v3_fp8_full",
+      "rotating_inputs": 1,
+      "baseline_passed": true,
+      "candidate_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+      "candidate_message": "scaled_reconstruction_residual=11; batch=1; n=16384",
+      "candidate_tol_fraction": 0.5513791441917419,
+      "retained_baseline_passed": true,
+      "retained_candidate_passed": true,
+      "baseline": {
+        "mean_us": 18493.4024810791,
+        "best_us": 18475.584030151367,
+        "worst_us": 18509.023666381836,
+        "samples_us": [
+          18475.584030151367,
+          18481.02378845215,
+          18497.215270996094,
+          18498.17657470703,
+          18499.391555786133,
+          18509.023666381836
+        ]
+      },
+      "candidate": {
+        "mean_us": 21790.197372436523,
+        "best_us": 21764.73617553711,
+        "worst_us": 21811.80763244629,
+        "samples_us": [
+          21764.73617553711,
+          21767.5838470459,
+          21775.968551635742,
+          21809.791564941406,
+          21811.296463012695,
+          21811.80763244629
+        ]
+      },
+      "speedup": 0.8487028439894859,
+      "strict_2x": false,
+      "backend": {
+        "triton": true,
+        "syrk_loaded": true,
+        "syrk_error": null,
+        "fp8_dtype": true,
+        "scaled_mm": true,
+        "graph_captured": false,
+        "graph_error": null
+      }
+    },
+    {
+      "variant": "v4_fp8_lower",
+      "rotating_inputs": 1,
+      "baseline_passed": true,
+      "candidate_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+      "candidate_message": "scaled_reconstruction_residual=11; batch=1; n=16384",
+      "candidate_tol_fraction": 0.5513791441917419,
+      "retained_baseline_passed": true,
+      "retained_candidate_passed": true,
+      "baseline": {
+        "mean_us": 18496.202786763508,
+        "best_us": 18480.0968170166,
+        "worst_us": 18522.49526977539,
+        "samples_us": [
+          18480.0968170166,
+          18486.528396606445,
+          18490.432739257812,
+          18491.23191833496,
+          18506.431579589844,
+          18522.49526977539
+        ]
+      },
+      "candidate": {
+        "mean_us": 21412.28262583415,
+        "best_us": 21387.392044067383,
+        "worst_us": 21431.455612182617,
+        "samples_us": [
+          21387.392044067383,
+          21408.416748046875,
+          21410.240173339844,
+          21415.48728942871,
+          21420.703887939453,
+          21431.455612182617
+        ]
+      },
+      "speedup": 0.8638127522400457,
+      "strict_2x": false,
+      "backend": {
+        "triton": true,
+        "syrk_loaded": true,
+        "syrk_error": null,
+        "fp8_dtype": true,
+        "scaled_mm": true,
+        "graph_captured": false,
+        "graph_error": null
+      }
+    }
+  ]
+}

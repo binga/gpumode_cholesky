@@ -1,0 +1,63 @@
+{
+  "mode": "paired",
+  "device": "NVIDIA B200",
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "target": {
+    "batch": 1,
+    "n": 16384,
+    "cond": 2,
+    "seed": 48284,
+    "case": "dense"
+  },
+  "results": [
+    {
+      "variant": "v7_hierarchical_panel",
+      "rotating_inputs": 1,
+      "baseline_passed": true,
+      "candidate_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+      "candidate_message": "scaled_reconstruction_residual=0.0965; batch=1; n=16384",
+      "candidate_tol_fraction": 0.004825598560273647,
+      "retained_baseline_passed": true,
+      "retained_candidate_passed": true,
+      "baseline": {
+        "mean_us": 18436.19696299235,
+        "best_us": 18402.78434753418,
+        "worst_us": 18474.239349365234,
+        "samples_us": [
+          18402.78434753418,
+          18418.079376220703,
+          18421.375274658203,
+          18431.32781982422,
+          18469.375610351562,
+          18474.239349365234
+        ]
+      },
+      "candidate": {
+        "mean_us": 24277.599970499676,
+        "best_us": 24263.839721679688,
+        "worst_us": 24293.855667114258,
+        "samples_us": [
+          24263.839721679688,
+          24264.671325683594,
+          24267.776489257812,
+          24285.98403930664,
+          24289.472579956055,
+          24293.855667114258
+        ]
+      },
+      "speedup": 0.7593912489453093,
+      "strict_2x": false,
+      "backend": {
+        "triton": true,
+        "syrk_loaded": false,
+        "syrk_error": null,
+        "fp8_dtype": true,
+        "scaled_mm": true,
+        "graph_captured": false,
+        "graph_error": null
+      }
+    }
+  ]
+}

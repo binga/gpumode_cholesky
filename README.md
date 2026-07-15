@@ -89,6 +89,15 @@ popcorn submissions                                # view your entries
   The first ranked attempt `#878263` exposed reusable graph-output aliasing in
   Popcorn's retained-output benchmark; returning owned outputs fixed it before
   the successful retry. See `experiments/009-combined-shape-frontiers/`.
+- **exp 010 (exact `1×16384` Blackwell ladder): rejected — nothing submitted.**
+  A warmed component profile found the shipped 18.64ms path dominated by FP32
+  panel TRSM (7.24ms) and serial diagonal POTRF (5.45ms), not its fused TF32
+  Schur updates (3.26ms). Six distinct architectures were measured in paired
+  same-process B200 runs: lower-only TF32, scaled FP8, hierarchical diagonal,
+  hierarchical diagonal+panel, inverse-panel TF32 GEMM, and left-looking. The
+  best was left-looking at **18,512.6→15,882.0μs (1.166×)**, well short of the
+  strict `≤9,295.6μs` gate. Root source remains byte-identical to `#878273`; no
+  Popcorn test or ranked run was used. See `experiments/010-blackwell-1x16384/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 

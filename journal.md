@@ -78,7 +78,7 @@ secret 1501.4402012082579μs). `nb` = block size.
 | 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
-| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓ fused** (S8) | ✗ 1.15× (S7) | TBD | ✗ |
+| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6); hierarchical/left-looking <2× (S10) | **✓ fused** (S8); lower-only ✗ (S10) | ✗ 1.15× (S7) | ✗ slower (S10) | ✗ on slower arithmetic (S10) |
 | 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓ fused** (S8) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
 
 Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
@@ -127,6 +127,54 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-16 — Session 10: exact `1×16384` Blackwell ladder → REJECTED
+
+### Result
+
+**REJECTED; nothing submitted.** Six materially different architectures were
+measured against ranked `#878273` in the same B200 process, with retained output
+ownership and fail-closed backend checks. The best result, a left-looking blocked
+factorization, improved `18,512.6→15,882.0μs` (`1.166×`) but missed the strict
+`≤9,295.6μs` / `2.00×` gate by a wide margin. Root `submission.py` remains
+byte-identical to the ranked winner.
+
+### Component evidence
+
+A warmed per-step device-event profile measured the shipped `18,640.0μs` path:
+FP32 panel TRSM `7,235.2μs` (38.8%), serial diagonal POTRF `5,454.8μs` (29.3%),
+fused TF32 Schur updates only `3,255.6μs` (17.5%), and clone/stores/cleanup the
+remaining `2,694.4μs`. This explains why lower-only and FP8 Schur substitutions
+could not achieve the requested 2× speedup.
+
+### Bounded ladder
+
+- Lower-only tiled TF32: `18,724.6→40,445.0μs` (`0.463×`), correct.
+- Scaled FP8 E4M3 Schur: best `18,496.2→21,412.3μs` (`0.864×`), correct with
+  1.81× tolerance margin.
+- Hierarchical diagonal: `18,485.0→48,100.4μs` (`0.384×`), correct.
+- Hierarchical tensor-core diagonal+panel: `18,436.2→24,277.6μs` (`0.759×`), correct.
+- Compact triangular inverse + TF32 panel GEMM: `18,534.4→17,275.7μs`
+  (`1.073×`), correct.
+- Left-looking active diagonal/panel updates: `18,512.6→15,882.0μs`
+  (`1.166×`), correct and best, but far below the promotion threshold.
+
+The cuBLAS SYRK result (`48,929.2μs`) is retained as a control. FP8 full/lower
+are one architecture axis, not two. Graph replay captured successfully but is
+not counted because it wrapped arithmetic already slower than shipped.
+
+All raw JSON, source, backend status, timing samples, correctness fractions, and
+rejection reasons are preserved in `experiments/010-blackwell-1x16384/`. No
+six-family sweep, full-grid run, Popcorn test, or leaderboard run was launched
+because the mandatory dense paired gate failed.
+
+Modal usage was bounded to seven paired/profile B200 sandboxes (including the
+corrected warmed profile), approximately 4–6 minutes of aggregate GPU wall time;
+Popcorn quota used was zero. CUTLASS headers were not available in the
+self-contained submission environment, so no unshippable external dependency
+was counted as a CUTLASS/tcgen05 candidate.
 
 ---
 
