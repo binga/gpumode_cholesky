@@ -1,0 +1,9 @@
+{
+  "baseline_commit": "4b4d557",
+  "ranked_submission_id": 878273,
+  "source_path": "experiments/009-combined-shape-frontiers/submission.py",
+  "source_sha256": "39261a153a0df9826b0e6c8aa1b3f948179f6445da8be2a74a8ab5040ab7adf8",
+  "root_matches_snapshot": true,
+  "recorded_mean_us": 6435.588002204895,
+  "recorded_strict_target_us": 3217.7940011024475
+}

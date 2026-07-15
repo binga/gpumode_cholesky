@@ -1,0 +1,203 @@
+{
+  "mode": "exp010_profile",
+  "device": "NVIDIA B200",
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "passed": true,
+  "message": "scaled_reconstruction_residual=0.000694; batch=1; n=8192",
+  "timing": {
+    "clone_only": {
+      "mean_us": 88.96457191024508,
+      "best_us": 87.77599781751633,
+      "samples_us": [
+        87.77599781751633,
+        88.0960002541542,
+        88.16000074148178,
+        88.41600269079208,
+        88.51200342178345,
+        89.31200206279755,
+        92.47999638319016
+      ]
+    },
+    "shipped_3d": {
+      "mean_us": 6405.01948765346,
+      "best_us": 6400.352001190186,
+      "samples_us": [
+        6400.352001190186,
+        6402.495861053467,
+        6402.719974517822,
+        6405.375957489014,
+        6405.792236328125,
+        6406.720161437988,
+        6411.680221557617
+      ]
+    },
+    "torch_2d_single": {
+      "mean_us": 6415.949753352574,
+      "best_us": 6397.408008575439,
+      "samples_us": [
+        6397.408008575439,
+        6402.912139892578,
+        6405.407905578613,
+        6405.951976776123,
+        6407.296180725098,
+        6410.208225250244,
+        6482.463836669922
+      ]
+    },
+    "torch_3d_direct": {
+      "mean_us": 6401.129109518869,
+      "best_us": 6391.9677734375,
+      "samples_us": [
+        6391.9677734375,
+        6397.952079772949,
+        6398.367881774902,
+        6402.143955230713,
+        6402.143955230713,
+        6405.375957489014,
+        6409.952163696289
+      ]
+    }
+  },
+  "top_device_events": [
+    {
+      "key": "aten::linalg_cholesky_ex",
+      "calls": 1,
+      "self_device_us": 5787.2119999999995,
+      "self_cpu_us": 190.048,
+      "input_shapes": [
+        [
+          1,
+          8192,
+          8192
+        ],
+        [],
+        []
+      ]
+    },
+    {
+      "key": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1, 1> >(int, int, void*, int, void*, int, int, int, int, int, int*)",
+      "calls": 4,
+      "self_device_us": 3811.643,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "void syherk_kernel_ldgsts<int, float, 128, 16, 2, 128, 32, 32, 32, 4, 8, true, true, false, false>(cublasSyherkParams<float>)",
+      "calls": 1,
+      "self_device_us": 1209.987,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "void syherk_kernel_ldgsts<int, float, 64, 32, 2, 16, 64, 8, 64, 4, 4, true, true, false, false>(cublasSyherkParams<float>)",
+      "calls": 2,
+      "self_device_us": 755.6609999999991,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "aten::copy_",
+      "calls": 1,
+      "self_device_us": 289.645,
+      "self_cpu_us": 40.32900000000018,
+      "input_shapes": [
+        [
+          1,
+          8192,
+          8192
+        ],
+        [
+          1,
+          8192,
+          8192
+        ],
+        []
+      ]
+    },
+    {
+      "key": "Activity Buffer Request",
+      "calls": 1,
+      "self_device_us": 289.645,
+      "self_cpu_us": 667.1129999999998,
+      "input_shapes": []
+    },
+    {
+      "key": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1})",
+      "calls": 1,
+      "self_device_us": 289.645,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "aten::tril_",
+      "calls": 1,
+      "self_device_us": 231.03299999999945,
+      "self_cpu_us": 13.0,
+      "input_shapes": [
+        [
+          1,
+          8192,
+          8192
+        ],
+        []
+      ]
+    },
+    {
+      "key": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, int>, at::cuda::detail::TensorInfo<float const, int>, long, long, int)",
+      "calls": 1,
+      "self_device_us": 231.03299999999945,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "Memset (Device)",
+      "calls": 6,
+      "self_device_us": 8.247000000000526,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "xxtrf4_set_info_ker(int, int*)",
+      "calls": 1,
+      "self_device_us": 1.6739999999999782,
+      "self_cpu_us": 0.0,
+      "input_shapes": []
+    },
+    {
+      "key": "cudaLaunchKernel",
+      "calls": 10,
+      "self_device_us": 0.0,
+      "self_cpu_us": 93.73800000000006,
+      "input_shapes": []
+    },
+    {
+      "key": "cudaFuncSetAttribute",
+      "calls": 2,
+      "self_device_us": 0.0,
+      "self_cpu_us": 6.658999999999878,
+      "input_shapes": []
+    },
+    {
+      "key": "cudaMemsetAsync",
+      "calls": 6,
+      "self_device_us": 0.0,
+      "self_cpu_us": 33.47000000000003,
+      "input_shapes": []
+    },
+    {
+      "key": "cudaEventRecord",
+      "calls": 1,
+      "self_device_us": 0.0,
+      "self_cpu_us": 6.460000000000036,
+      "input_shapes": []
+    },
+    {
+      "key": "cudaDeviceSynchronize",
+      "calls": 2,
+      "self_device_us": 0.0,
+      "self_cpu_us": 6128.129,
+      "input_shapes": []
+    }
+  ]
+}

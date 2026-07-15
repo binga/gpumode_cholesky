@@ -39,3 +39,4 @@ and auditable.
 | 007 | BF16x9 FP32-emulated trailing update (large-n) — engaged via `CUBLAS_EMULATE_SINGLE_PRECISION=1`+`CUBLAS_FP32_EMULATED_BF16X9_MATH=1` | 8192 0.95× vs cuSOLVER; 16384 bf16x9 1.15× vs TF32's 1.60× | — | **rejected** (engages + ≈FP32-accurate but slower than TF32/cuSOLVER) |
 | 008 | fuse TF32 Schur product + subtraction into in-place `addmm_` on trailing view | 1542.914μs ranked; paired 16384 1.087×, 32768 1.080× vs 006 | #878108 | superseded by 009 |
 | 009 | combine exact-shape graph frontiers at 256×128/16×512 with Triton FP32/TF32 8×2048 | 1500.704μs public / 1501.440μs secret; paired 1.211×/1.280×/1.622× | #878273 | **adopted (current best)** |
+| 010 | exact 1×8192 ladder: legacy/Xpotrf, host-fused lower SYRK, graph, Triton TF32/BF16, two-level batched pivots | best valid 12192.8μs vs paired 6395.7μs; graph replay invalid; shipped profile 5787.2μs factor core | — | **rejected — bounded exhaustion (7 architectures, root unchanged)** |

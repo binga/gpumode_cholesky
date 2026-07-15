@@ -1,0 +1,17 @@
+{
+  "status": "BOUNDED_EXHAUSTION",
+  "architectures_measured": 7,
+  "compiled_backend_active": true,
+  "local_property_passed": 10,
+  "local_property_total": 10,
+  "syntax_passed": true,
+  "json_parse_passed": true,
+  "root_snapshot_unchanged": true,
+  "source_policy_scan_clean": true,
+  "diff_check_passed": true,
+  "candidate_met_2x": false,
+  "family_sweep_required": false,
+  "full_grid_required": false,
+  "popcorn_test_required": false,
+  "leaderboard_launched": false
+}

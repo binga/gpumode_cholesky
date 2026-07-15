@@ -1,0 +1,136 @@
+{
+  "mode": "exp010_stage3",
+  "compiled_active": true,
+  "target_shape": [
+    1,
+    8192,
+    8192
+  ],
+  "paired_baseline_mean_us": 6384.363446916853,
+  "strict_target_us": 3192.1817234584264,
+  "variants": [
+    {
+      "variant": "baseline_exp009",
+      "activated": true,
+      "passed": true,
+      "checks": [
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000694; batch=1; n=8192",
+          "tol_frac": 3.4696269722189754e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000691; batch=1; n=8192",
+          "tol_frac": 3.453654426266439e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000697; batch=1; n=8192",
+          "tol_frac": 3.485731213004328e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000688; batch=1; n=8192",
+          "tol_frac": 3.4403081372147426e-05
+        }
+      ],
+      "mean_us": 6384.363446916853,
+      "best_us": 6379.600048065186,
+      "samples_us": [
+        6379.600048065186,
+        6380.527973175049,
+        6380.752086639404,
+        6380.896091461182,
+        6382.440090179443,
+        6391.592025756836,
+        6394.735813140869
+      ],
+      "rotating_inputs": 4,
+      "speedup_vs_baseline": 1.0,
+      "meets_2x": false
+    },
+    {
+      "variant": "v7_direct_batched_potrf",
+      "activated": true,
+      "passed": true,
+      "checks": [
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000782; batch=1; n=8192",
+          "tol_frac": 3.908330108970404e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000766; batch=1; n=8192",
+          "tol_frac": 3.8318528822856024e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000768; batch=1; n=8192",
+          "tol_frac": 3.8381785998353735e-05
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.000762; batch=1; n=8192",
+          "tol_frac": 3.810673297266476e-05
+        }
+      ],
+      "mean_us": 95331.33806501116,
+      "best_us": 95313.88092041016,
+      "samples_us": [
+        95313.88092041016,
+        95316.29943847656,
+        95325.35552978516,
+        95328.2699584961,
+        95332.1762084961,
+        95346.00067138672,
+        95357.38372802734
+      ],
+      "rotating_inputs": 4,
+      "speedup_vs_baseline": 0.06697024899160693,
+      "meets_2x": false
+    },
+    {
+      "variant": "v7_two_level_batched_diag_lower_syrk_nb4096",
+      "activated": true,
+      "passed": true,
+      "checks": [
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.1; batch=1; n=8192",
+          "tol_frac": 0.005008270498365164
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.102; batch=1; n=8192",
+          "tol_frac": 0.005109013989567757
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.1; batch=1; n=8192",
+          "tol_frac": 0.0049980259500443935
+        },
+        {
+          "passed": true,
+          "message": "scaled_reconstruction_residual=0.0987; batch=1; n=8192",
+          "tol_frac": 0.004934567958116531
+        }
+      ],
+      "mean_us": 42275.86473737444,
+      "best_us": 42253.929138183594,
+      "samples_us": [
+        42253.929138183594,
+        42268.11218261719,
+        42268.69583129883,
+        42275.00915527344,
+        42280.799865722656,
+        42292.12188720703,
+        42292.38510131836
+      ],
+      "rotating_inputs": 4,
+      "speedup_vs_baseline": 0.15101674410630533,
+      "meets_2x": false
+    }
+  ]
+}

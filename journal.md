@@ -77,7 +77,7 @@ secret 1501.4402012082579μs). `nb` = block size.
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S9) | ✗ | **✓** (S9) | **✓** (S9) | TBD | TBD | TBD |
 | 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
-| 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
+| 1×8192   | **✓** | — | ✗ | ✗ direct APIs (S10) | ✗ lower-only (S10) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD FP8; ✗ BF16 proxy (S10) | ✗ invalid capture (S10) |
 | 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓ fused** (S8) | ✗ 1.15× (S7) | TBD | ✗ |
 | 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓ fused** (S8) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
 
@@ -127,6 +127,57 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-16 — Session 10: exact `1×8192` architecture ladder → REJECTED
+
+### Result
+
+**BOUNDED_EXHAUSTION.** Seven materially different architectures were measured;
+none met the strict paired 2.00× threshold. Same-process controls were
+`6384–6398μs` and targets `3192–3199μs`. The best valid candidate was the
+host-fused lower-only TF32 SYRK path at `12192.8μs` (`0.525×`, or 1.91×
+slower). Root `submission.py` remains byte-identical to ranked `#878273`. No
+Popcorn test or ranked job was launched.
+
+### Ladder evidence
+
+- Direct legacy potrf and expert Xpotrf both passed but took about `12892μs`.
+  NVIDIA documents only the default Xpotrf algorithm, so there was no expert
+  algorithm selector left to sweep.
+- The one-level compiled cuSOLVER/TRSM/lower-SYRK pipeline passed with ~196×
+  margin but took `12193–13026μs`; block sizes are calibration, not variants.
+- Graph capture returned an apparent `255μs` but did not replay solver work;
+  retained outputs failed with tolerance fractions over 118. It was recorded
+  once and not retried.
+- Triton custom diagonal/panel plus lower triangular TF32 and BF16 update paths
+  passed dense inputs with ~39× and ~13× margins, but took `15259μs` and
+  `14884μs`. A correction stage was performance-dominated before it began.
+- A two-level batch-one cuSOLVER-pivot/lower-SYRK path took `42276μs`; its direct
+  full-size batch-one control took `95331μs`.
+
+All paired probes rotated four large inputs, retained outputs through checking,
+cleared L2, and required the compiled activation flag. Raw JSON lives in
+`experiments/010-8192-architectures/`.
+
+### Device profile and next axis
+
+The shipped `6405μs` call spends `5787μs` in its factorization core: four
+internal `getrf_wo_pivot` kernels consume `3812μs` and three SYRK/HERK kernels
+consume `1966μs`; clone is only `89μs`, with copy/triangular cleanup about
+`521μs`. Hitting `3.20ms` requires replacing the dominant panel/factor core,
+not wrapping it. The credible next project is a device-resident SM100
+tcgen05/TMA persistent or thread-block-cluster pipeline that fuses factor,
+panel, and lower-only updates.
+
+### Gates and publication
+
+Local properties passed 10/10; syntax, JSON parsing, root snapshot, forbidden
+queue-source scan, and whitespace checks passed. Performance-gated family,
+full-grid, and Popcorn tests were skipped because no candidate reached 2×. The
+rejected experiment preserves source, goal, raw results, and profile; branch
+publication completes the bounded run.
 
 ---
 

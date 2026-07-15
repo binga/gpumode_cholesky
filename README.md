@@ -89,6 +89,17 @@ popcorn submissions                                # view your entries
   The first ranked attempt `#878263` exposed reusable graph-output aliasing in
   Popcorn's retained-output benchmark; returning owned outputs fixed it before
   the successful retry. See `experiments/009-combined-shape-frontiers/`.
+- **exp 010 (`1×8192` architecture ladder): rejected — bounded exhaustion.**
+  Seven distinct compiled/graph/Triton architectures were measured against a
+  same-process retained-output control (`6384–6398μs`; strict target
+  `3192–3199μs`). The best valid custom route was host-fused lower-only TF32
+  SYRK at `12192.8μs`; Triton TF32/BF16 were `15258.5/14883.9μs`; graph replay
+  appeared fast but failed retained-output correctness and was rejected once.
+  Profiling attributes `3811.6μs` to shipped panel/factor kernels and
+  `1965.6μs` to updates, so the next credible axis is an SM100
+  persistent/cluster tcgen05/TMA factor-panel core. Root source remains
+  byte-identical to #878273; no Popcorn submission was used. See
+  `experiments/010-8192-architectures/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 
