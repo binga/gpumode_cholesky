@@ -1,0 +1,126 @@
+{
+  "mode": "benchmark",
+  "geomean_us": 1632.5964629355324,
+  "shapes": [
+    {
+      "spec": "batch=4096 n=32 case=dense",
+      "batch": 4096,
+      "n": 32,
+      "passed": true,
+      "mean_us": 81.89247995615005,
+      "best_us": 76.03199779987335
+    },
+    {
+      "spec": "batch=1024 n=64 case=dense",
+      "batch": 1024,
+      "n": 64,
+      "passed": true,
+      "mean_us": 133.45216035842896,
+      "best_us": 132.1280002593994
+    },
+    {
+      "spec": "batch=256 n=128 case=dense",
+      "batch": 256,
+      "n": 128,
+      "passed": true,
+      "mean_us": 173.13536047935486,
+      "best_us": 169.98399794101715
+    },
+    {
+      "spec": "batch=64 n=256 case=dense",
+      "batch": 64,
+      "n": 256,
+      "passed": true,
+      "mean_us": 373.16991925239563,
+      "best_us": 369.1200017929077
+    },
+    {
+      "spec": "batch=16 n=512 case=dense",
+      "batch": 16,
+      "n": 512,
+      "passed": true,
+      "mean_us": 615.9024059772491,
+      "best_us": 610.8160018920898
+    },
+    {
+      "spec": "batch=640 n=512 case=dense",
+      "batch": 640,
+      "n": 512,
+      "passed": true,
+      "mean_us": 3961.3231897354126,
+      "best_us": 3954.14400100708
+    },
+    {
+      "spec": "batch=4 n=1024 case=dense",
+      "batch": 4,
+      "n": 1024,
+      "passed": true,
+      "mean_us": 1359.0223908424377,
+      "best_us": 1354.3039560317993
+    },
+    {
+      "spec": "batch=60 n=1024 case=dense",
+      "batch": 60,
+      "n": 1024,
+      "passed": true,
+      "mean_us": 3214.30721282959,
+      "best_us": 3207.103967666626
+    },
+    {
+      "spec": "batch=2 n=2048 case=dense",
+      "batch": 2,
+      "n": 2048,
+      "passed": true,
+      "mean_us": 1380.6880116462708,
+      "best_us": 1377.4399757385254
+    },
+    {
+      "spec": "batch=8 n=2048 case=dense",
+      "batch": 8,
+      "n": 2048,
+      "passed": true,
+      "mean_us": 3505.82879781723,
+      "best_us": 3497.119903564453
+    },
+    {
+      "spec": "batch=1 n=4096 case=dense",
+      "batch": 1,
+      "n": 4096,
+      "passed": true,
+      "mean_us": 1541.8799966573715,
+      "best_us": 1538.1759405136108
+    },
+    {
+      "spec": "batch=2 n=4096 case=dense",
+      "batch": 2,
+      "n": 4096,
+      "passed": true,
+      "mean_us": 3222.1840023994446,
+      "best_us": 3217.2799110412598
+    },
+    {
+      "spec": "batch=1 n=8192 case=dense",
+      "batch": 1,
+      "n": 8192,
+      "passed": true,
+      "mean_us": 6408.208012580872,
+      "best_us": 6392.447948455811
+    },
+    {
+      "spec": "batch=1 n=16384 case=dense",
+      "batch": 1,
+      "n": 16384,
+      "passed": true,
+      "mean_us": 18706.14004135132,
+      "best_us": 18677.568435668945
+    },
+    {
+      "spec": "batch=1 n=32768 case=dense",
+      "batch": 1,
+      "n": 32768,
+      "passed": true,
+      "mean_us": 71919.4917678833,
+      "best_us": 71203.65142822266
+    }
+  ]
+}

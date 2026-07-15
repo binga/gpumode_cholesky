@@ -1,0 +1,15 @@
+{
+  "test_submission_id": 878272,
+  "failed_ranked_submission_id": 878263,
+  "ranked_submission_id": 878273,
+  "status": "succeeded",
+  "public_score_seconds": 0.0015007037765896727,
+  "public_geomean_us": 1500.7037765896727,
+  "secret_score_seconds": 0.0015014402012082579,
+  "secret_geomean_us": 1501.4402012082579,
+  "previous_ranked_submission_id": 878108,
+  "previous_public_geomean_us": 1542.9137409531085,
+  "previous_secret_geomean_us": 1545.1284990962687,
+  "public_improvement_percent": 2.735730666146075,
+  "secret_improvement_percent": 2.8274863814604334
+}

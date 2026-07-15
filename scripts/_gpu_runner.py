@@ -6,6 +6,7 @@ an actual B200 GPU. Emits a JSON line prefixed with `RESULT_JSON:` for the
 driver to parse.
 """
 
+import importlib.util
 import json
 import os
 import sys
@@ -66,6 +67,24 @@ TEST_SPECS = [
     {"batch": 8, "n": 2048, "cond": 2, "seed": 94005},
     {"batch": 2, "n": 4096, "cond": 2, "seed": 94006},
     {"batch": 2, "n": 4096, "cond": 4, "seed": 94007, "case": "lowrank"},
+    # exp 009 exact-shape integrations, across every input family.
+    {"batch": 256, "n": 128, "cond": 2, "seed": 95128},
+    {"batch": 256, "n": 128, "cond": 5, "seed": 95129, "case": "spectrum"},
+    {"batch": 256, "n": 128, "cond": 5, "seed": 95130, "case": "diagonal"},
+    {"batch": 256, "n": 128, "cond": 4, "seed": 95131, "case": "lowrank"},
+    {"batch": 256, "n": 128, "cond": 4, "seed": 95132, "case": "rowscale"},
+    {"batch": 256, "n": 128, "cond": 1, "seed": 95133, "case": "tridiagonal"},
+    {"batch": 16, "n": 512, "cond": 2, "seed": 95512},
+    {"batch": 16, "n": 512, "cond": 5, "seed": 95513, "case": "spectrum"},
+    {"batch": 16, "n": 512, "cond": 5, "seed": 95514, "case": "diagonal"},
+    {"batch": 16, "n": 512, "cond": 4, "seed": 95515, "case": "lowrank"},
+    {"batch": 16, "n": 512, "cond": 4, "seed": 95516, "case": "rowscale"},
+    {"batch": 16, "n": 512, "cond": 1, "seed": 95517, "case": "tridiagonal"},
+    {"batch": 8, "n": 2048, "cond": 5, "seed": 97049, "case": "spectrum"},
+    {"batch": 8, "n": 2048, "cond": 5, "seed": 97050, "case": "diagonal"},
+    {"batch": 8, "n": 2048, "cond": 4, "seed": 97051, "case": "lowrank"},
+    {"batch": 8, "n": 2048, "cond": 4, "seed": 97052, "case": "rowscale"},
+    {"batch": 8, "n": 2048, "cond": 1, "seed": 97053, "case": "tridiagonal"},
     # exp 006: large single matrices. 16384/32768 route to the blocked TF32
     # tensor-core path; 8192 stays on cuSOLVER. Cover all families at 16384
     # (hardest conditioning via spectrum/lowrank/rowscale) and a cheaper
@@ -205,6 +224,109 @@ def run_benchmark(filter_ns=None):
         geom = __import__("math").exp(log_sum / len(timed))
         print(f"\ngeomean(mean_us) over {len(timed)} shapes = {geom:.1f}us", flush=True)
     return {"mode": "benchmark", "geomean_us": geom, "shapes": results}
+
+
+def _load_exp008_baseline():
+    spec = importlib.util.spec_from_file_location(
+        "baseline_exp008", "/root/baseline_exp008.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.custom_kernel
+
+
+def _time_callable_rotating(fn, data_list, warmup, iters):
+    for _ in range(warmup):
+        outputs = [fn(data) for data in data_list]
+    torch.cuda.synchronize()
+    durations = []
+    for _ in range(iters):
+        _l2_flush()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        torch.cuda.synchronize()
+        start.record()
+        outputs = [fn(data) for data in data_list]
+        end.record()
+        torch.cuda.synchronize()
+        durations.append(start.elapsed_time(end) * 1e3 / len(data_list))
+    durations.sort()
+    return {
+        "mean_us": sum(durations) / len(durations),
+        "best_us": durations[0],
+        "rotating_inputs": len(data_list),
+    }
+
+
+def run_frontierprobe():
+    baseline = _load_exp008_baseline()
+    target_specs = [
+        {"batch": 256, "n": 128, "cond": 2, "seed": 41128},
+        {"batch": 16, "n": 512, "cond": 2, "seed": 41512},
+        {"batch": 8, "n": 2048, "cond": 2, "seed": 512048},
+    ]
+    results = []
+    for shape_spec in target_specs:
+        bytes_per_input = (
+            shape_spec["batch"] * shape_spec["n"] * shape_spec["n"] * 4
+        )
+        count = max(1, min(16, int(256e6 // bytes_per_input)))
+        data_list = []
+        args = dict(shape_spec)
+        for _ in range(count):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+
+        candidate_outputs = [custom_kernel(data.clone()) for data in data_list]
+        baseline_outputs = [baseline(data.clone()) for data in data_list]
+        torch.cuda.synchronize()
+        candidate_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, candidate_outputs, strict=True)
+        ]
+        baseline_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, baseline_outputs, strict=True)
+        ]
+        candidate_ok = all(good for good, _ in candidate_checks)
+        baseline_ok = all(good for good, _ in baseline_checks)
+        candidate_message = "; ".join(
+            message for good, message in candidate_checks if not good
+        ) or candidate_checks[0][1]
+        baseline_message = "; ".join(
+            message for good, message in baseline_checks if not good
+        ) or baseline_checks[0][1]
+        candidate_time = _time_callable_rotating(
+            custom_kernel, data_list, warmup=3, iters=20
+        )
+        baseline_time = _time_callable_rotating(
+            baseline, data_list, warmup=3, iters=20
+        )
+        speedup = baseline_time["mean_us"] / candidate_time["mean_us"]
+        row = {
+            "spec": _spec_label(shape_spec),
+            "candidate_passed": candidate_ok,
+            "candidate_message": candidate_message,
+            "baseline_passed": baseline_ok,
+            "baseline_message": baseline_message,
+            "candidate": candidate_time,
+            "baseline": baseline_time,
+            "speedup": speedup,
+        }
+        results.append(row)
+        print(
+            f"{row['spec']} candidate={candidate_time['mean_us']:.3f}us "
+            f"baseline={baseline_time['mean_us']:.3f}us "
+            f"speedup={speedup:.4f}x",
+            flush=True,
+        )
+    passed = all(
+        row["candidate_passed"]
+        and row["baseline_passed"]
+        and row["speedup"] > 1.0
+        for row in results
+    )
+    return {"mode": "frontierprobe", "passed": passed, "shapes": results}
 
 
 # ---------------------------------------------------------------------------
@@ -741,6 +863,8 @@ def main():
         result = run_emuprobe(filter_ns)
     elif mode == "fusionprobe":
         result = run_fusionprobe(filter_ns)
+    elif mode == "frontierprobe":
+        result = run_frontierprobe()
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

@@ -37,6 +37,16 @@ IMAGE = (
     .pip_install("torch", "numpy", "ninja")
     .add_local_dir(str(ROOT / "reference"), "/root/reference", copy=True)
     .add_local_file(str(ROOT / "submission.py"), "/root/submission.py", copy=True)
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "009-combined-shape-frontiers"
+            / "baseline-exp008.py"
+        ),
+        "/root/baseline_exp008.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
 )
 
@@ -54,6 +64,7 @@ def main() -> int:
             "precprobe",
             "emuprobe",
             "fusionprobe",
+            "frontierprobe",
         ],
     )
     parser.add_argument("--gpu", default="B200")

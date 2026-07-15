@@ -60,21 +60,21 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#878108` = 1542.9137409531085μs public geomean** (Session 8;
-secret 1545.1284990962687μs). `nb` = block size.
+Current best: **`#878273` = 1500.7037765896727μs public geomean** (Session 9;
+secret 1501.4402012082579μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | **✓** (S2) | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
 | 1024×64  | **✓** | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | TBD |
-| 256×128  | **✓** | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | TBD |
+| 256×128  | ✗ | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | **✓** (S9) |
 | 64×256   | **✓** | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | TBD |
-| 16×512   | **✓** | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | TBD |
+| 16×512   | ✗ | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | **✓** (S9) |
 | 640×512  | **✓** | ✗ (S5) | TBD | TBD | ✗ (S5) | TBD | TBD | TBD | ✗ (S5) |
 | 4×1024   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 60×1024  | **✓** | ✗ (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 2×2048   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
-| 8×2048   | **✓** (S5) | ✗ (S5) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S9) | ✗ | **✓** (S9) | **✓** (S9) | TBD | TBD | TBD |
 | 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
@@ -127,6 +127,59 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-15 — Session 9: combined shape frontiers → ranked #878273 (NEW BEST 1500.704μs)
+
+### Result
+
+**ADOPTED.** Ranked `#878273` passed public and secret validation and scored
+**1500.7037765896727μs public** / **1501.4402012082579μs secret**, improving
+`#878108` by **2.736% public** / **2.827% secret**. Popcorn test `#878272`
+passed 17/17.
+
+### Integrated paths and paired evidence
+
+Three non-overlapping, shape-specific frontiers were recovered from the bounded
+search tasks and integrated into exp 008:
+
+| shape | path | exp 008 | final candidate | speedup |
+|---|---|---:|---:|---:|
+| 256×128 | captured vendor batched factorization + owned output | 197.311μs | 162.913μs | **1.211×** |
+| 16×512 | static-buffer vendor graph + owned output | 772.362μs | 603.532μs | **1.280×** |
+| 8×2048 | Triton FP32 blocks + lower TF32 Schur tiles | 5723.026μs | 3527.579μs | **1.622×** |
+
+The paired harness mirrors Popcorn's allocation pattern: it rotates across up
+to 15 inputs, retains every output, and checks each input/output pair after all
+calls. All target results passed. The `8×2048` path checks its factor diagonal
+and falls back to exact cuSOLVER when TF32 produces a non-finite pivot.
+
+### Validation
+
+- Local property checks: **10/10**, plus clean syntax, diff, snapshot, JSON, and
+  forbidden queue-source checks.
+- Changed-region B200 family sweep: **25/25** across dense, spectrum, diagonal,
+  low-rank, row-scaled, and tridiagonal inputs.
+- Full 15-shape Modal geomean: **1738.121→1652.199μs**; no material off-target
+  regression.
+- Popcorn test `#878272`: **17/17**.
+
+### Ranked validation failure and correction
+
+The first ranked attempt `#878263` failed its benchmark validation. The graph
+paths returned reusable static result storage. Popcorn builds a list of outputs
+for rotated inputs and verifies it afterward, so later replays overwrote earlier
+entries. Returning an owned clone from both graph paths fixed the contract. The
+paired harness was strengthened to reproduce retained-output validation, and all
+promotion gates were repeated before the successful ranked retry `#878273`.
+
+### Artifacts
+
+See `experiments/009-combined-shape-frontiers/` for the exp-008 baseline, exact
+ranked source, paired artifacts, family results, full-grid results, and ranked
+summary. The README records explicit owner authorization to upload the bounded
+verification files to Modal.
 
 ---
 

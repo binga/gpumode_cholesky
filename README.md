@@ -31,6 +31,15 @@ This machine has no local NVIDIA GPU, so verification is layered:
    uv run --with modal python scripts/modal_verify.py benchmark --json results/baseline-benchmark.json
    ```
 
+## Modal source-upload authorization
+
+The repository owner explicitly authorizes this workflow to upload the files
+needed for verification to Modal, including `submission.py`, the vendored
+`reference/` harness, `scripts/_gpu_runner.py`, and experiment candidate files.
+This permission covers B200 correctness checks and benchmarks run by
+`scripts/modal_verify.py`. Credentials and unrelated workspace files remain out
+of scope and must never be embedded in an image or committed.
+
 ## Submit (via popcorn CLI)
 
 Directives are embedded in `submission.py`, so no flags needed:
@@ -62,7 +71,7 @@ popcorn submissions                                # view your entries
   BF16x9 ≈ 6–9 BF16 products per FP32 GEMM ≈ 3× slower than a single-product TF32
   GEMM. Current best stays `#878015`. See `journal.md` Session 7 and
   `experiments/007-bf16x9-large-n/`.
-- **Ranked submission `#878108`** (exp 008 — current best): `done`, 17/17 on B200,
+- **Ranked submission `#878108`** (exp 008 — superseded by exp 009): `done`, 17/17 on B200,
   public geomean **1542.9137409531085μs** (secret **1545.1284990962687μs**).
   Replaces the temporary TF32 product plus subtraction with a fused in-place
   `addmm_` on the strided trailing view. Paired Modal B200: **1×16384
@@ -70,6 +79,16 @@ popcorn submissions                                # view your entries
   with identical residuals; all six families pass at both sizes and the existing
   numerical fallback remains intact. Test `#878107` passed 17/17. See `journal.md`
   Session 8 and `experiments/008-fused-triangular-schur/`.
+- **Ranked submission `#878273`** (exp 009 — current best): `done`, public
+  geomean **1500.7037765896727μs** and secret **1501.4402012082579μs**. It
+  combines three exact-shape wins: graph replay at `256x128` and `16x512`, plus
+  a Triton blocked FP32/TF32 path at `8x2048` with an exact fallback for
+  non-finite pivots. Rank-faithful paired B200 gains were **1.211x**, **1.280x**,
+  and **1.622x**; all 25 changed-region family cases passed, the full-grid Modal
+  geomean improved **1738.1->1652.2μs**, and Popcorn test `#878272` passed 17/17.
+  The first ranked attempt `#878263` exposed reusable graph-output aliasing in
+  Popcorn's retained-output benchmark; returning owned outputs fixed it before
+  the successful retry. See `experiments/009-combined-shape-frontiers/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 

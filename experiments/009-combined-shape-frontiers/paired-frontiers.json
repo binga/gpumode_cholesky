@@ -1,0 +1,60 @@
+{
+  "mode": "frontierprobe",
+  "passed": true,
+  "shapes": [
+    {
+      "spec": "batch=256 n=128 case=dense",
+      "candidate_passed": true,
+      "candidate_message": "scaled_reconstruction_residual=0.00912; batch=256; n=128",
+      "baseline_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.00912; batch=256; n=128",
+      "candidate": {
+        "mean_us": 156.64021333058673,
+        "best_us": 156.31146430969238,
+        "rotating_inputs": 15
+      },
+      "baseline": {
+        "mean_us": 194.4834136962891,
+        "best_us": 194.0074602762858,
+        "rotating_inputs": 15
+      },
+      "speedup": 1.241593136022069
+    },
+    {
+      "spec": "batch=16 n=512 case=dense",
+      "candidate_passed": true,
+      "candidate_message": "scaled_reconstruction_residual=0.00384; batch=16; n=512",
+      "baseline_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.00384; batch=16; n=512",
+      "candidate": {
+        "mean_us": 589.8565355936687,
+        "best_us": 589.4079844156901,
+        "rotating_inputs": 15
+      },
+      "baseline": {
+        "mean_us": 763.0113093058268,
+        "best_us": 762.5855763753256,
+        "rotating_inputs": 15
+      },
+      "speedup": 1.2935540479141834
+    },
+    {
+      "spec": "batch=8 n=2048 case=dense",
+      "candidate_passed": true,
+      "candidate_message": "scaled_reconstruction_residual=2.04; batch=8; n=2048",
+      "baseline_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.00168; batch=8; n=2048",
+      "candidate": {
+        "mean_us": 3464.24959897995,
+        "best_us": 3458.1120014190674,
+        "rotating_inputs": 1
+      },
+      "baseline": {
+        "mean_us": 5591.694355010986,
+        "best_us": 5580.927848815918,
+        "rotating_inputs": 1
+      },
+      "speedup": 1.6141141667902519
+    }
+  ]
+}
