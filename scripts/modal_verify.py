@@ -43,7 +43,7 @@ IMAGE = (
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", nargs="?", default="verify", choices=["verify", "benchmark", "probe"])
+    parser.add_argument("mode", nargs="?", default="verify", choices=["verify", "benchmark", "probe", "precprobe"])
     parser.add_argument("--gpu", default="B200")
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--json", default=None, help="write RESULT_JSON payload to this path")

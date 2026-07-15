@@ -4,6 +4,92 @@ Running log of work, results, and findings. Newest entries at the top.
 
 ---
 
+## 2026-07-15 — Session 6: large-n TF32 tensor-core blocked Cholesky → ranked #878015 (NEW BEST ~1559μs)
+
+### Result
+
+**New best `#878015`, ranked geomean ≈ 1559μs** — beats prior best `#877956`
+(~1744μs) by **~10.6%**, and the board leader (~1924μs) by ~19%. 17/17 tests pass.
+Experiment `006`, **adopted** to root `submission.py`. This closes the large
+single-matrix shapes that every prior session had dismissed as "cuSOLVER near
+speed-of-light, leave it" — they were never tested against tensor-core math.
+
+### What & why
+
+A **right-looking BLOCKED Cholesky** for `batch==1, n>=16384`: the diagonal-block
+`potrf` and the panel triangular solve stay FP32 (stability), but the O(n³)
+trailing Schur update `A22 -= L21·L21ᵀ` — the bulk of the FLOPs — runs on B200
+tensor cores in **TF32** (FP32 accumulate). The checker gates only
+`‖A−LLᵀ‖₁ ≤ 20·n·eps·‖A‖₁`, whose tolerance grows with n, so the huge shapes have
+the most numerical headroom (measured residual margins 100–417× inside tolerance).
+
+Characterization probe (Modal B200, speedup vs batched cuSOLVER):
+
+| n     | TF32 best (nb) | speedup | FP16 best | BF16 |
+|-------|----------------|---------|-----------|------|
+| 8192  | 1.07× (nb2048) | marginal → **excluded** | 0.94× | 12× margin |
+| 16384 | **1.80× (nb2048)** | shipped | 1.48× | 22× margin |
+| 32768 | **2.94× (nb4096)** | shipped | 2.22× | rejected |
+
+**TF32 beat FP16 everywhere** (FP16's operand-cast + fp16-output truncation
+overhead outweighs its precision headroom on B200; B200 TF32 tensor cores are
+already several× FP32 throughput). **Bigger nb wins as n grows** (fewer Python
+steps, larger trailing GEMMs; the FP32 diagonal potrf stays a small fraction).
+Dispatch: `nb = 4096 if n>=32768 else 2048`.
+
+### Numerical safety net
+
+TF32 error can drive a late diagonal block indefinite on ill-conditioned inputs
+(`spectrum` cond=5, `lowrank` cond=4) → NaN/Inf. A post-factorization
+`torch.isfinite(L).all()` check falls back to exact FP32 cuSOLVER. The ranked
+shapes are well-conditioned dense (residual ~10% of tolerance — never trips it);
+the fallback only fires on pathological families, so correctness holds across
+every family at <1ms cost (memory-bound vs the ~75ms factorization).
+
+### Ranked per-shape (`#877956` → `#878015`)
+
+- **1×32768: 221000 → 77200μs (2.86×)** — the big one (76% of the clock).
+- **1×16384: 34200 → 19400μs (1.76×)**.
+- 1×8192: 6400 → 6390μs (unchanged, cuSOLVER).
+- All other 12 shapes at/under `#877956` (low-drift run, no regressions): n=32
+  61.8μs, 640×512 3.78ms, 60×1024 2.89ms, 8×2048 5.05ms, 2×4096 3.20ms.
+
+Modal↔popcorn fidelity on the changed shapes was excellent (~2%): Modal measured
+16384=19982μs / 32768=78357μs vs ranked 19400 / 77200. The huge single matrices
+are compute-bound with no batched-dispatch drift, unlike the mid-batch shapes.
+
+### Correctness
+
+Modal verify **37/37** across all families (28/28 small/mid + 9/9 large-n incl.
+16384 spectrum/lowrank/rowscale/diagonal/tridiagonal, 32768 dense/lowrank/
+tridiagonal). popcorn test 17/17 (its grid maxes at n=2048, so it validates the
+unchanged/fallback paths; the blocked dense large-n is validated on Modal).
+
+### Gotcha
+
+popcorn's static source scan flagged the literal word **"stream"** in my
+docstrings (HTTP 500 "work on another stream"), exactly as the exp-004 note warned.
+Removed all occurrences; re-test passed 17/17. The kernel uses no non-default
+CUDA queues — pure default-queue matmuls.
+
+### Quota / cost
+
+Ranked used: **1 this session** (`#878015`; the "3 of 3" note was a self-imposed
+per-run budget, not a platform cap — confirmed with supervisor). Modal spend this
+session ≈ **~$2.5–3**; ~$2 of that was a single `verify` run that hung after GPU
+init and burned the 1200s sandbox timeout (transient — the same grid re-ran in
+~45s after adding `--shapes`/progress filtering to `run_verify`). popcorn
+test+leaderboard run on GPU MODE infra (not billed to our Modal).
+
+### Next steps
+
+- Every shape is now at/near its frontier. `8192` (1.07×) and the mid-batch shapes
+  (`640×512` saturated, exp-005; `8×2048` streams-banned) are the only remaining
+  levers and are all poor bets. A two-level blocked scheme (recurse the diagonal
+  potrf) could shave a little more off 32768 but with diminishing returns.
+
+---
+
 ## 2026-07-15 — Session 5: `640×512` probe (REJECTED) + `8×2048` own-goal fix → ranked #877956
 
 ### Result
