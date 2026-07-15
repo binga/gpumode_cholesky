@@ -60,8 +60,8 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#878273` = 1500.7037765896727μs public geomean** (Session 9;
-secret 1501.4402012082579μs). `nb` = block size.
+Current best: **`#878893` = 1459.321342997556μs public geomean** (Session 10;
+secret 1448.3768036226527μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -78,8 +78,8 @@ secret 1501.4402012082579μs). `nb` = block size.
 | 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
-| 1×16384  | ✗ | — | ✗ | ✗ | **✓** (S6) | **✓ fused** (S8) | ✗ 1.15× (S7) | TBD | ✗ |
-| 1×32768  | ✗ | — | ✗ | ✗ | **✓** nb4096 (S6) | **✓ fused** (S8) | ✗ (S7, extrap.) | TBD | TBD (2-level) |
+| 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
+| 1×32768  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel** (S10) | TBD (2-level) |
 
 Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
@@ -127,6 +127,53 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-16 — Session 10: large left-looking frontiers → ranked #878893 (NEW BEST 1459.321μs)
+
+### Result
+
+**ADOPTED.** Ranked `#878893` passed public and secret validation and scored
+**1459.321342997556μs public** / **1448.3768036226527μs secret**, improving
+`#878273` by **2.7575% public** / **3.5342% secret**. Popcorn test `#878891`
+passed 17/17.
+
+### Integrated paths and causal evidence
+
+The bounded searches for the three slowest shapes produced positive frontiers
+at 16384 and 32768; the 8192 search produced no valid improvement and was not
+integrated. Both winners were rebased onto the exact exp-009 ranked source.
+
+| shape | path | exp 009 | exp 012 | speedup |
+|---|---|---:|---:|---:|
+| 1×16384 | left-looking TF32 active diagonal/panel updates | 18495.512μs | 16082.949μs | **1.150×** |
+| 1×32768 | left-looking native FP8 panel products, FP32 accumulation | 71567.591μs | 52139.092μs | **1.373×** |
+
+The paired same-process Modal probe rotated two inputs per shape, retained all
+outputs, and verified native dispatch counters after timing. It recorded zero
+fallbacks and no FP8 runtime error.
+
+### Validation and workflow
+
+- Local property checks: **10/10**, with clean compilation, whitespace,
+  source-policy, snapshot, and artifact checks.
+- Changed-region B200 family sweep: **12/12** across dense, spectrum, low-rank,
+  row-scaled, diagonal, and tridiagonal inputs at both large sizes.
+- Full 15-shape Modal benchmark: all passed; geomean
+  **1652.198636→1574.881992μs** with the other 13 dispatch regions unchanged.
+- Popcorn test `#878891`: **17/17**.
+- Exactly one ranked run, `#878893`, was launched and monitored to success.
+- No evo workflow was used. Modal uploads were made under the owner's explicit
+  authorization recorded in the root README and were limited to benchmark
+  source/harness files—never credentials or unrelated workspace content.
+
+### Artifacts
+
+See `experiments/012-large-left-looking-frontiers/` for the exp-009 baseline,
+exact ranked source, paired timings, 12-family verification, full-grid result,
+ranked summary, and notes. The paired/full-grid harness additions remain in
+`scripts/` for reproducibility.
 
 ---
 

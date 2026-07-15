@@ -47,6 +47,16 @@ IMAGE = (
         "/root/baseline_exp008.py",
         copy=True,
     )
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "012-large-left-looking-frontiers"
+            / "baseline-exp009.py"
+        ),
+        "/root/baseline_exp009.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
 )
 
@@ -65,6 +75,7 @@ def main() -> int:
             "emuprobe",
             "fusionprobe",
             "frontierprobe",
+            "largefrontierprobe",
         ],
     )
     parser.add_argument("--gpu", default="B200")

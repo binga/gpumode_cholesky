@@ -1,7 +1,7 @@
 #!POPCORN leaderboard cholesky
 #!POPCORN gpu B200
 
-"""GPU MODE `cholesky` submission — experiment 012 ranked winner.
+"""GPU MODE `cholesky` submission — experiment 009 (current best).
 
 Builds on exp 006 (`#878015`) by fusing its TF32 trailing Schur product and
 subtraction into an in-place `addmm_` on the trailing view. This removes the full
@@ -10,8 +10,6 @@ numerics. Ranked `#878108`: 17/17, public geomean 1542.914 us (secret 1545.128
 us), improving the prior ~1559 us. Experiment 009 adds three exact-shape paths
 that were independently measured on the same B200 as their shipped control.
 Ranked `#878273`: public 1500.704 us, secret 1501.440 us.
-Experiment 012 replaces only the 1x16384 and 1x32768 paths with left-looking
-frontiers. Ranked `#878893`: public 1459.321 us, secret 1448.377 us.
 
 Shape dispatcher:
   * n == 32                         -> Triton batched kernel, one warp per matrix
@@ -23,12 +21,10 @@ Shape dispatcher:
     remains fast when the official harness rotates among input allocations.
   * batch == 8 and n == 2048        -> Triton blocked factorization with FP32
     diagonal/panel work and grouped lower TF32 Schur updates (1.619x paired).
-  * batch == 1 and n == 16384       -> left-looking TF32 factorization that
-    updates only the active diagonal and panel (1.166x paired frontier).
-  * batch == 1 and n == 32768       -> left-looking factorization with native
-    Blackwell FP8 panel products and FP32 accumulation (1.386x paired frontier).
-  * other batch == 1 and n >= 16384 -> blocked right-looking Cholesky with a
-    fused in-place TF32 tensor-core trailing update (experiment 008).
+  * batch == 1 and n >= 16384       -> blocked right-looking Cholesky with a
+    fused in-place TF32 tensor-core trailing update (experiment 008). Paired B200
+    measurements vs exp 006: 16384 18925->17412 us, 32768 73701->68246 us,
+    with identical reconstruction residuals. nb=4096 for n>=32768, else 2048.
     8192 (only ~1.07x in exp 006) stays on cuSOLVER.
   * 2 <= batch <= 4 and n >= 1024   -> per-matrix factorization in a sequential
     loop (experiment 004, region trimmed by exp 005). `torch.linalg` routes
@@ -398,172 +394,6 @@ def _graph_cholesky_256x128(data: torch.Tensor) -> torch.Tensor:
 
 
 # ---------------------------------------------------------------------------
-# Large single-matrix left-looking paths (experiment 012).
-# ---------------------------------------------------------------------------
-_LEFT_16384_HITS = 0
-_LEFT_32768_HITS = 0
-_LEFT_32768_ERROR = None
-_LEFT_LARGE_FALLBACKS = 0
-
-
-def _clear_upper_large(matrix: torch.Tensor) -> torch.Tensor:
-    if not _HAVE_TRITON:
-        return torch.tril(matrix)
-    grid = 4096
-    _clear_upper_8x2048[(grid,)](
-        matrix,
-        total=matrix.numel(),
-        n=matrix.shape[0],
-        BLOCK=256,
-        GRID=grid,
-        num_warps=8,
-    )
-    return matrix
-
-
-def _left_looking_cholesky_16384(mat: torch.Tensor) -> torch.Tensor:
-    global _LEFT_16384_HITS
-
-    nb = 2048
-    n = mat.shape[0]
-    a = mat.clone()
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            kb = min(nb, n - k)
-            diagonal = a[k : k + kb, k : k + kb]
-            if k:
-                left = a[k : k + kb, :k]
-                diagonal.addmm_(
-                    left,
-                    left.transpose(-1, -2),
-                    beta=1.0,
-                    alpha=-1.0,
-                )
-            diagonal_factor = torch.linalg.cholesky_ex(
-                diagonal, check_errors=False
-            ).L
-            a[k : k + kb, k : k + kb] = diagonal_factor
-            j = k + kb
-            if j >= n:
-                break
-            panel = a[j:, k : k + kb]
-            if k:
-                panel.addmm_(
-                    a[j:, :k],
-                    a[k : k + kb, :k].transpose(-1, -2),
-                    beta=1.0,
-                    alpha=-1.0,
-                )
-            solved = torch.linalg.solve_triangular(
-                diagonal_factor.transpose(-1, -2),
-                panel,
-                upper=True,
-                left=False,
-            )
-            a[j:, k : k + kb] = solved
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    _LEFT_16384_HITS += 1
-    return _clear_upper_large(a)
-
-
-def _scaled_mm_fp8_32768(
-    lhs: torch.Tensor,
-    rhs: torch.Tensor,
-    scale_lhs: torch.Tensor,
-    scale_rhs: torch.Tensor,
-) -> torch.Tensor:
-    try:
-        result = torch._scaled_mm(
-            lhs,
-            rhs,
-            scale_a=scale_lhs,
-            scale_b=scale_rhs,
-            out_dtype=torch.float32,
-            use_fast_accum=True,
-        )
-    except TypeError:
-        result = torch._scaled_mm(
-            lhs,
-            rhs,
-            scale_a=scale_lhs,
-            scale_b=scale_rhs,
-            out_dtype=torch.float32,
-        )
-    return result[0] if isinstance(result, tuple) else result
-
-
-def _fp8_product_32768(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    max_value = torch.finfo(torch.float8_e4m3fn).max
-    scale_lhs = (
-        max_value / lhs.abs().amax().clamp_min(2.0**-24)
-    ).float()
-    scale_rhs = (
-        max_value / rhs.abs().amax().clamp_min(2.0**-24)
-    ).float()
-    quantized_lhs = (lhs * scale_lhs).to(torch.float8_e4m3fn)
-    quantized_rhs = (rhs * scale_rhs).to(torch.float8_e4m3fn)
-    return _scaled_mm_fp8_32768(
-        quantized_lhs,
-        quantized_rhs,
-        scale_lhs.reciprocal(),
-        scale_rhs.reciprocal(),
-    )
-
-
-def _left_looking_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
-    global _LEFT_32768_HITS
-
-    nb = 4096
-    n = mat.shape[0]
-    factor = torch.zeros_like(mat)
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            kb = min(nb, n - k)
-            diagonal = mat[k : k + kb, k : k + kb].clone()
-            if k:
-                previous_row = factor[k : k + kb, :k]
-                diagonal.addmm_(
-                    previous_row,
-                    previous_row.transpose(-1, -2),
-                    beta=1.0,
-                    alpha=-1.0,
-                )
-            diagonal_factor = torch.linalg.cholesky_ex(
-                diagonal, check_errors=False
-            ).L
-            factor[k : k + kb, k : k + kb] = diagonal_factor
-            j = k + kb
-            if j >= n:
-                break
-            panel = mat[j:, k : k + kb].clone()
-            if k:
-                panel.sub_(
-                    _fp8_product_32768(
-                        factor[j:, :k],
-                        factor[k : k + kb, :k].transpose(-1, -2),
-                    )
-                )
-            identity = torch.eye(
-                kb, device=mat.device, dtype=mat.dtype
-            )
-            inverse_transpose = torch.linalg.solve_triangular(
-                diagonal_factor.transpose(-1, -2),
-                identity,
-                upper=True,
-            )
-            factor[j:, k : k + kb] = panel @ inverse_transpose
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    _LEFT_32768_HITS += 1
-    return factor
-
-
-# ---------------------------------------------------------------------------
 # Small-batch / large-n path (experiment 004, region trimmed by exp 005).
 # ---------------------------------------------------------------------------
 def _loop_cholesky(data: torch.Tensor) -> torch.Tensor:
@@ -621,8 +451,6 @@ def _blocked_cholesky_tf32(mat: torch.Tensor, nb: int) -> torch.Tensor:
 
 
 def custom_kernel(data: input_t) -> output_t:
-    global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
-
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
 
@@ -639,27 +467,6 @@ def custom_kernel(data: input_t) -> output_t:
         l = _triton_cholesky_8x2048(data)
         if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
             return l
-        return torch.linalg.cholesky_ex(data, check_errors=False).L
-
-    if is_f32_cuda and batch == 1 and n == 16384:
-        try:
-            l = _left_looking_cholesky_16384(data[0])
-            if torch.isfinite(l.diagonal()).all().item():
-                return l.unsqueeze(0)
-        except Exception:
-            pass
-        _LEFT_LARGE_FALLBACKS += 1
-        return torch.linalg.cholesky_ex(data, check_errors=False).L
-
-    if is_f32_cuda and batch == 1 and n == 32768:
-        try:
-            l = _left_looking_cholesky_32768(data[0])
-            if torch.isfinite(l.diagonal()).all().item():
-                _LEFT_32768_ERROR = None
-                return l.unsqueeze(0)
-        except Exception as exc:
-            _LEFT_32768_ERROR = repr(exc)
-        _LEFT_LARGE_FALLBACKS += 1
         return torch.linalg.cholesky_ex(data, check_errors=False).L
 
     # Large single matrices: blocked Cholesky with a TF32 tensor-core trailing

@@ -1,0 +1,16 @@
+{
+  "experiment": 12,
+  "baseline_submission_id": 878273,
+  "test_submission_id": 878891,
+  "test_passed": true,
+  "test_cases_passed": 17,
+  "test_cases_total": 17,
+  "ranked_submission_id": 878893,
+  "ranked_status": "succeeded",
+  "public_geomean_seconds": 0.001459321342997556,
+  "secret_geomean_seconds": 0.0014483768036226527,
+  "prior_public_geomean_seconds": 0.0015007037765896727,
+  "prior_secret_geomean_seconds": 0.0015014402012082579,
+  "public_improvement_percent": 2.7575351137023,
+  "secret_improvement_percent": 3.534166565068877
+}

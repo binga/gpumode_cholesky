@@ -1,0 +1,48 @@
+{
+  "mode": "largefrontierprobe",
+  "passed": true,
+  "backend_status": {
+    "left_16384_hits": 16,
+    "left_32768_hits": 12,
+    "left_32768_error": null,
+    "fallbacks": 0
+  },
+  "shapes": [
+    {
+      "spec": "batch=1 n=16384 case=dense",
+      "candidate_passed": true,
+      "candidate_message": "scaled_reconstruction_residual=0.0965; batch=1; n=16384",
+      "baseline_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0959; batch=1; n=16384",
+      "candidate": {
+        "mean_us": 16082.94932047526,
+        "best_us": 16008.81576538086,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 18495.512008666992,
+        "best_us": 18477.216720581055,
+        "rotating_inputs": 2
+      },
+      "speedup": 1.1500074793570536
+    },
+    {
+      "spec": "batch=1 n=32768 case=dense",
+      "candidate_passed": true,
+      "candidate_message": "scaled_reconstruction_residual=4.52; batch=1; n=32768",
+      "baseline_passed": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0479; batch=1; n=32768",
+      "candidate": {
+        "mean_us": 52139.092445373535,
+        "best_us": 51606.76956176758,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 71567.59071350098,
+        "best_us": 71281.7153930664,
+        "rotating_inputs": 2
+      },
+      "speedup": 1.3726282402878953
+    }
+  ]
+}

@@ -79,7 +79,7 @@ popcorn submissions                                # view your entries
   with identical residuals; all six families pass at both sizes and the existing
   numerical fallback remains intact. Test `#878107` passed 17/17. See `journal.md`
   Session 8 and `experiments/008-fused-triangular-schur/`.
-- **Ranked submission `#878273`** (exp 009 — current best): `done`, public
+- **Ranked submission `#878273`** (exp 009 — superseded by exp 012): `done`, public
   geomean **1500.7037765896727μs** and secret **1501.4402012082579μs**. It
   combines three exact-shape wins: graph replay at `256x128` and `16x512`, plus
   a Triton blocked FP32/TF32 path at `8x2048` with an exact fallback for
@@ -89,6 +89,16 @@ popcorn submissions                                # view your entries
   The first ranked attempt `#878263` exposed reusable graph-output aliasing in
   Popcorn's retained-output benchmark; returning owned outputs fixed it before
   the successful retry. See `experiments/009-combined-shape-frontiers/`.
+- **Ranked submission `#878893`** (exp 012 — current best): `done`, public
+  geomean **1459.321342997556μs** and secret **1448.3768036226527μs**. It
+  keeps all exp-009 paths and replaces only the two largest single-matrix
+  dispatches: left-looking TF32 at `1×16384` and left-looking native Blackwell
+  FP8 panel products with FP32 accumulation at `1×32768`. Paired same-process
+  B200 gains versus `#878273` were **1.150×** and **1.373×**; all 12 changed-size
+  family cases passed, the full 15-shape Modal geomean improved
+  **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
+  result improves exp 009 by **2.758% public** and **3.534% secret**. See
+  `experiments/012-large-left-looking-frontiers/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 
@@ -111,4 +121,8 @@ leaderboard — use them for *relative* per-shape targeting.
 **Optimization targets (deferred work), by ROI for the geomean:**
 - **Highest ROI — small-`n` / high-batch** (`n ∈ {32,64,128}`, 141–202μs): these are launch/overhead-bound, not compute-bound (a 32×32 factorization is trivial). Custom batched kernels (cf. `triton_cholesky32.py`) can cut these to tens of μs — this is the leaders' trick.
 - **Medium ROI — high-batch mid-size** (`640×512`, `8×2048`, `2×4096`): batch-parallelism/occupancy tuning.
-- **DONE (exp 006 + 008) — large single matrices** (`n ≥ 16384`, esp. `32768²`): blocked TF32 Cholesky beats cuSOLVER, and exp 008 fuses the dense trailing update in-place for another ~8% paired speedup. `1×8192` stays on cuSOLVER. The loose reconstruction gate (`20·n·eps·‖A‖₁`) retains >200× margin on ranked dense inputs.
+- **DONE (exp 006 + 008 + 012) — large single matrices** (`n ≥ 16384`, esp.
+  `32768²`): exp 012's left-looking formulation updates only the active
+  diagonal/panel, reaching another 1.150× at 16384; native Blackwell FP8 panel
+  products reach 1.373× at 32768 while passing every input family. `1×8192`
+  stays on cuSOLVER.

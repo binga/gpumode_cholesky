@@ -235,6 +235,15 @@ def _load_exp008_baseline():
     return module.custom_kernel
 
 
+def _load_exp009_baseline():
+    spec = importlib.util.spec_from_file_location(
+        "baseline_exp009", "/root/baseline_exp009.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.custom_kernel
+
+
 def _time_callable_rotating(fn, data_list, warmup, iters):
     for _ in range(warmup):
         outputs = [fn(data) for data in data_list]
@@ -327,6 +336,93 @@ def run_frontierprobe():
         for row in results
     )
     return {"mode": "frontierprobe", "passed": passed, "shapes": results}
+
+
+def run_largefrontierprobe():
+    import submission as candidate_module
+
+    baseline = _load_exp009_baseline()
+    target_specs = [
+        {"batch": 1, "n": 16384, "cond": 2, "seed": 48284},
+        {"batch": 1, "n": 32768, "cond": 2, "seed": 48368},
+    ]
+    results = []
+    for shape_spec in target_specs:
+        data_list = []
+        args = dict(shape_spec)
+        for _ in range(2):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+
+        candidate_outputs = [custom_kernel(data.clone()) for data in data_list]
+        baseline_outputs = [baseline(data.clone()) for data in data_list]
+        torch.cuda.synchronize()
+        candidate_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, candidate_outputs, strict=True)
+        ]
+        baseline_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, baseline_outputs, strict=True)
+        ]
+        candidate_ok = all(good for good, _ in candidate_checks)
+        baseline_ok = all(good for good, _ in baseline_checks)
+        candidate_message = "; ".join(
+            message for good, message in candidate_checks if not good
+        ) or candidate_checks[0][1]
+        baseline_message = "; ".join(
+            message for good, message in baseline_checks if not good
+        ) or baseline_checks[0][1]
+        iters = 6 if shape_spec["n"] == 16384 else 4
+        candidate_time = _time_callable_rotating(
+            custom_kernel, data_list, warmup=1, iters=iters
+        )
+        baseline_time = _time_callable_rotating(
+            baseline, data_list, warmup=1, iters=iters
+        )
+        speedup = baseline_time["mean_us"] / candidate_time["mean_us"]
+        row = {
+            "spec": _spec_label(shape_spec),
+            "candidate_passed": candidate_ok,
+            "candidate_message": candidate_message,
+            "baseline_passed": baseline_ok,
+            "baseline_message": baseline_message,
+            "candidate": candidate_time,
+            "baseline": baseline_time,
+            "speedup": speedup,
+        }
+        results.append(row)
+        print(
+            f"{row['spec']} candidate={candidate_time['mean_us']:.3f}us "
+            f"baseline={baseline_time['mean_us']:.3f}us "
+            f"speedup={speedup:.4f}x",
+            flush=True,
+        )
+
+    backend_status = {
+        "left_16384_hits": getattr(candidate_module, "_LEFT_16384_HITS", 0),
+        "left_32768_hits": getattr(candidate_module, "_LEFT_32768_HITS", 0),
+        "left_32768_error": getattr(candidate_module, "_LEFT_32768_ERROR", None),
+        "fallbacks": getattr(candidate_module, "_LEFT_LARGE_FALLBACKS", 0),
+    }
+    backend_ok = (
+        backend_status["left_16384_hits"] > 0
+        and backend_status["left_32768_hits"] > 0
+        and backend_status["left_32768_error"] is None
+        and backend_status["fallbacks"] == 0
+    )
+    passed = backend_ok and all(
+        row["candidate_passed"]
+        and row["baseline_passed"]
+        and row["speedup"] > 1.0
+        for row in results
+    )
+    return {
+        "mode": "largefrontierprobe",
+        "passed": passed,
+        "backend_status": backend_status,
+        "shapes": results,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -865,6 +961,8 @@ def main():
         result = run_fusionprobe(filter_ns)
     elif mode == "frontierprobe":
         result = run_frontierprobe()
+    elif mode == "largefrontierprobe":
+        result = run_largefrontierprobe()
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)
