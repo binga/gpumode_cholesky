@@ -244,6 +244,15 @@ def _load_exp009_baseline():
     return module.custom_kernel
 
 
+def _load_exp012_baseline_module():
+    spec = importlib.util.spec_from_file_location(
+        "baseline_exp012", "/root/baseline_exp012.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _time_callable_rotating(fn, data_list, warmup, iters):
     for _ in range(warmup):
         outputs = [fn(data) for data in data_list]
@@ -421,6 +430,226 @@ def run_largefrontierprobe():
         "mode": "largefrontierprobe",
         "passed": passed,
         "backend_status": backend_status,
+        "shapes": results,
+    }
+
+
+# ---------------------------------------------------------------------------
+# nocusolverprobe (experiment 013): paired same-process comparison of the
+# cuSOLVER-free 1x32768 left-looking path against the exp-012 ranked path
+# (baseline_exp012.py). Develop cheaply on 8192/16384 proxies (both are generic
+# in n), then confirm on the 50ms/iter 32768 probe. Also micro-benchmarks the
+# cuSOLVER-free diagonal potrf against cuSOLVER on a single 4096 block.
+# ---------------------------------------------------------------------------
+def _recon_margin(data, output):
+    """Reconstruction tolerance fraction (residual/allowed), TF32 off."""
+    n = data.shape[-1]
+    eps = torch.finfo(torch.float32).eps
+    scale = torch.linalg.matrix_norm(data, ord=1, dim=(-2, -1)).clamp_min(
+        torch.finfo(torch.float32).tiny
+    )
+    old = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        recon = output @ output.transpose(-1, -2)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = old
+    residual = torch.linalg.matrix_norm(recon - data, ord=1, dim=(-2, -1))
+    allowed = 20.0 * max(n, 1) * eps * scale
+    return (residual / allowed).amax().item()
+
+
+def _diag_potrf_microbench():
+    """Compare cuSOLVER potrf vs the cuSOLVER-free Triton blocked potrf on a
+    single 4096x4096 dense SPD block (cheap ~1ms/iter)."""
+    import submission as cand
+    block = generate_input(batch=1, n=4096, cond=2, seed=71337)[0].contiguous()
+
+    def _cusolver(x):
+        return torch.linalg.cholesky_ex(x, check_errors=False).L
+
+    rows = []
+
+    def _run(name, fn):
+        out = fn(block.clone())
+        torch.cuda.synchronize()
+        margin = _recon_margin(block, out)
+        for _ in range(2):
+            fn(block.clone())
+        torch.cuda.synchronize()
+        durs = []
+        for _ in range(6):
+            _l2_flush()
+            s = torch.cuda.Event(enable_timing=True)
+            e = torch.cuda.Event(enable_timing=True)
+            torch.cuda.synchronize()
+            s.record()
+            fn(block.clone())
+            e.record()
+            torch.cuda.synchronize()
+            durs.append(s.elapsed_time(e) * 1e3)
+        durs.sort()
+        mean_us = sum(durs) / len(durs)
+        rows.append({"name": name, "mean_us": mean_us, "tol_frac": margin})
+        print(
+            f"  potrf4096 {name:<18} mean={mean_us:>9.1f}us "
+            f"tol_frac={margin:.3e} margin={1.0/margin if margin>0 else float('inf'):.1f}x",
+            flush=True,
+        )
+
+    _run("cusolver", _cusolver)
+    for bk in (64,):
+        cand._DIAG_POTRF_BK = bk
+        cand._DIAG_POTRF_TILE = bk if bk <= 128 else 128
+
+        def _tri(x, _bk=bk):
+            return cand._triton_blocked_potrf(x)
+
+        try:
+            _run(f"triton_bk{bk}", _tri)
+        except Exception as exc:  # pragma: no cover
+            print(f"  potrf4096 triton_bk{bk:<11} FAILED: {exc!r}", flush=True)
+    for use_tf32 in (True, False):
+        tag = "tf32" if use_tf32 else "fp32"
+
+        def _cub(x, _t=use_tf32):
+            return cand._blocked_cublas_potrf(x, 32, _t)
+
+        try:
+            _run(f"cublas32_{tag}", _cub)
+        except Exception as exc:  # pragma: no cover
+            print(f"  potrf4096 cublas32_{tag:<9} FAILED: {exc!r}", flush=True)
+    return rows
+
+
+def run_nocusolverprobe(filter_ns=None):
+    import submission as cand
+
+    baseline_mod = _load_exp012_baseline_module()
+    baseline_fn = baseline_mod._left_looking_cholesky_32768
+    candidate_fn = cand._left_looking_cholesky_32768
+
+    ns = sorted(filter_ns) if filter_ns else [8192, 16384]
+
+    print("diagonal potrf micro-benchmark (single 4096 block):", flush=True)
+    micro = _diag_potrf_microbench()
+
+    # Choose the fastest passing cuSOLVER-free bk for the full-path comparison.
+    tri_rows = [r for r in micro if r["name"].startswith("triton") and r["tol_frac"] < 1.0]
+    if tri_rows:
+        best = min(tri_rows, key=lambda r: r["mean_us"])
+        best_bk = int(best["name"].replace("triton_bk", ""))
+    else:
+        best_bk = 128
+    # Two candidate configurations, spanning the speed/accuracy tradeoff of a
+    # cuSOLVER-free diagonal: (a) the fastest free diagonal (Triton bk64) with an
+    # FP8 panel solve, (b) the most accurate free diagonal (cuBLAS bk32 FP32) with
+    # a TF32 panel solve. Both are compared against the exp-012 cuSOLVER path.
+    configs = [
+        {"tag": "fast_triton64_fp8panel", "diag": "triton", "bk": 64, "panel_fp8": True},
+        {"tag": "accurate_cublas32fp32_tf32panel", "diag": "cublas32_fp32", "bk": 64, "panel_fp8": False},
+    ]
+
+    results = []
+    for cfg in configs:
+        cand._DIAG_METHOD = cfg["diag"]
+        cand._DIAG_POTRF_BK = cfg["bk"]
+        cand._DIAG_POTRF_TILE = cfg["bk"] if cfg["bk"] <= 128 else 128
+        cand._PANEL_SOLVE_FP8 = cfg["panel_fp8"]
+        print(f"\nconfig={cfg['tag']} (diag={cfg['diag']}, panel_fp8={cfg['panel_fp8']})", flush=True)
+        for n in ns:
+            data_list = []
+            seed = 48368
+            for _ in range(2):
+                data_list.append(generate_input(batch=1, n=n, cond=2, seed=seed)[0].contiguous())
+                seed += 42
+
+            cand_out = [candidate_fn(m) for m in data_list]
+            base_out = [baseline_fn(m) for m in data_list]
+            torch.cuda.synchronize()
+            cand_checks = [
+                check_implementation(m.unsqueeze(0), o.unsqueeze(0))
+                for m, o in zip(data_list, cand_out, strict=True)
+            ]
+            base_checks = [
+                check_implementation(m.unsqueeze(0), o.unsqueeze(0))
+                for m, o in zip(data_list, base_out, strict=True)
+            ]
+            cand_ok = all(g for g, _ in cand_checks)
+            base_ok = all(g for g, _ in base_checks)
+            cand_margin = max(_recon_margin(m.unsqueeze(0), o.unsqueeze(0)) for m, o in zip(data_list, cand_out))
+            base_margin = max(_recon_margin(m.unsqueeze(0), o.unsqueeze(0)) for m, o in zip(data_list, base_out))
+
+            iters = 4 if n < 32768 else 3
+            cand_t = _time_callable_rotating(candidate_fn, data_list, warmup=1, iters=iters)
+            base_t = _time_callable_rotating(baseline_fn, data_list, warmup=1, iters=iters)
+            speedup = base_t["mean_us"] / cand_t["mean_us"]
+            row = {
+                "config": cfg["tag"],
+                "n": n,
+                "candidate_passed": cand_ok,
+                "baseline_passed": base_ok,
+                "candidate_tol_frac": cand_margin,
+                "baseline_tol_frac": base_margin,
+                "candidate": cand_t,
+                "baseline": base_t,
+                "speedup": speedup,
+                "candidate_message": cand_checks[0][1],
+                "baseline_message": base_checks[0][1],
+            }
+            results.append(row)
+            print(
+                f"  n={n:<6} candidate={cand_t['mean_us']:.1f}us baseline={base_t['mean_us']:.1f}us "
+                f"speedup={speedup:.4f}x  cand_margin={1.0/cand_margin if cand_margin>0 else float('inf'):.1f}x "
+                f"(tol_frac={cand_margin:.3e}) cand_ok={cand_ok} base_ok={base_ok}",
+                flush=True,
+            )
+    cand._DIAG_METHOD = "triton"
+
+    # Backend proof: route a real dense (1, n, n) input through custom_kernel so
+    # the dispatch + safety-net counters are exercised. Only at 32768 (the ranked
+    # shape) unless a smaller n was requested.
+    dispatch_n = 32768 if 32768 in ns else max(ns)
+    fallbacks_before = getattr(cand, "_LEFT_LARGE_FALLBACKS", 0)
+    hits_before = getattr(cand, "_NOCUSOLVER_32768_HITS", 0)
+    if dispatch_n == 32768:
+        dense = generate_input(batch=1, n=32768, cond=2, seed=48368)
+        disp_out = cand.custom_kernel(dense)
+        torch.cuda.synchronize()
+        disp_ok, disp_msg = check_implementation(dense, disp_out)
+        owned = disp_out.data_ptr() != dense.data_ptr()
+    else:
+        disp_ok, disp_msg, owned = None, "dispatch-check skipped (no 32768)", None
+
+    backend_status = {
+        "nocusolver_32768_hits": getattr(cand, "_NOCUSOLVER_32768_HITS", 0),
+        "nocusolver_potrf_calls": getattr(cand, "_NOCUSOLVER_POTRF_CALLS", 0),
+        "left_32768_error": getattr(cand, "_LEFT_32768_ERROR", None),
+        "fallbacks": getattr(cand, "_LEFT_LARGE_FALLBACKS", 0),
+        "fallbacks_during_dispatch": getattr(cand, "_LEFT_LARGE_FALLBACKS", 0) - fallbacks_before,
+        "hits_during_dispatch": getattr(cand, "_NOCUSOLVER_32768_HITS", 0) - hits_before,
+        "dispatch_n": dispatch_n,
+        "dispatch_passed": disp_ok,
+        "dispatch_message": disp_msg,
+        "dispatch_owned_output": owned,
+        "best_bk": best_bk,
+    }
+    print(f"backend_status={json.dumps(backend_status)}", flush=True)
+
+    backend_ok = (
+        backend_status["nocusolver_32768_hits"] > 0
+        and backend_status["fallbacks"] == 0
+        and backend_status["left_32768_error"] is None
+    )
+    passed = backend_ok and all(
+        r["candidate_passed"] and r["baseline_passed"] and r["speedup"] > 1.0
+        for r in results
+    )
+    return {
+        "mode": "nocusolverprobe",
+        "passed": passed,
+        "backend_status": backend_status,
+        "diag_microbench": micro,
         "shapes": results,
     }
 
@@ -963,6 +1192,8 @@ def main():
         result = run_frontierprobe()
     elif mode == "largefrontierprobe":
         result = run_largefrontierprobe()
+    elif mode == "nocusolverprobe":
+        result = run_nocusolverprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

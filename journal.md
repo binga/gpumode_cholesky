@@ -79,7 +79,7 @@ secret 1448.3768036226527μs). `nb` = block size.
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
 | 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
-| 1×32768  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel** (S10) | TBD (2-level) |
+| 1×32768  | ✗ | — | ✗ (S13 no-cusolver potrf) | ✗ (S13) | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel** (S10) | ✗ (S13 two-level) |
 
 Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
@@ -127,6 +127,52 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-16 — Session 13: 1×32768 cuSOLVER-free Triton potrf → REJECTED
+
+### Result
+
+**REJECTED.** Experiment 013 attempted to beat the exp-012 `1×32768` path
+(`#878893`) while removing every cuSOLVER call from the fast path (Triton /
+cuBLAS two-level blocked diagonal `potrf`, optional FP8 panel solve). No variant
+cleared gate 1 on the cheap B200 proxies; **no ranked submission**, root
+`submission.py` unchanged.
+
+### Causal evidence
+
+Diagonal `potrf` micro-benchmark (single 4096×4096 block — the only cuSOLVER
+term on the shipped path):
+
+| method | mean | vs cuSOLVER |
+|---|---:|---:|
+| **cuSOLVER `cholesky_ex`** | **1579 µs** | 1.00× |
+| Triton blocked bk=64 (fastest free) | 5794 µs | **3.67× slower** |
+| cuBLAS blocked bk=32 FP32 (accurate) | 13261 µs | **8.4× slower** |
+
+Full left-looking path, candidate vs exp-012 (paired same-process):
+
+| config | n | speedup | correctness |
+|---|---:|---:|---|
+| fast (Triton diag, FP8 panel) | 8192 / 16384 | **0.41× / 0.50×** | FAIL (NaN) |
+| accurate (cuBLAS32 FP32 diag) | 8192 / 16384 | **0.22× / 0.30×** | PASS |
+
+Backend counter: `nocusolver_32768_hits=48`, `fallbacks=0` — a genuine
+cuSOLVER-free measurement, not a fallback.
+
+### Verdict and cost
+
+cuSOLVER's fused diagonal `potrf` (~1.6 ms, ~24% of the 52 ms path) is not
+replaceable with PyTorch/Triton orchestration without a large net regression.
+Even a perfect cuSOLVER-free `potrf` would leave ≈0% headroom; the only FP8 lever
+is worth ~2–5 ms and costs accuracy. A single-launch CUTLASS/`tcgen05` `potrf`
+is the only credible alternative (high effort, poor ROI). Modal spend ≈ **$2–3**
+(three `nocusolverprobe` runs); ranked quota **0**.
+
+Artifacts: `experiments/013-1x32768-no-cusolver/`, goal
+`docs/goal-exp013-1x32768-no-cusolver.md`, harness `nocusolverprobe` mode in
+`scripts/`.
 
 ---
 

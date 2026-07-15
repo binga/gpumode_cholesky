@@ -1,0 +1,125 @@
+{
+  "mode": "nocusolverprobe",
+  "passed": false,
+  "backend_status": {
+    "nocusolver_32768_hits": 48,
+    "nocusolver_potrf_calls": 171,
+    "left_32768_error": null,
+    "fallbacks": 0,
+    "fallbacks_during_dispatch": 0,
+    "hits_during_dispatch": 0,
+    "dispatch_n": 16384,
+    "dispatch_passed": null,
+    "dispatch_message": "dispatch-check skipped (no 32768)",
+    "dispatch_owned_output": null,
+    "best_bk": 64
+  },
+  "diag_microbench": [
+    {
+      "name": "cusolver",
+      "mean_us": 1578.6986549695332,
+      "tol_frac": 1.6753761883592233e-05
+    },
+    {
+      "name": "triton_bk64",
+      "mean_us": 5794.23991839091,
+      "tol_frac": 0.050758153200149536
+    },
+    {
+      "name": "cublas32_tf32",
+      "mean_us": 13577.264149983725,
+      "tol_frac": 0.018800465390086174
+    },
+    {
+      "name": "cublas32_fp32",
+      "mean_us": 13261.008103688559,
+      "tol_frac": 5.67674869671464e-05
+    }
+  ],
+  "shapes": [
+    {
+      "config": "fast_triton64_fp8panel",
+      "n": 8192,
+      "candidate_passed": false,
+      "baseline_passed": true,
+      "candidate_tol_frac": NaN,
+      "baseline_tol_frac": 0.014015043154358864,
+      "candidate": {
+        "mean_us": 14182.276010513306,
+        "best_us": 14177.984237670898,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 5811.383962631226,
+        "best_us": 5807.136058807373,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.4097638459668429,
+      "candidate_message": "output contains NaN or Inf",
+      "baseline_message": "scaled_reconstruction_residual=0.28; batch=1; n=8192"
+    },
+    {
+      "config": "fast_triton64_fp8panel",
+      "n": 16384,
+      "candidate_passed": false,
+      "baseline_passed": true,
+      "candidate_tol_frac": NaN,
+      "baseline_tol_frac": 0.2897491157054901,
+      "candidate": {
+        "mean_us": 33211.5364074707,
+        "best_us": 33194.190979003906,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 16536.351680755615,
+        "best_us": 16520.70426940918,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.49790986715796376,
+      "candidate_message": "output contains NaN or Inf",
+      "baseline_message": "scaled_reconstruction_residual=5.79; batch=1; n=16384"
+    },
+    {
+      "config": "accurate_cublas32fp32_tf32panel",
+      "n": 8192,
+      "candidate_passed": true,
+      "baseline_passed": true,
+      "candidate_tol_frac": 0.013899151235818863,
+      "baseline_tol_frac": 0.014015043154358864,
+      "candidate": {
+        "mean_us": 26536.879539489746,
+        "best_us": 26424.25537109375,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 5808.503985404968,
+        "best_us": 5799.808025360107,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.21888421269581776,
+      "candidate_message": "scaled_reconstruction_residual=0.278; batch=1; n=8192",
+      "baseline_message": "scaled_reconstruction_residual=0.28; batch=1; n=8192"
+    },
+    {
+      "config": "accurate_cublas32fp32_tf32panel",
+      "n": 16384,
+      "candidate_passed": true,
+      "baseline_passed": true,
+      "candidate_tol_frac": 0.2903915047645569,
+      "baseline_tol_frac": 0.2897491157054901,
+      "candidate": {
+        "mean_us": 54648.27251434326,
+        "best_us": 54256.080627441406,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 16531.755447387695,
+        "best_us": 16514.991760253906,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.30251194935848497,
+      "candidate_message": "scaled_reconstruction_residual=5.81; batch=1; n=16384",
+      "baseline_message": "scaled_reconstruction_residual=5.79; batch=1; n=16384"
+    }
+  ]
+}

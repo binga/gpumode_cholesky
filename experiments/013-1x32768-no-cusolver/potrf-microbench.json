@@ -1,0 +1,61 @@
+{
+  "mode": "nocusolverprobe",
+  "passed": false,
+  "backend_status": {
+    "nocusolver_32768_hits": 12,
+    "nocusolver_potrf_calls": 51,
+    "left_32768_error": null,
+    "fallbacks": 0,
+    "fallbacks_during_dispatch": 0,
+    "hits_during_dispatch": 0,
+    "dispatch_n": 8192,
+    "dispatch_passed": null,
+    "dispatch_message": "dispatch-check skipped (no 32768)",
+    "dispatch_owned_output": null,
+    "best_bk": 64
+  },
+  "diag_microbench": [
+    {
+      "name": "cusolver",
+      "mean_us": 1578.9439876874287,
+      "tol_frac": 1.6753761883592233e-05
+    },
+    {
+      "name": "triton_bk64",
+      "mean_us": 5774.368047714233,
+      "tol_frac": 0.050758153200149536
+    },
+    {
+      "name": "cublas32_tf32",
+      "mean_us": 11771.557490030924,
+      "tol_frac": 0.018800465390086174
+    },
+    {
+      "name": "cublas32_fp32",
+      "mean_us": 14622.575918833414,
+      "tol_frac": 5.67674869671464e-05
+    }
+  ],
+  "shapes": [
+    {
+      "n": 8192,
+      "candidate_passed": false,
+      "baseline_passed": true,
+      "candidate_tol_frac": NaN,
+      "baseline_tol_frac": 0.014015043154358864,
+      "candidate": {
+        "mean_us": 14125.324010848999,
+        "best_us": 14120.03231048584,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 5785.7760190963745,
+        "best_us": 5779.583930969238,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.40960306571747246,
+      "candidate_message": "output contains NaN or Inf",
+      "baseline_message": "scaled_reconstruction_residual=0.28; batch=1; n=8192"
+    }
+  ]
+}

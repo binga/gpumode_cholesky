@@ -29,14 +29,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # torch 2.12.0+cu130. pip `torch` currently resolves to the same cu130 wheel, so
 # nvcc 13.0 and torch's CUDA agree. The Blackwell (sm_100) kernels ship in that
 # wheel. `.entrypoint([])` clears the nvidia image's default entrypoint script.
-IMAGE = (
+def _build_image(submission_path):
+    return (
     modal.Image.from_registry(
         "nvidia/cuda:13.0.0-devel-ubuntu24.04", add_python="3.11"
     )
     .entrypoint([])
     .pip_install("torch", "numpy", "ninja")
     .add_local_dir(str(ROOT / "reference"), "/root/reference", copy=True)
-    .add_local_file(str(ROOT / "submission.py"), "/root/submission.py", copy=True)
+    .add_local_file(str(submission_path), "/root/submission.py", copy=True)
     .add_local_file(
         str(
             ROOT
@@ -57,8 +58,18 @@ IMAGE = (
         "/root/baseline_exp009.py",
         copy=True,
     )
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "013-1x32768-no-cusolver"
+            / "baseline-exp012.py"
+        ),
+        "/root/baseline_exp012.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
-)
+    )
 
 
 def main() -> int:
@@ -76,7 +87,14 @@ def main() -> int:
             "fusionprobe",
             "frontierprobe",
             "largefrontierprobe",
+            "nocusolverprobe",
         ],
+    )
+    parser.add_argument(
+        "--submission",
+        default=None,
+        help="path to the submission.py to upload as /root/submission.py "
+        "(defaults to root submission.py; use the exp-013 candidate for probes)",
     )
     parser.add_argument("--gpu", default="B200")
     parser.add_argument("--timeout", type=int, default=1200)
@@ -92,6 +110,14 @@ def main() -> int:
         help="enable cuBLAS BF16x9 FP32 emulation (CUBLAS_FP32_EMULATED_BF16X9_MATH=1) in the sandbox",
     )
     args = parser.parse_args()
+
+    submission_path = (
+        Path(args.submission).resolve()
+        if args.submission
+        else ROOT / "submission.py"
+    )
+    image = _build_image(submission_path)
+    print(f"submission -> {submission_path}", file=sys.stderr)
 
     app = modal.App.lookup("gpumode-cholesky-verify", create_if_missing=True)
     result_payload = None
@@ -109,7 +135,7 @@ def main() -> int:
     with modal.enable_output():
         sandbox = modal.Sandbox.create(
             *runner_args,
-            image=IMAGE,
+            image=image,
             gpu=args.gpu,
             app=app,
             timeout=args.timeout,

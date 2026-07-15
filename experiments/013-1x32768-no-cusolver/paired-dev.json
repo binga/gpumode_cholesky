@@ -1,0 +1,76 @@
+{
+  "mode": "nocusolverprobe",
+  "passed": false,
+  "backend_status": {
+    "nocusolver_32768_hits": 24,
+    "nocusolver_potrf_calls": 91,
+    "left_32768_error": null,
+    "fallbacks": 0,
+    "fallbacks_during_dispatch": 0,
+    "hits_during_dispatch": 0,
+    "dispatch_n": 16384,
+    "dispatch_passed": null,
+    "dispatch_message": "dispatch-check skipped (no 32768)",
+    "dispatch_owned_output": null,
+    "best_bk": 64
+  },
+  "diag_microbench": [
+    {
+      "name": "cusolver",
+      "mean_us": 1572.7786819140117,
+      "tol_frac": 1.6753761883592233e-05
+    },
+    {
+      "name": "triton_bk64",
+      "mean_us": 5788.165330886841,
+      "tol_frac": 0.050758153200149536
+    },
+    {
+      "name": "triton_bk128",
+      "mean_us": 16108.65592956543,
+      "tol_frac": 0.05066150426864624
+    }
+  ],
+  "shapes": [
+    {
+      "n": 8192,
+      "candidate_passed": false,
+      "baseline_passed": true,
+      "candidate_tol_frac": NaN,
+      "baseline_tol_frac": 0.014015043154358864,
+      "candidate": {
+        "mean_us": 14156.623840332031,
+        "best_us": 14151.80778503418,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 5779.967904090881,
+        "best_us": 5776.319980621338,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.40828717138219284,
+      "candidate_message": "output contains NaN or Inf",
+      "baseline_message": "scaled_reconstruction_residual=0.28; batch=1; n=8192"
+    },
+    {
+      "n": 16384,
+      "candidate_passed": false,
+      "baseline_passed": true,
+      "candidate_tol_frac": NaN,
+      "baseline_tol_frac": 0.2897491157054901,
+      "candidate": {
+        "mean_us": 33101.95541381836,
+        "best_us": 33091.6633605957,
+        "rotating_inputs": 2
+      },
+      "baseline": {
+        "mean_us": 16439.087867736816,
+        "best_us": 16436.063766479492,
+        "rotating_inputs": 2
+      },
+      "speedup": 0.4966198420071083,
+      "candidate_message": "output contains NaN or Inf",
+      "baseline_message": "scaled_reconstruction_residual=5.79; batch=1; n=16384"
+    }
+  ]
+}
