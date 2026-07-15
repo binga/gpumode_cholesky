@@ -32,3 +32,4 @@ and auditable.
 | 001 | cuSOLVER baseline | ~2080μs | #876988 | superseded by 002 |
 | 002 | Triton n=32 (num_warps=1) + cuSOLVER | ~2062μs | #877091 | **adopted (current best)** |
 | 003 | CUDA warp/block-per-matrix n=64/128 (nvcc via load_inline) | 64: 205μs, 128: 413μs (both > cuSOLVER) | — | **rejected** (cuSOLVER wins n=64/128) |
+| 004 | small-batch/large-n → per-matrix loop (avoid batched potrf) | ~1746μs ranked (**beats leader ~1924**) | #877941 | **adopted (current best)** |

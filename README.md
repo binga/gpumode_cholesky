@@ -48,7 +48,8 @@ popcorn submissions                                # view your entries
 - CPU property check: **10/10 pass**.
 - Real B200 verify (Modal sandbox): **13/13 pass** (torch 2.12+cu130 on `NVIDIA B200`). The default torch wheel already ships Blackwell/sm_100 kernels — no cu128 pin needed.
 - **Ranked submission `#876988`** (cuSOLVER baseline): `done`, 17/17 on B200, geomean ≈ **2080μs**.
-- **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean of that run ≈ **2062μs** (below baseline; same-environment the n=32 win is ~3.9% on the geomean — several cuSOLVER shapes drifted up this session, masking the absolute delta). Board leaders were ~1924μs (xuan9938) / ~2041μs (msaroufim). See `journal.md` Session 2 and `results/candidate-n32-benchmark.json`.
+- **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.
+- **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370; cheap fix = restrict region to `batch<=4`, deferred to save quota.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 

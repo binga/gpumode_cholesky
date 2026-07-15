@@ -4,6 +4,60 @@ Running log of work, results, and findings. Newest entries at the top.
 
 ---
 
+## 2026-07-15 — Session 4: small-batch/large-n loop → ranked #877941, BEATS THE LEADER
+
+### Result
+**New best `#877941`, ranked geomean ≈ 1746μs** — beats prior best `#877091`
+(~2062μs) by ~15% **and the board leader (~1924μs) by ~9%.** 17/17 tests pass.
+Experiment `004`, **adopted** to root `submission.py`.
+
+### What & why
+`torch.linalg.cholesky_ex` sends batch≥2 to `cusolverDnSpotrfBatched` (tuned for
+many-small matrices) — terrible for few-but-large. Confirmed on B200 with a 3-way
+probe (batched vs per-matrix loop vs streamed):
+
+| shape | batched | loop | streamed |
+|---|---|---|---|
+| 2×4096 | 12580 | **3222** | 3391 |
+| 2×2048 | 3900 | 1382 | **1132** |
+| 8×2048 | 5612 | 5427 | **3477** |
+| 4×1024 | 1646 | 1353 | **634** |
+| 60×1024| **3233**| 19707| 5782 |
+| 1×4096 | **1546**| 1627 | 2447 |
+
+Streamed was fastest but **popcorn forbids non-default streams** (static source
+scan → HTTP 500 "work on another stream ... disqualification"; it even flagged the
+literal word "stream" in a comment). So shipped the **loop**: dispatch
+`2<=batch<=8 and n>=1024 → per-matrix loop`, keep Triton n=32 + batched cuSOLVER
+elsewhere.
+
+### Ranked per-shape (`#877091` → `#877941`)
+- **2×4096: 13400 → 3200μs (4.19×)** — the big one.
+- **2×2048: 3840 → 1357μs (2.83×)**.
+- 4×1024: 1395 → 1297μs (1.08×).
+- 8×2048: 5010 → 5370μs (**1.07× WORSE** — loop regresses here on popcorn even
+  though it tied/won on Modal; Modal↔popcorn fidelity gap on a marginal shape).
+- others unchanged.
+
+### Correctness
+popcorn test 17/17; Modal verify 26/26 across all families (added in-region cases:
+2×1024 spectrum/diagonal, 4×1024 rowscale/tridiagonal, 8×2048, 2×4096 dense/lowrank).
+Loop calls the same `potrf` per slice → numerically identical to cuSOLVER.
+
+### Quota / cost
+Ranked used: **2 of 3** overall (session 2 `#877091` + this `#877941`). Test id
+`#877940`. Modal spend this session ≈ **~$0.5–1**.
+
+### Next steps
+1. **Cheap fix for the 8×2048 regression:** restrict the region to `2<=batch<=4`
+   (leave 8×2048 on batched, 5010 < 5370). Est. ~1746→~1738μs. Costs the last ranked
+   submission to confirm; deferred (leader already beaten). Root keeps the exact
+   `#877941` code (region `2<=batch<=8`) so it matches a confirmed ranked result.
+2. Revisit whether a Triton/CUDA single-large-matrix kernel could shave 8192/16384/
+   32768 (compute-bound, low ROI) — unlikely.
+
+---
+
 ## 2026-07-15 — Session 3: CUDA n=64/128 attempt → REJECTED (cuSOLVER wins)
 
 ### Goal

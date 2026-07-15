@@ -40,6 +40,15 @@ TEST_SPECS = [
     {"batch": 256, "n": 32, "cond": 4, "seed": 90003, "case": "lowrank"},
     {"batch": 256, "n": 32, "cond": 4, "seed": 90004, "case": "rowscale"},
     {"batch": 256, "n": 32, "cond": 1, "seed": 90005, "case": "tridiagonal"},
+    # exp 004: small-batch/large-n region (streamed for n<4096, loop for n>=4096)
+    # across families, to prove the per-matrix paths are numerically clean.
+    {"batch": 2, "n": 1024, "cond": 5, "seed": 94001, "case": "spectrum"},
+    {"batch": 2, "n": 1024, "cond": 5, "seed": 94002, "case": "diagonal"},
+    {"batch": 4, "n": 1024, "cond": 4, "seed": 94003, "case": "rowscale"},
+    {"batch": 4, "n": 1024, "cond": 1, "seed": 94004, "case": "tridiagonal"},
+    {"batch": 8, "n": 2048, "cond": 2, "seed": 94005},
+    {"batch": 2, "n": 4096, "cond": 2, "seed": 94006},
+    {"batch": 2, "n": 4096, "cond": 4, "seed": 94007, "case": "lowrank"},
 ]
 
 # The 15-shape ranked benchmark grid from task.yml.
@@ -157,6 +166,105 @@ def run_benchmark(filter_ns=None):
     return {"mode": "benchmark", "geomean_us": geom, "shapes": results}
 
 
+# ---------------------------------------------------------------------------
+# probe mode: compare 3 ways of factorizing small-batch/large-n shapes to test
+# the exp-004 hypothesis (batched cuSOLVER path is bad for few-large matrices).
+# ---------------------------------------------------------------------------
+def _batched_call(data):
+    return torch.linalg.cholesky_ex(data, check_errors=False).L
+
+
+def _loop_call(data):
+    batch = data.shape[0]
+    return torch.stack(
+        [torch.linalg.cholesky_ex(data[i], check_errors=False).L for i in range(batch)]
+    )
+
+
+def _streamed_call(data):
+    batch = data.shape[0]
+    outs = [None] * batch
+    streams = [torch.cuda.Stream() for _ in range(batch)]
+    for i in range(batch):
+        with torch.cuda.stream(streams[i]):
+            outs[i] = torch.linalg.cholesky_ex(data[i], check_errors=False).L
+    torch.cuda.synchronize()
+    return torch.stack(outs)
+
+
+def _time_callable(data, fn, warmup, iters, l2_clear=True):
+    torch.cuda.synchronize()
+    for _ in range(warmup):
+        fn(data)
+    torch.cuda.synchronize()
+    durations = []
+    for _ in range(iters):
+        if l2_clear:
+            _l2_flush()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        torch.cuda.synchronize()
+        start.record()
+        fn(data)
+        end.record()
+        torch.cuda.synchronize()
+        durations.append(start.elapsed_time(end) * 1e3)
+    durations.sort()
+    return sum(durations) / len(durations), durations[0]
+
+
+PROBE_SPECS = [
+    {"batch": 2, "n": 4096, "cond": 2, "seed": 514096},
+    {"batch": 2, "n": 2048, "cond": 2, "seed": 44048},
+    {"batch": 8, "n": 2048, "cond": 2, "seed": 512048},
+    {"batch": 4, "n": 1024, "cond": 2, "seed": 42024},
+    {"batch": 60, "n": 1024, "cond": 2, "seed": 511024},
+    {"batch": 1, "n": 4096, "cond": 2, "seed": 48096},
+]
+
+_APPROACHES = [("batched", _batched_call), ("loop", _loop_call), ("streamed", _streamed_call)]
+
+
+def run_probe(filter_ns=None):
+    specs = PROBE_SPECS
+    if filter_ns:
+        specs = [s for s in PROBE_SPECS if s["n"] in filter_ns]
+    results = []
+    for spec in specs:
+        data = generate_input(**spec)
+        n = spec["n"]
+        iters = 20 if n <= 2048 else 8
+        warmup = 5 if n <= 2048 else 2
+        row = {"spec": _spec_label(spec), "batch": spec["batch"], "n": n, "times_us": {}}
+        for name, fn in _APPROACHES:
+            out = fn(data.clone())
+            torch.cuda.synchronize()
+            good, message = check_implementation(data, out)
+            if not good:
+                row["times_us"][name] = None
+                row.setdefault("errors", {})[name] = message
+                continue
+            mean_us, best_us = _time_callable(data, fn, warmup, iters)
+            row["times_us"][name] = mean_us
+        base = row["times_us"].get("batched")
+        best_name = min(
+            (k for k, v in row["times_us"].items() if v is not None),
+            key=lambda k: row["times_us"][k],
+            default=None,
+        )
+        row["best_approach"] = best_name
+        summary = "  ".join(
+            f"{k}={v:.1f}us" if v is not None else f"{k}=FAIL"
+            for k, v in row["times_us"].items()
+        )
+        speedup = ""
+        if base and best_name and row["times_us"][best_name]:
+            speedup = f"  (best={best_name}, {base / row['times_us'][best_name]:.2f}x vs batched)"
+        print(f"{row['spec']:<40} {summary}{speedup}", flush=True)
+        results.append(row)
+    return {"mode": "probe", "shapes": results}
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "verify"
     filter_ns = None
@@ -168,7 +276,12 @@ def main():
     _err = getattr(_sub, "_CUDA_LOAD_ERROR", None)
     if _err:
         print("CUDA_LOAD_ERROR:\n" + _err, flush=True)
-    result = run_benchmark(filter_ns) if mode == "benchmark" else run_verify()
+    if mode == "benchmark":
+        result = run_benchmark(filter_ns)
+    elif mode == "probe":
+        result = run_probe(filter_ns)
+    else:
+        result = run_verify()
     print("RESULT_JSON:" + json.dumps(result), flush=True)
 
 
