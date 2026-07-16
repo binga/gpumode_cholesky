@@ -10,6 +10,9 @@ identified. The dated session log starts after it.
 
 ## Required end-to-end experiment workflow
 
+The canonical triggerable version of this workflow, including standing Modal
+profiling authorization and promotion gates, is in `program.md`.
+
 Every experiment, whether **adopted or rejected**, is complete only after this
 entire workflow has run and the result is present on GitHub:
 
@@ -60,8 +63,8 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#878893` = 1459.321342997556μs public geomean** (Session 10;
-secret 1448.3768036226527μs). `nb` = block size.
+Current best: **`#880770` = 1447.2589334363144μs public geomean** (Session 14;
+secret 1443.2264907145392μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -79,7 +82,7 @@ secret 1448.3768036226527μs). `nb` = block size.
 | 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
 | 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
-| 1×32768  | ✗ | — | ✗ (S13 no-cusolver potrf) | ✗ (S13) | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel** (S10) | ✗ (S13 two-level) |
+| 1×32768  | ✗ | — | ✗ (S13/S14 no-cusolver potrf) | ✗ (S13/S14) | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel + fused quantization** (S10/S14, 1.084×) | ✗ (S13 two-level) |
 
 Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
@@ -102,12 +105,14 @@ which *grows with n* → the huge shapes have the most numerical headroom).
    16384 bf16x9 1.15× vs TF32's 1.60×. Reason: BF16x9 ≈ 6–9 BF16 products per FP32
    GEMM, so ~3× slower than a single-product TF32 GEMM — TF32 tensor cores are the real
    bar, not native FP32. Speed order TF32 > BF16x9 > native FP32. See exp 007.
-2. **FP8 / MXFP8 trailing update + mixed-precision iterative refinement** — factor
-   the trailing Schur update in FP8 (E4M3) or block-scaled MXFP8 on 5th-gen
-   tensor cores (~2× FP16, ~4× TF32 throughput), then run 1–2 steps of SPD
-   iterative refinement (LAPACK `posv`-IR style) to recover accuracy. The loose,
-   n-scaled gate is exactly what makes this viable. Higher effort/risk than (1)
-   but larger ceiling. *Target: 1×16384, 1×32768.*
+2. **FP8 / MXFP8 trailing update + mixed-precision iterative refinement** —
+   ◐ **PARTIALLY SHIPPED (S10/S14).** Native E4M3 FP8 panel products with FP32
+   accumulation in the left-looking `1×32768` path passed all six families and
+   improved the exp-009 path by **1.373×**. Experiment 014 fused both operands'
+   tiled amax reductions and E4M3 scale/cast passes, improving that shipped path
+   another **1.084×** and producing ranked `#880770`. The dense scaled residual
+   remains 4.52/20 (22.6% of tolerance). MXFP8, iterative refinement, and an FP8
+   path for `1×16384` remain genuinely untested.
 3. **CUTLASS 3.x Blackwell fused kernel (`tcgen05.mma`, TMA, 2-SM MMA)** — a
    warp-specialized collective kernel that fuses panel + trailing SYRK, using the
    Tensor Memory Accelerator for async bulk copies and CTA-pair (2-SM) MMA. Beats
@@ -127,6 +132,100 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-17 — Session 14: fused E4M3 quantization → ranked #880770 (NEW BEST 1447.259μs)
+
+### Goal and result
+
+Target the slowest ranked shape, `batch=1,n=32768`, from exact winner `#878893`
+(`141d015`, public `1459.321342997556μs`, secret
+`1448.3768036226527μs`). The default goal was `2.00×`; every correct positive
+partial frontier was preserved and only an aggregate full-grid improvement was
+eligible for ranking.
+
+**ADOPTED.** Ranked `#880770` completed both public and secret pipelines at
+**1447.2589334363144μs public** and **1443.2264907145392μs secret**. This is
+`12.062410μs` / `0.8266%` better publicly and `5.150313μs` / `0.3556%` better
+secretly than `#878893`. Exact ranked source SHA-256:
+`78b2282d436243393897e61a5e4b8206d52c3950ec6f4495cbc71da895abd1fc`.
+
+### Bounded architecture ladder
+
+All target measurements were paired, same-process Modal B200 runs against the
+exact source-locked exp-012 winner, with retained outputs and backend counters.
+
+| Architecture | Baseline → candidate mean | Speedup | Verdict |
+|---|---:|---:|---|
+| Triton 512-microblock active superpanel, custom diagonal | 52042.6→86184.1μs | 0.604× | rejected |
+| Custom CUDA128 POTRF superpanel | 51689.3→315719.2μs | 0.164× | rejected |
+| CUDA128 padded-shared defect repair | 56961.4→117314.1μs | 0.486× | rejected |
+| CUDA128 warp-synchronous defect repair | 52031.2→182105.3μs | 0.286× | rejected |
+| Joint fused E4M3 scale/cast | 51915.0→51430.1μs | 1.009× | frontier |
+| **Tiled dual amax + joint fused E4M3 scale/cast** | **51939.3→47896.9μs** | **1.084×** | **frontier/adopted** |
+| Fixed-scale FP8 shadow factor | 52499.5→51293.7μs | 1.024× | superseded frontier |
+
+The cuSOLVER-free candidates were correct (`4.53/20`) but much slower, agreeing
+with independent experiment 013's diagonal-POTRF negative evidence. The adopted
+frontier retains the ranked diagonal cuSOLVER calls and changes only the dynamic
+quantization front end. It preserves exact scalar E4M3 decode scaling and FP32
+`_scaled_mm` accumulation; both rotating dense inputs remain `4.52/20`, with 96
+fused-amax hits, 96 fused-quantization hits, and zero fallback/error.
+
+### Component evidence and numerical gates
+
+The adopted operator profile measured `48004.3μs`. Dominant self-device costs:
+triangular inverse/solve `12074.3μs`, diagonal Cholesky `11162.5μs`, TF32
+diagonal update `8064.0μs`, `addmm_` `4829.8μs`, copies `4626.8μs`, panel `mm`
+`4373.7μs`, FP8 `_scaled_mm` `2523.6μs`, and fused tiled amax `2449.4μs`.
+The FP8 GEMM itself is no longer the primary bottleneck.
+
+Changed-family Modal gate: **6/6**. Dense/diagonal/tridiagonal used the fast path
+with zero fallback. Spectrum/low-rank/row-scaled proved the intended fused path
+was attempted, then each took exactly one ranked safety fallback in both modules.
+Candidate scaled residuals were respectively `4.52`, `0.000537`, `0.000507`,
+`0.000042`, `0.000061`, and `0.00408`, all against the unchanged factor-20 gate.
+
+### Full grid and harness defects
+
+Final retained-output Modal grid: **15/15 pass**, exact baseline geomean
+`1574.149644μs`, candidate `1565.545754μs`, aggregate **1.005496×**. Maximum
+off-target ratio was `1.016644×` at `1×16384`, below the `1.03×` guardrail.
+The target arithmetic mean was `51874.714→51198.891μs`; candidate best was
+`47778.370μs`. Its mean includes one `68162.819μs` allocation outlier; the other
+five samples were `47778–47824μs`, consistent with the dedicated 1.084× result.
+No timed sample was removed.
+
+Two harness defects were found and preserved rather than hidden: a single-line
+full-grid JSON exceeded Modal's stdout limit, and the final warmup output
+reference caused a one-time allocator expansion in reversed order. The final
+harness uses exact-length 8-KiB result chunks and releases only the warmup
+reference before timing; timed outputs remain retained through validation. An
+initial family contract also incorrectly rejected expected safety fallbacks; the
+fixed contract requires an exact fallback delta of one for those three families.
+
+### Popcorn, cost, and next directions
+
+Popcorn test `#880765`: **17/17**. After auditing the exact source, raw target,
+family, full-grid, and test artifacts and confirming no ranked job was active,
+exactly one leaderboard submission (`#880770`) was launched. All public/secret
+test, benchmark, and leaderboard stages succeeded.
+
+Approximately a dozen Modal B200 jobs covered the architecture ladder,
+component profile, family gate, and full-grid repairs; exact invoice cost was not
+available. Popcorn usage was one test and one ranked entry. Local CPU verification
+was unavailable because the workstation Python has no `torch`; syntax, JSON,
+source-policy, whitespace, hash, and stronger B200 checks all passed.
+
+Next directions: fuse FP8 GEMM subtraction through cuBLASLt/CUTLASS, remove
+product/copy traffic, or use a native Blackwell collective. Do not repeat custom
+Python/Triton POTRF, smaller block sizes, or fixed-scale shadow copies; sessions
+13–14 close those paths with direct negative evidence.
+
+Artifacts: `experiments/014-fused-e4m3-quantization/` (exact baseline,
+candidates, component/paired/family/full-grid JSON, Popcorn test/ranked JSON,
+harness, notes, and exact ranked `submission.py`).
 
 ---
 

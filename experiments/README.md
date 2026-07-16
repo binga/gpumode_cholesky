@@ -41,3 +41,4 @@ and auditable.
 | 009 | combine exact-shape graph frontiers at 256×128/16×512 with Triton FP32/TF32 8×2048 | 1500.704μs public / 1501.440μs secret; paired 1.211×/1.280×/1.622× | #878273 | superseded by 012 |
 | 012 | left-looking active-panel paths at 1×16384 (TF32) and 1×32768 (native FP8/FP32 accumulate) | 1459.321μs public / 1448.377μs secret; paired 1.150×/1.373× | #878893 | **adopted (current best)** |
 | 013 | 1×32768 cuSOLVER-free path — Triton/cuBLAS two-level diagonal potrf + FP8 panel | 8192/16384 paired 0.22–0.50× vs exp-012; diag potrf 3.7–8.4× slower than cuSOLVER | — | **rejected** (cuSOLVER diagonal not removable without large regression) |
+| 014 | fused tiled dual-amax + joint E4M3 scale/cast for 1×32768 panel products | 1447.259μs public / 1443.226μs secret; dedicated target 1.084×; Modal grid 1.0055× | #880770 | **adopted (current best)** |

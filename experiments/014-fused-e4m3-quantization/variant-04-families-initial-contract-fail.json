@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "experiment": "013-32768-latency",
+  "mode": "families",
+  "baseline": {
+    "ranked_commit": "141d015",
+    "ranked_submission_id": 878893,
+    "source_sha256": "112ee017f96f4dafb95a173cf51bb59190c2ded1e7702a64992e6795985759dd",
+    "source_path": "experiments/012-large-left-looking-frontiers/submission.py",
+    "ranked_public_score_us": 1459.321,
+    "modal_full_grid_target_mean_us": 51909.29174423218,
+    "modal_full_grid_target_best_us": 51844.383239746094,
+    "observed_sha256": "112ee017f96f4dafb95a173cf51bb59190c2ded1e7702a64992e6795985759dd",
+    "source_lock_passed": true
+  },
+  "candidate": {
+    "source_sha256": "78b2282d436243393897e61a5e4b8206d52c3950ec6f4495cbc71da895abd1fc"
+  },
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "cuda_runtime": "13.0",
+    "device": "NVIDIA B200",
+    "compute_capability": [
+      10,
+      0
+    ],
+    "total_memory_bytes": 191503138816
+  },
+  "module_load": {
+    "baseline": true,
+    "candidate": true
+  },
+  "result": {
+    "mode": "families",
+    "families": [
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 2,
+          "seed": 68368,
+          "case": "dense"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=4.52; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 4.52,
+            "tolerance_fraction": 0.22599999999999998
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 0,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=4.52; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 4.52,
+            "tolerance_fraction": 0.22599999999999998
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 0,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 0,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 0,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            }
+          }
+        },
+        "passed": true
+      },
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 5,
+          "seed": 68371,
+          "case": "spectrum"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.000537; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.000537,
+            "tolerance_fraction": 2.6850000000000002e-05
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 2,
+              "_LEFT_LARGE_FALLBACKS": 1
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.000537; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.000537,
+            "tolerance_fraction": 2.6850000000000002e-05
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 12,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 12,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 2,
+              "_LEFT_LARGE_FALLBACKS": 1
+            }
+          }
+        },
+        "passed": false
+      },
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 4,
+          "seed": 68369,
+          "case": "lowrank"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.000507; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.000507,
+            "tolerance_fraction": 2.535e-05
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 2,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 3,
+              "_LEFT_LARGE_FALLBACKS": 2
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.000507; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.000507,
+            "tolerance_fraction": 2.535e-05
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 12,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 12,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 2,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 18,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 18,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 3,
+              "_LEFT_LARGE_FALLBACKS": 2
+            }
+          }
+        },
+        "passed": false
+      },
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 4,
+          "seed": 68372,
+          "case": "rowscale"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=4.2e-05; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 4.2e-05,
+            "tolerance_fraction": 2.1e-06
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 3,
+              "_LEFT_LARGE_FALLBACKS": 2
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 4,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=4.2e-05; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 4.2e-05,
+            "tolerance_fraction": 2.1e-06
+          },
+          "backend_contract": {
+            "passed": false,
+            "failures": [
+              "_LEFT_LARGE_FALLBACKS delta must be zero, got 1"
+            ],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 1
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 18,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 18,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 3,
+              "_LEFT_LARGE_FALLBACKS": 2
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 24,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 24,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 4,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "passed": false
+      },
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 5,
+          "seed": 68373,
+          "case": "diagonal"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=6.1e-05; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 6.1e-05,
+            "tolerance_fraction": 3.05e-06
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 4,
+              "_LEFT_LARGE_FALLBACKS": 3
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 5,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=6.1e-05; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 6.1e-05,
+            "tolerance_fraction": 3.05e-06
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 24,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 24,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 4,
+              "_LEFT_LARGE_FALLBACKS": 3
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 30,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 30,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 5,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "passed": true
+      },
+      {
+        "spec": {
+          "batch": 1,
+          "n": 32768,
+          "cond": 1,
+          "seed": 68370,
+          "case": "tridiagonal"
+        },
+        "baseline": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.00408; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.00408,
+            "tolerance_fraction": 0.00020400000000000003
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 5,
+              "_LEFT_LARGE_FALLBACKS": 3
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": "__MISSING__",
+              "_FUSED_E4M3_QUANT_ERROR": "__MISSING__",
+              "_FUSED_E4M3_QUANT_HITS": "__MISSING__",
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "candidate": {
+          "check": {
+            "passed": true,
+            "message": "scaled_reconstruction_residual=0.00408; batch=1; n=32768",
+            "finite": true,
+            "positive_diagonal": true,
+            "exactly_lower_triangular": true,
+            "scaled_reconstruction_residual": 0.00408,
+            "tolerance_fraction": 0.00020400000000000003
+          },
+          "backend_contract": {
+            "passed": true,
+            "failures": [],
+            "deltas": {
+              "_LEFT_32768_HITS": 1,
+              "_FUSED_E4M3_AMAX_HITS": 6,
+              "_FUSED_E4M3_QUANT_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 0
+            },
+            "before": {
+              "_FUSED_E4M3_AMAX_HITS": 30,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 30,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 5,
+              "_LEFT_LARGE_FALLBACKS": 3
+            },
+            "after": {
+              "_FUSED_E4M3_AMAX_HITS": 36,
+              "_FUSED_E4M3_QUANT_ERROR": null,
+              "_FUSED_E4M3_QUANT_HITS": 36,
+              "_HAVE_TRITON": true,
+              "_LEFT_32768_ERROR": null,
+              "_LEFT_32768_HITS": 6,
+              "_LEFT_LARGE_FALLBACKS": 3
+            }
+          }
+        },
+        "passed": true
+      }
+    ],
+    "passed": false,
+    "timing_evidence": false
+  },
+  "passed": false
+}

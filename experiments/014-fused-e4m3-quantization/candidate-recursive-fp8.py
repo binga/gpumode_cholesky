@@ -279,110 +279,6 @@ if _HAVE_TRITON:
             col = matrix_offset - row * n
             tl.store(a_ptr + offsets, 0.0, mask=valid & (col > row))
 
-    @triton.jit
-    def _dual_tiled_amax_e4m3_32768(
-        lhs_ptr,
-        rhs_ptr,
-        lhs_partial_ptr,
-        rhs_partial_ptr,
-        lhs_rows,
-        lhs_columns,
-        rhs_rows,
-        rhs_columns,
-        lhs_stride_row,
-        lhs_stride_column,
-        rhs_stride_row,
-        rhs_stride_column,
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK: tl.constexpr,
-    ):
-        pid = tl.program_id(0)
-        offsets = tl.arange(0, BLOCK)
-
-        lhs_row = pid // lhs_tiles
-        lhs_tile = pid - lhs_row * lhs_tiles
-        lhs_cols = lhs_tile * BLOCK + offsets
-        lhs_valid = (pid < lhs_programs) & (lhs_cols < lhs_columns)
-        lhs = tl.load(
-            lhs_ptr
-            + lhs_row * lhs_stride_row
-            + lhs_cols * lhs_stride_column,
-            mask=lhs_valid,
-            other=0.0,
-        )
-        lhs_max = tl.max(tl.abs(lhs), axis=0)
-        tl.store(lhs_partial_ptr + pid, lhs_max, mask=pid < lhs_programs)
-
-        rhs_row = pid // rhs_tiles
-        rhs_tile = pid - rhs_row * rhs_tiles
-        rhs_cols = rhs_tile * BLOCK + offsets
-        rhs_valid = (pid < rhs_programs) & (rhs_cols < rhs_columns)
-        rhs = tl.load(
-            rhs_ptr
-            + rhs_row * rhs_stride_row
-            + rhs_cols * rhs_stride_column,
-            mask=rhs_valid,
-            other=0.0,
-        )
-        rhs_max = tl.max(tl.abs(rhs), axis=0)
-        tl.store(rhs_partial_ptr + pid, rhs_max, mask=pid < rhs_programs)
-
-    @triton.jit
-    def _dual_scale_cast_e4m3_32768(
-        lhs_ptr,
-        rhs_ptr,
-        quantized_lhs_ptr,
-        quantized_rhs_ptr,
-        scale_lhs_ptr,
-        scale_rhs_ptr,
-        lhs_elements,
-        rhs_elements,
-        lhs_columns,
-        rhs_columns,
-        lhs_stride_row,
-        lhs_stride_column,
-        rhs_stride_row,
-        rhs_stride_column,
-        BLOCK: tl.constexpr,
-    ):
-        offsets = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
-        lhs_mask = offsets < lhs_elements
-        lhs_rows = offsets // lhs_columns
-        lhs_cols = offsets - lhs_rows * lhs_columns
-        lhs = tl.load(
-            lhs_ptr
-            + lhs_rows * lhs_stride_row
-            + lhs_cols * lhs_stride_column,
-            mask=lhs_mask,
-            other=0.0,
-        )
-        scale_lhs = tl.load(scale_lhs_ptr)
-        tl.store(
-            quantized_lhs_ptr + offsets,
-            lhs * scale_lhs,
-            mask=lhs_mask,
-        )
-
-        rhs_mask = offsets < rhs_elements
-        rhs_rows = offsets // rhs_columns
-        rhs_cols = offsets - rhs_rows * rhs_columns
-        rhs = tl.load(
-            rhs_ptr
-            + rhs_rows * rhs_stride_row
-            + rhs_cols * rhs_stride_column,
-            mask=rhs_mask,
-            other=0.0,
-        )
-        scale_rhs = tl.load(scale_rhs_ptr)
-        tl.store(
-            quantized_rhs_ptr + offsets,
-            rhs * scale_rhs,
-            mask=rhs_mask,
-        )
-
     def _triton_cholesky_8x2048(data: torch.Tensor) -> torch.Tensor:
         out = data.contiguous().clone()
         batch, n, _ = out.shape
@@ -508,9 +404,11 @@ _LEFT_16384_HITS = 0
 _LEFT_32768_HITS = 0
 _LEFT_32768_ERROR = None
 _LEFT_LARGE_FALLBACKS = 0
-_FUSED_E4M3_QUANT_HITS = 0
-_FUSED_E4M3_AMAX_HITS = 0
-_FUSED_E4M3_QUANT_ERROR = None
+_RECURSIVE_32768_HITS = 0
+_RECURSIVE_32768_BASE_TILES = 0
+_RECURSIVE_32768_FP8_UPDATES = 0
+_RECURSIVE_32768_TF32_UPDATES = 0
+_RECURSIVE_32768_ERROR = None
 
 
 def _clear_upper_large(matrix: torch.Tensor) -> torch.Tensor:
@@ -603,83 +501,15 @@ def _scaled_mm_fp8_32768(
 
 
 def _fp8_product_32768(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    global _FUSED_E4M3_QUANT_HITS, _FUSED_E4M3_AMAX_HITS
-    global _FUSED_E4M3_QUANT_ERROR
-
     max_value = torch.finfo(torch.float8_e4m3fn).max
-    reduction_block = 1024
-    lhs_tiles = triton.cdiv(lhs.shape[1], reduction_block)
-    rhs_tiles = triton.cdiv(rhs.shape[1], reduction_block)
-    lhs_programs = lhs.shape[0] * lhs_tiles
-    rhs_programs = rhs.shape[0] * rhs_tiles
-    lhs_partial = torch.empty(
-        lhs_programs, device=lhs.device, dtype=torch.float32
-    )
-    rhs_partial = torch.empty(
-        rhs_programs, device=rhs.device, dtype=torch.float32
-    )
-    reduction_grid = (max(lhs_programs, rhs_programs),)
-    _dual_tiled_amax_e4m3_32768[reduction_grid](
-        lhs,
-        rhs,
-        lhs_partial,
-        rhs_partial,
-        lhs.shape[0],
-        lhs.shape[1],
-        rhs.shape[0],
-        rhs.shape[1],
-        lhs.stride(0),
-        lhs.stride(1),
-        rhs.stride(0),
-        rhs.stride(1),
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK=reduction_block,
-        num_warps=8,
-    )
-    _FUSED_E4M3_AMAX_HITS += 1
-    scale_lhs = (max_value / lhs_partial.amax().clamp_min(2.0**-24)).float()
-    scale_rhs = (max_value / rhs_partial.amax().clamp_min(2.0**-24)).float()
-    quantized_lhs = torch.empty(
-        lhs.shape,
-        device=lhs.device,
-        dtype=torch.float8_e4m3fn,
-    )
-    quantized_rhs = torch.empty(
-        rhs.shape,
-        device=rhs.device,
-        dtype=torch.float8_e4m3fn,
-    )
-    block = 1024
-    grid = (
-        triton.cdiv(max(lhs.numel(), rhs.numel()), block),
-    )
-    try:
-        _dual_scale_cast_e4m3_32768[grid](
-            lhs,
-            rhs,
-            quantized_lhs,
-            quantized_rhs,
-            scale_lhs,
-            scale_rhs,
-            lhs.numel(),
-            rhs.numel(),
-            lhs.shape[1],
-            rhs.shape[1],
-            lhs.stride(0),
-            lhs.stride(1),
-            rhs.stride(0),
-            rhs.stride(1),
-            BLOCK=block,
-            num_warps=8,
-        )
-        _FUSED_E4M3_QUANT_HITS += 1
-        _FUSED_E4M3_QUANT_ERROR = None
-    except Exception as exc:
-        _FUSED_E4M3_QUANT_ERROR = repr(exc)
-        raise
+    scale_lhs = (
+        max_value / lhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
+    scale_rhs = (
+        max_value / rhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
+    quantized_lhs = (lhs * scale_lhs).to(torch.float8_e4m3fn)
+    quantized_rhs = (rhs * scale_rhs).to(torch.float8_e4m3fn)
     return _scaled_mm_fp8_32768(
         quantized_lhs,
         quantized_rhs,
@@ -736,6 +566,79 @@ def _left_looking_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
     _LEFT_32768_HITS += 1
     return factor
+
+
+def _recursive_base_tile_32768(block: torch.Tensor) -> None:
+    """Factor one 64x64 diagonal tile without a vendor POTRF call."""
+    global _RECURSIVE_32768_BASE_TILES
+
+    tile = block.contiguous().clone()
+    _diag_factor_8x2048[(1,)](
+        tile,
+        n=64,
+        k=0,
+        BK_CONST=64,
+        num_warps=8,
+    )
+    block.copy_(tile)
+    _RECURSIVE_32768_BASE_TILES += 1
+
+
+def _recursive_cholesky_32768_inplace(block: torch.Tensor) -> None:
+    """Hierarchical Cholesky with custom POTRF leaves and tensor-core updates.
+
+    The large square Schur products use native E4M3 FP8 with FP32 accumulation.
+    Levels below 8192 use fused TF32 addmm updates, which keeps the recursive
+    diagonal work stable without routing any part of this path through cuSOLVER.
+    """
+    global _RECURSIVE_32768_FP8_UPDATES, _RECURSIVE_32768_TF32_UPDATES
+
+    n = block.shape[0]
+    if n == 64:
+        _recursive_base_tile_32768(block)
+        return
+
+    split = n // 2
+    diagonal = block[:split, :split]
+    panel = block[split:, :split]
+    trailing = block[split:, split:]
+
+    _recursive_cholesky_32768_inplace(diagonal)
+    solved = torch.linalg.solve_triangular(
+        diagonal.transpose(-1, -2),
+        panel,
+        upper=True,
+        left=False,
+    )
+    panel.copy_(solved)
+
+    if n >= 8192:
+        trailing.sub_(_fp8_product_32768(panel, panel.transpose(-1, -2)))
+        _RECURSIVE_32768_FP8_UPDATES += 1
+    else:
+        trailing.addmm_(
+            panel,
+            panel.transpose(-1, -2),
+            beta=1.0,
+            alpha=-1.0,
+        )
+        _RECURSIVE_32768_TF32_UPDATES += 1
+
+    _recursive_cholesky_32768_inplace(trailing)
+
+
+def _recursive_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
+    global _RECURSIVE_32768_HITS
+
+    factor = mat.clone()
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        _recursive_cholesky_32768_inplace(factor)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    _RECURSIVE_32768_HITS += 1
+    return _clear_upper_large(factor)
 
 
 # ---------------------------------------------------------------------------
@@ -797,6 +700,7 @@ def _blocked_cholesky_tf32(mat: torch.Tensor, nb: int) -> torch.Tensor:
 
 def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
+    global _RECURSIVE_32768_ERROR
 
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
@@ -828,14 +732,12 @@ def custom_kernel(data: input_t) -> output_t:
 
     if is_f32_cuda and batch == 1 and n == 32768:
         try:
-            l = _left_looking_cholesky_32768(data[0])
-            if torch.isfinite(l.diagonal()).all().item():
-                _LEFT_32768_ERROR = None
-                return l.unsqueeze(0)
+            l = _recursive_cholesky_32768(data[0])
+            _RECURSIVE_32768_ERROR = None
+            return l.unsqueeze(0)
         except Exception as exc:
-            _LEFT_32768_ERROR = repr(exc)
-        _LEFT_LARGE_FALLBACKS += 1
-        return torch.linalg.cholesky_ex(data, check_errors=False).L
+            _RECURSIVE_32768_ERROR = repr(exc)
+            raise
 
     # Large single matrices: blocked Cholesky with a TF32 tensor-core trailing
     # update beats cuSOLVER's all-FP32 potrf (exp 006), with the product and

@@ -10,6 +10,7 @@ Ranking: geometric mean of runtime across 15 benchmark shapes.
 ## Layout
 
 - `submission.py` — the entry point (`custom_kernel` + `#!POPCORN` directives).
+- `program.md` — the `set_goal`-triggerable optimization and leaderboard workflow.
 - `reference/` — vendored, read-only harness from `gpu-mode/reference-kernels`
   (`task.py`, `reference.py`, `eval.py`, `utils.py`). The checker here is the spec.
 - `scripts/verify_local.py` — zero-cost CPU property check (no GPU / no cost).
@@ -99,6 +100,16 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
+- **Ranked submission `#880770`** (exp 014 — current best): `done`, public
+  geomean **1447.2589334363144μs** and secret
+  **1443.2264907145392μs**. It fuses both operands' tiled `amax` work and E4M3
+  scale/cast passes for the `1×32768` left-looking panel products while keeping
+  the ranked FP8 GEMM and numerics. Dedicated paired B200 latency improved
+  **51939.3→47896.9μs (1.084×)** with the same `4.52/20` residual. All six
+  exact-shape families and the full 15-shape grid passed; Modal geomean improved
+  **1574.150→1565.546μs**, Popcorn test `#880765` passed 17/17, and exactly one
+  ranked submission improved exp 012 by **0.827% public** and **0.356% secret**.
+  See `experiments/014-fused-e4m3-quantization/`.
 
 ### Baseline B200 timings (Modal harness, `results/baseline-benchmark.json`)
 
@@ -121,8 +132,9 @@ leaderboard — use them for *relative* per-shape targeting.
 **Optimization targets (deferred work), by ROI for the geomean:**
 - **Highest ROI — small-`n` / high-batch** (`n ∈ {32,64,128}`, 141–202μs): these are launch/overhead-bound, not compute-bound (a 32×32 factorization is trivial). Custom batched kernels (cf. `triton_cholesky32.py`) can cut these to tens of μs — this is the leaders' trick.
 - **Medium ROI — high-batch mid-size** (`640×512`, `8×2048`, `2×4096`): batch-parallelism/occupancy tuning.
-- **DONE (exp 006 + 008 + 012) — large single matrices** (`n ≥ 16384`, esp.
+- **DONE (exp 006 + 008 + 012 + 014) — large single matrices** (`n ≥ 16384`, esp.
   `32768²`): exp 012's left-looking formulation updates only the active
   diagonal/panel, reaching another 1.150× at 16384; native Blackwell FP8 panel
-  products reach 1.373× at 32768 while passing every input family. `1×8192`
+  products reach 1.373× at 32768, and exp 014 removes another 8.4% from their
+  dynamic quantization front end while passing every input family. `1×8192`
   stays on cuSOLVER.

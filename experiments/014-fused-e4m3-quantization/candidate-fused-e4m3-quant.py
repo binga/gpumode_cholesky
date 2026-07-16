@@ -280,57 +280,6 @@ if _HAVE_TRITON:
             tl.store(a_ptr + offsets, 0.0, mask=valid & (col > row))
 
     @triton.jit
-    def _dual_tiled_amax_e4m3_32768(
-        lhs_ptr,
-        rhs_ptr,
-        lhs_partial_ptr,
-        rhs_partial_ptr,
-        lhs_rows,
-        lhs_columns,
-        rhs_rows,
-        rhs_columns,
-        lhs_stride_row,
-        lhs_stride_column,
-        rhs_stride_row,
-        rhs_stride_column,
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK: tl.constexpr,
-    ):
-        pid = tl.program_id(0)
-        offsets = tl.arange(0, BLOCK)
-
-        lhs_row = pid // lhs_tiles
-        lhs_tile = pid - lhs_row * lhs_tiles
-        lhs_cols = lhs_tile * BLOCK + offsets
-        lhs_valid = (pid < lhs_programs) & (lhs_cols < lhs_columns)
-        lhs = tl.load(
-            lhs_ptr
-            + lhs_row * lhs_stride_row
-            + lhs_cols * lhs_stride_column,
-            mask=lhs_valid,
-            other=0.0,
-        )
-        lhs_max = tl.max(tl.abs(lhs), axis=0)
-        tl.store(lhs_partial_ptr + pid, lhs_max, mask=pid < lhs_programs)
-
-        rhs_row = pid // rhs_tiles
-        rhs_tile = pid - rhs_row * rhs_tiles
-        rhs_cols = rhs_tile * BLOCK + offsets
-        rhs_valid = (pid < rhs_programs) & (rhs_cols < rhs_columns)
-        rhs = tl.load(
-            rhs_ptr
-            + rhs_row * rhs_stride_row
-            + rhs_cols * rhs_stride_column,
-            mask=rhs_valid,
-            other=0.0,
-        )
-        rhs_max = tl.max(tl.abs(rhs), axis=0)
-        tl.store(rhs_partial_ptr + pid, rhs_max, mask=pid < rhs_programs)
-
-    @triton.jit
     def _dual_scale_cast_e4m3_32768(
         lhs_ptr,
         rhs_ptr,
@@ -509,7 +458,6 @@ _LEFT_32768_HITS = 0
 _LEFT_32768_ERROR = None
 _LEFT_LARGE_FALLBACKS = 0
 _FUSED_E4M3_QUANT_HITS = 0
-_FUSED_E4M3_AMAX_HITS = 0
 _FUSED_E4M3_QUANT_ERROR = None
 
 
@@ -603,45 +551,15 @@ def _scaled_mm_fp8_32768(
 
 
 def _fp8_product_32768(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    global _FUSED_E4M3_QUANT_HITS, _FUSED_E4M3_AMAX_HITS
-    global _FUSED_E4M3_QUANT_ERROR
+    global _FUSED_E4M3_QUANT_HITS, _FUSED_E4M3_QUANT_ERROR
 
     max_value = torch.finfo(torch.float8_e4m3fn).max
-    reduction_block = 1024
-    lhs_tiles = triton.cdiv(lhs.shape[1], reduction_block)
-    rhs_tiles = triton.cdiv(rhs.shape[1], reduction_block)
-    lhs_programs = lhs.shape[0] * lhs_tiles
-    rhs_programs = rhs.shape[0] * rhs_tiles
-    lhs_partial = torch.empty(
-        lhs_programs, device=lhs.device, dtype=torch.float32
-    )
-    rhs_partial = torch.empty(
-        rhs_programs, device=rhs.device, dtype=torch.float32
-    )
-    reduction_grid = (max(lhs_programs, rhs_programs),)
-    _dual_tiled_amax_e4m3_32768[reduction_grid](
-        lhs,
-        rhs,
-        lhs_partial,
-        rhs_partial,
-        lhs.shape[0],
-        lhs.shape[1],
-        rhs.shape[0],
-        rhs.shape[1],
-        lhs.stride(0),
-        lhs.stride(1),
-        rhs.stride(0),
-        rhs.stride(1),
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK=reduction_block,
-        num_warps=8,
-    )
-    _FUSED_E4M3_AMAX_HITS += 1
-    scale_lhs = (max_value / lhs_partial.amax().clamp_min(2.0**-24)).float()
-    scale_rhs = (max_value / rhs_partial.amax().clamp_min(2.0**-24)).float()
+    scale_lhs = (
+        max_value / lhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
+    scale_rhs = (
+        max_value / rhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
     quantized_lhs = torch.empty(
         lhs.shape,
         device=lhs.device,

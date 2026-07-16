@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "experiment": "014-fused-e4m3-quantization",
+  "baseline": {
+    "ranked_commit": "141d015",
+    "ranked_submission_id": 878893,
+    "source_sha256": "112ee017f96f4dafb95a173cf51bb59190c2ded1e7702a64992e6795985759dd",
+    "source_path": "experiments/012-large-left-looking-frontiers/submission.py",
+    "ranked_public_score_us": 1459.321,
+    "modal_full_grid_target_mean_us": 51909.29174423218,
+    "modal_full_grid_target_best_us": 51844.383239746094
+  },
+  "target": {
+    "batch": 1,
+    "n": 32768,
+    "cond": 2,
+    "seed": 48368,
+    "case": "dense",
+    "rotating_seeds": [48368, 48410],
+    "warmup_rounds": 3,
+    "paired_rounds": 10,
+    "required_speedup": 2.0
+  },
+  "component_profile": {
+    "enabled": true,
+    "row_limit": 80,
+    "required_candidate_operator_any_of": [
+      "aten::_scaled_mm",
+      "aten::mm",
+      "aten::addmm",
+      "aten::linalg_cholesky_ex",
+      "aten::linalg_solve_triangular"
+    ]
+  },
+  "backend_contract": {
+    "candidate": {
+      "positive_delta": [
+        "_LEFT_32768_HITS",
+        "_FUSED_E4M3_AMAX_HITS",
+        "_FUSED_E4M3_QUANT_HITS"
+      ],
+      "zero_delta": ["_LEFT_LARGE_FALLBACKS"],
+      "none_after": [
+        "_LEFT_32768_ERROR",
+        "_FUSED_E4M3_QUANT_ERROR"
+      ],
+      "truthy_after": ["_HAVE_TRITON"]
+    },
+    "baseline": {
+      "positive_delta": ["_LEFT_32768_HITS"],
+      "zero_delta": ["_LEFT_LARGE_FALLBACKS"],
+      "none_after": ["_LEFT_32768_ERROR"],
+      "truthy_after": ["_HAVE_TRITON"]
+    }
+  },
+  "family_specs": [
+    {"batch": 1, "n": 32768, "cond": 2, "seed": 68368, "case": "dense"},
+    {"batch": 1, "n": 32768, "cond": 5, "seed": 68371, "case": "spectrum"},
+    {"batch": 1, "n": 32768, "cond": 4, "seed": 68369, "case": "lowrank"},
+    {"batch": 1, "n": 32768, "cond": 4, "seed": 68372, "case": "rowscale"},
+    {"batch": 1, "n": 32768, "cond": 5, "seed": 68373, "case": "diagonal"},
+    {"batch": 1, "n": 32768, "cond": 1, "seed": 68370, "case": "tridiagonal"}
+  ],
+  "family_expected_safety_fallback_cases": [
+    "spectrum",
+    "lowrank",
+    "rowscale"
+  ],
+  "full_grid": [
+    {"batch": 4096, "n": 32, "cond": 2, "seed": 41032},
+    {"batch": 1024, "n": 64, "cond": 2, "seed": 41064},
+    {"batch": 256, "n": 128, "cond": 2, "seed": 41128},
+    {"batch": 64, "n": 256, "cond": 2, "seed": 41256},
+    {"batch": 16, "n": 512, "cond": 2, "seed": 41512},
+    {"batch": 640, "n": 512, "cond": 2, "seed": 510512},
+    {"batch": 4, "n": 1024, "cond": 2, "seed": 42024},
+    {"batch": 60, "n": 1024, "cond": 2, "seed": 511024},
+    {"batch": 2, "n": 2048, "cond": 2, "seed": 44048},
+    {"batch": 8, "n": 2048, "cond": 2, "seed": 512048},
+    {"batch": 1, "n": 4096, "cond": 2, "seed": 48096},
+    {"batch": 2, "n": 4096, "cond": 2, "seed": 514096},
+    {"batch": 1, "n": 8192, "cond": 2, "seed": 48192},
+    {"batch": 1, "n": 16384, "cond": 2, "seed": 48284},
+    {"batch": 1, "n": 32768, "cond": 2, "seed": 48368}
+  ],
+  "promotion_gates": {
+    "official_checker_required": true,
+    "finite_required": true,
+    "lower_triangular_required": true,
+    "positive_diagonal_required": true,
+    "scaled_reconstruction_limit": 20.0,
+    "unexpected_fallbacks_allowed": 0,
+    "off_target_mean_ratio_limit": 1.03,
+    "aggregate_geomean_must_improve": true,
+    "popcorn_test_required": "17/17"
+  }
+}

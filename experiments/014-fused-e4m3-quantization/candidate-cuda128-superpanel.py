@@ -279,110 +279,6 @@ if _HAVE_TRITON:
             col = matrix_offset - row * n
             tl.store(a_ptr + offsets, 0.0, mask=valid & (col > row))
 
-    @triton.jit
-    def _dual_tiled_amax_e4m3_32768(
-        lhs_ptr,
-        rhs_ptr,
-        lhs_partial_ptr,
-        rhs_partial_ptr,
-        lhs_rows,
-        lhs_columns,
-        rhs_rows,
-        rhs_columns,
-        lhs_stride_row,
-        lhs_stride_column,
-        rhs_stride_row,
-        rhs_stride_column,
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK: tl.constexpr,
-    ):
-        pid = tl.program_id(0)
-        offsets = tl.arange(0, BLOCK)
-
-        lhs_row = pid // lhs_tiles
-        lhs_tile = pid - lhs_row * lhs_tiles
-        lhs_cols = lhs_tile * BLOCK + offsets
-        lhs_valid = (pid < lhs_programs) & (lhs_cols < lhs_columns)
-        lhs = tl.load(
-            lhs_ptr
-            + lhs_row * lhs_stride_row
-            + lhs_cols * lhs_stride_column,
-            mask=lhs_valid,
-            other=0.0,
-        )
-        lhs_max = tl.max(tl.abs(lhs), axis=0)
-        tl.store(lhs_partial_ptr + pid, lhs_max, mask=pid < lhs_programs)
-
-        rhs_row = pid // rhs_tiles
-        rhs_tile = pid - rhs_row * rhs_tiles
-        rhs_cols = rhs_tile * BLOCK + offsets
-        rhs_valid = (pid < rhs_programs) & (rhs_cols < rhs_columns)
-        rhs = tl.load(
-            rhs_ptr
-            + rhs_row * rhs_stride_row
-            + rhs_cols * rhs_stride_column,
-            mask=rhs_valid,
-            other=0.0,
-        )
-        rhs_max = tl.max(tl.abs(rhs), axis=0)
-        tl.store(rhs_partial_ptr + pid, rhs_max, mask=pid < rhs_programs)
-
-    @triton.jit
-    def _dual_scale_cast_e4m3_32768(
-        lhs_ptr,
-        rhs_ptr,
-        quantized_lhs_ptr,
-        quantized_rhs_ptr,
-        scale_lhs_ptr,
-        scale_rhs_ptr,
-        lhs_elements,
-        rhs_elements,
-        lhs_columns,
-        rhs_columns,
-        lhs_stride_row,
-        lhs_stride_column,
-        rhs_stride_row,
-        rhs_stride_column,
-        BLOCK: tl.constexpr,
-    ):
-        offsets = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
-        lhs_mask = offsets < lhs_elements
-        lhs_rows = offsets // lhs_columns
-        lhs_cols = offsets - lhs_rows * lhs_columns
-        lhs = tl.load(
-            lhs_ptr
-            + lhs_rows * lhs_stride_row
-            + lhs_cols * lhs_stride_column,
-            mask=lhs_mask,
-            other=0.0,
-        )
-        scale_lhs = tl.load(scale_lhs_ptr)
-        tl.store(
-            quantized_lhs_ptr + offsets,
-            lhs * scale_lhs,
-            mask=lhs_mask,
-        )
-
-        rhs_mask = offsets < rhs_elements
-        rhs_rows = offsets // rhs_columns
-        rhs_cols = offsets - rhs_rows * rhs_columns
-        rhs = tl.load(
-            rhs_ptr
-            + rhs_rows * rhs_stride_row
-            + rhs_cols * rhs_stride_column,
-            mask=rhs_mask,
-            other=0.0,
-        )
-        scale_rhs = tl.load(scale_rhs_ptr)
-        tl.store(
-            quantized_rhs_ptr + offsets,
-            rhs * scale_rhs,
-            mask=rhs_mask,
-        )
-
     def _triton_cholesky_8x2048(data: torch.Tensor) -> torch.Tensor:
         out = data.contiguous().clone()
         batch, n, _ = out.shape
@@ -508,9 +404,15 @@ _LEFT_16384_HITS = 0
 _LEFT_32768_HITS = 0
 _LEFT_32768_ERROR = None
 _LEFT_LARGE_FALLBACKS = 0
-_FUSED_E4M3_QUANT_HITS = 0
-_FUSED_E4M3_AMAX_HITS = 0
-_FUSED_E4M3_QUANT_ERROR = None
+_SUPERPANEL_32768_HITS = 0
+_SUPERPANEL_32768_MICRO_POTRF_HITS = 0
+_SUPERPANEL_32768_PANEL_MM_HITS = 0
+_SUPERPANEL_32768_FP8_UPDATE_HITS = 0
+_SUPERPANEL_32768_ERROR = None
+_SUPERPANEL_32768_FALLBACKS = 0
+_SUPERPANEL_32768_EXTENSION_READY = False
+_SUPERPANEL_32768_EXTENSION_ERROR = None
+_SUPERPANEL_32768_EXTENSION = None
 
 
 def _clear_upper_large(matrix: torch.Tensor) -> torch.Tensor:
@@ -603,83 +505,15 @@ def _scaled_mm_fp8_32768(
 
 
 def _fp8_product_32768(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    global _FUSED_E4M3_QUANT_HITS, _FUSED_E4M3_AMAX_HITS
-    global _FUSED_E4M3_QUANT_ERROR
-
     max_value = torch.finfo(torch.float8_e4m3fn).max
-    reduction_block = 1024
-    lhs_tiles = triton.cdiv(lhs.shape[1], reduction_block)
-    rhs_tiles = triton.cdiv(rhs.shape[1], reduction_block)
-    lhs_programs = lhs.shape[0] * lhs_tiles
-    rhs_programs = rhs.shape[0] * rhs_tiles
-    lhs_partial = torch.empty(
-        lhs_programs, device=lhs.device, dtype=torch.float32
-    )
-    rhs_partial = torch.empty(
-        rhs_programs, device=rhs.device, dtype=torch.float32
-    )
-    reduction_grid = (max(lhs_programs, rhs_programs),)
-    _dual_tiled_amax_e4m3_32768[reduction_grid](
-        lhs,
-        rhs,
-        lhs_partial,
-        rhs_partial,
-        lhs.shape[0],
-        lhs.shape[1],
-        rhs.shape[0],
-        rhs.shape[1],
-        lhs.stride(0),
-        lhs.stride(1),
-        rhs.stride(0),
-        rhs.stride(1),
-        lhs_tiles,
-        rhs_tiles,
-        lhs_programs,
-        rhs_programs,
-        BLOCK=reduction_block,
-        num_warps=8,
-    )
-    _FUSED_E4M3_AMAX_HITS += 1
-    scale_lhs = (max_value / lhs_partial.amax().clamp_min(2.0**-24)).float()
-    scale_rhs = (max_value / rhs_partial.amax().clamp_min(2.0**-24)).float()
-    quantized_lhs = torch.empty(
-        lhs.shape,
-        device=lhs.device,
-        dtype=torch.float8_e4m3fn,
-    )
-    quantized_rhs = torch.empty(
-        rhs.shape,
-        device=rhs.device,
-        dtype=torch.float8_e4m3fn,
-    )
-    block = 1024
-    grid = (
-        triton.cdiv(max(lhs.numel(), rhs.numel()), block),
-    )
-    try:
-        _dual_scale_cast_e4m3_32768[grid](
-            lhs,
-            rhs,
-            quantized_lhs,
-            quantized_rhs,
-            scale_lhs,
-            scale_rhs,
-            lhs.numel(),
-            rhs.numel(),
-            lhs.shape[1],
-            rhs.shape[1],
-            lhs.stride(0),
-            lhs.stride(1),
-            rhs.stride(0),
-            rhs.stride(1),
-            BLOCK=block,
-            num_warps=8,
-        )
-        _FUSED_E4M3_QUANT_HITS += 1
-        _FUSED_E4M3_QUANT_ERROR = None
-    except Exception as exc:
-        _FUSED_E4M3_QUANT_ERROR = repr(exc)
-        raise
+    scale_lhs = (
+        max_value / lhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
+    scale_rhs = (
+        max_value / rhs.abs().amax().clamp_min(2.0**-24)
+    ).float()
+    quantized_lhs = (lhs * scale_lhs).to(torch.float8_e4m3fn)
+    quantized_rhs = (rhs * scale_rhs).to(torch.float8_e4m3fn)
     return _scaled_mm_fp8_32768(
         quantized_lhs,
         quantized_rhs,
@@ -736,6 +570,185 @@ def _left_looking_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
     _LEFT_32768_HITS += 1
     return factor
+
+
+def _factor_active_superpanel_32768(
+    superpanel: torch.Tensor,
+    width: int,
+) -> None:
+    """Factor/solve a tall active superpanel with CUDA 128x128 POTRF tiles."""
+    global _SUPERPANEL_32768_MICRO_POTRF_HITS
+    global _SUPERPANEL_32768_PANEL_MM_HITS
+
+    micro = 128
+    for p in range(0, width, micro):
+        pb = min(micro, width - p)
+        diagonal = superpanel[p : p + pb, p : p + pb]
+        diagonal_factor = diagonal.contiguous().clone()
+        _load_superpanel_extension_32768().potrf128_cuda(diagonal_factor)
+        superpanel[p : p + pb, p : p + pb] = diagonal_factor
+        _SUPERPANEL_32768_MICRO_POTRF_HITS += 1
+
+        row_start = p + pb
+        if row_start >= superpanel.shape[0]:
+            break
+        active_rows = superpanel[row_start:, p : p + pb]
+        identity = torch.eye(pb, device=superpanel.device, dtype=superpanel.dtype)
+        inverse_transpose = torch.linalg.solve_triangular(
+            diagonal_factor.transpose(-1, -2),
+            identity,
+            upper=True,
+        )
+        solved = active_rows @ inverse_transpose
+        superpanel[row_start:, p : p + pb] = solved
+        _SUPERPANEL_32768_PANEL_MM_HITS += 1
+
+        remaining_columns = width - row_start
+        if remaining_columns:
+            superpanel[row_start:, row_start:width].addmm_(
+                solved,
+                solved[:remaining_columns].transpose(-1, -2),
+                beta=1.0,
+                alpha=-1.0,
+            )
+
+
+_POTRF128_CPP = r"""
+#include <torch/extension.h>
+
+torch::Tensor potrf128_cuda(torch::Tensor input);
+"""
+
+
+_POTRF128_CUDA = r"""
+#include <torch/extension.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+__global__ void potrf128_kernel(float* matrix) {
+    constexpr int N = 128;
+    extern __shared__ float tile[];
+    const int tid = threadIdx.x;
+
+    for (int offset = tid; offset < N * N; offset += blockDim.x) {
+        tile[offset] = matrix[offset];
+    }
+    __syncthreads();
+
+    for (int k = 0; k < N; ++k) {
+        if (tid == 0) {
+            tile[k * N + k] = sqrtf(fmaxf(tile[k * N + k], 1.0e-20f));
+        }
+        __syncthreads();
+        const float diagonal = tile[k * N + k];
+        for (int row = k + 1 + tid; row < N; row += blockDim.x) {
+            tile[row * N + k] /= diagonal;
+        }
+        __syncthreads();
+        for (int offset = tid; offset < N * N; offset += blockDim.x) {
+            const int row = offset / N;
+            const int column = offset - row * N;
+            if (column > k && row >= column) {
+                tile[offset] -= tile[row * N + k] * tile[column * N + k];
+            }
+        }
+        __syncthreads();
+    }
+
+    for (int offset = tid; offset < N * N; offset += blockDim.x) {
+        const int row = offset / N;
+        const int column = offset - row * N;
+        matrix[offset] = column <= row ? tile[offset] : 0.0f;
+    }
+}
+
+torch::Tensor potrf128_cuda(torch::Tensor input) {
+    TORCH_CHECK(input.is_cuda(), "potrf128 input must be CUDA");
+    TORCH_CHECK(input.scalar_type() == torch::kFloat32, "potrf128 requires FP32");
+    TORCH_CHECK(input.is_contiguous(), "potrf128 input must be contiguous");
+    TORCH_CHECK(input.dim() == 2 && input.size(0) == 128 && input.size(1) == 128,
+                "potrf128 input must be 128x128");
+    static bool configured = false;
+    if (!configured) {
+        const cudaError_t status = cudaFuncSetAttribute(
+            potrf128_kernel,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            128 * 128 * static_cast<int>(sizeof(float)));
+        TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+        configured = true;
+    }
+    potrf128_kernel<<<1, 128, 128 * 128 * sizeof(float)>>>(
+        input.data_ptr<float>());
+    const cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+    return input;
+}
+"""
+
+
+def _load_superpanel_extension_32768():
+    global _SUPERPANEL_32768_EXTENSION
+    global _SUPERPANEL_32768_EXTENSION_READY
+    global _SUPERPANEL_32768_EXTENSION_ERROR
+
+    if _SUPERPANEL_32768_EXTENSION is None:
+        try:
+            from torch.utils.cpp_extension import load_inline
+
+            _SUPERPANEL_32768_EXTENSION = load_inline(
+                name="chol_exp013_potrf128_v1",
+                cpp_sources=_POTRF128_CPP,
+                cuda_sources=_POTRF128_CUDA,
+                functions=["potrf128_cuda"],
+                extra_cflags=["-O3"],
+                extra_cuda_cflags=["-O3", "--use_fast_math"],
+                with_cuda=True,
+                verbose=False,
+            )
+            _SUPERPANEL_32768_EXTENSION_READY = True
+            _SUPERPANEL_32768_EXTENSION_ERROR = None
+        except Exception as exc:
+            _SUPERPANEL_32768_EXTENSION_ERROR = repr(exc)
+            raise
+    return _SUPERPANEL_32768_EXTENSION
+
+
+def _active_superpanel_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
+    """Left-looking active-superpanel Cholesky for exactly 1x32768."""
+    global _SUPERPANEL_32768_HITS, _SUPERPANEL_32768_FP8_UPDATE_HITS
+
+    nb = 4096
+    n = mat.shape[0]
+    factor = torch.zeros_like(mat)
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            kb = min(nb, n - k)
+            superpanel = mat[k:, k : k + kb].clone()
+            if k:
+                previous_columns = factor[k:, :k]
+                previous_row = factor[k : k + kb, :k]
+                superpanel[:kb].addmm_(
+                    previous_row,
+                    previous_row.transpose(-1, -2),
+                    beta=1.0,
+                    alpha=-1.0,
+                )
+                if superpanel.shape[0] > kb:
+                    superpanel[kb:].sub_(
+                        _fp8_product_32768(
+                            previous_columns[kb:],
+                            previous_row.transpose(-1, -2),
+                        )
+                    )
+                    _SUPERPANEL_32768_FP8_UPDATE_HITS += 1
+            _factor_active_superpanel_32768(superpanel, kb)
+            factor[k:, k : k + kb] = superpanel
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    _SUPERPANEL_32768_HITS += 1
+    return _clear_upper_large(factor)
 
 
 # ---------------------------------------------------------------------------
@@ -797,6 +810,7 @@ def _blocked_cholesky_tf32(mat: torch.Tensor, nb: int) -> torch.Tensor:
 
 def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
+    global _SUPERPANEL_32768_ERROR
 
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
@@ -828,14 +842,12 @@ def custom_kernel(data: input_t) -> output_t:
 
     if is_f32_cuda and batch == 1 and n == 32768:
         try:
-            l = _left_looking_cholesky_32768(data[0])
-            if torch.isfinite(l.diagonal()).all().item():
-                _LEFT_32768_ERROR = None
-                return l.unsqueeze(0)
+            l = _active_superpanel_cholesky_32768(data[0])
+            _SUPERPANEL_32768_ERROR = None
+            return l.unsqueeze(0)
         except Exception as exc:
-            _LEFT_32768_ERROR = repr(exc)
-        _LEFT_LARGE_FALLBACKS += 1
-        return torch.linalg.cholesky_ex(data, check_errors=False).L
+            _SUPERPANEL_32768_ERROR = repr(exc)
+            raise
 
     # Large single matrices: blocked Cholesky with a TF32 tensor-core trailing
     # update beats cuSOLVER's all-FP32 potrf (exp 006), with the product and
