@@ -150,6 +150,9 @@ eligible for ranking.
 `12.062410μs` / `0.8266%` better publicly and `5.150313μs` / `0.3556%` better
 secretly than `#878893`. Exact ranked source SHA-256:
 `78b2282d436243393897e61a5e4b8206d52c3950ec6f4495cbc71da895abd1fc`.
+The complete experiment was published in commit
+`48fa14a84632ee4170df6c913ad7f9e8502c2e96`; `origin/main` was independently
+verified at that exact commit before this publication-state follow-up.
 
 ### Bounded architecture ladder
 
