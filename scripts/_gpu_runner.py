@@ -253,6 +253,15 @@ def _load_exp012_baseline_module():
     return module
 
 
+def _load_exp028_baseline_module():
+    spec = importlib.util.spec_from_file_location(
+        "baseline_exp028", "/root/baseline_exp028.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _time_callable_rotating(fn, data_list, warmup, iters):
     for _ in range(warmup):
         outputs = [fn(data) for data in data_list]
@@ -650,6 +659,126 @@ def run_nocusolverprobe(filter_ns=None):
         "passed": passed,
         "backend_status": backend_status,
         "diag_microbench": micro,
+        "shapes": results,
+    }
+
+
+# ---------------------------------------------------------------------------
+# dualprobe (experiment 028): exact ranked baseline versus the cuSOLVER-free
+# persistent two-matrix candidate. Retains rotating outputs, checks the official
+# reconstruction gate, and rejects timing whenever candidate fallback metadata
+# is nonzero.
+# ---------------------------------------------------------------------------
+def run_dualprobe(filter_ns=None):
+    import submission as cand
+
+    baseline = _load_exp028_baseline_module().custom_kernel
+    specs = [
+        {"batch": 2, "n": 2048, "cond": 2, "seed": 44048},
+        {"batch": 2, "n": 4096, "cond": 2, "seed": 514096},
+    ]
+    if filter_ns:
+        specs = [spec for spec in specs if spec["n"] in filter_ns]
+
+    results = []
+    for shape_spec in specs:
+        bytes_per_input = shape_spec["batch"] * shape_spec["n"] ** 2 * 4
+        count = max(1, min(8, int(256e6 // bytes_per_input)))
+        data_list = []
+        args = dict(shape_spec)
+        for _ in range(count):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+
+        hits_before = getattr(cand, "_DUAL_PERSIST_HITS", 0)
+        fallbacks_before = getattr(cand, "_DUAL_PERSIST_FALLBACKS", 0)
+        candidate_outputs = [cand.custom_kernel(data.clone()) for data in data_list]
+        torch.cuda.synchronize()
+        hits_after_correctness = getattr(cand, "_DUAL_PERSIST_HITS", 0)
+        fallbacks_after_correctness = getattr(cand, "_DUAL_PERSIST_FALLBACKS", 0)
+        error_after_correctness = getattr(cand, "_DUAL_PERSIST_ERROR", None)
+
+        baseline_outputs = [baseline(data.clone()) for data in data_list]
+        torch.cuda.synchronize()
+        candidate_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, candidate_outputs, strict=True)
+        ]
+        baseline_checks = [
+            check_implementation(data, output)
+            for data, output in zip(data_list, baseline_outputs, strict=True)
+        ]
+        candidate_ok = all(good for good, _ in candidate_checks)
+        baseline_ok = all(good for good, _ in baseline_checks)
+        backend_ok = (
+            hits_after_correctness - hits_before == count
+            and fallbacks_after_correctness == fallbacks_before
+            and error_after_correctness is None
+        )
+
+        candidate_time = None
+        baseline_time = _time_callable_rotating(
+            baseline, data_list, warmup=2, iters=12 if shape_spec["n"] == 2048 else 8
+        )
+        speedup = None
+        if backend_ok:
+            candidate_time = _time_callable_rotating(
+                cand.custom_kernel,
+                data_list,
+                warmup=2,
+                iters=12 if shape_spec["n"] == 2048 else 8,
+            )
+            speedup = baseline_time["mean_us"] / candidate_time["mean_us"]
+
+        row = {
+            "spec": _spec_label(shape_spec),
+            "candidate_passed": candidate_ok,
+            "candidate_checks": [message for _, message in candidate_checks],
+            "baseline_passed": baseline_ok,
+            "baseline_checks": [message for _, message in baseline_checks],
+            "backend_ok": backend_ok,
+            "backend": {
+                "hits_during_correctness": hits_after_correctness - hits_before,
+                "fallbacks_during_correctness": (
+                    fallbacks_after_correctness - fallbacks_before
+                ),
+                "error": error_after_correctness,
+            },
+            "candidate": candidate_time,
+            "baseline": baseline_time,
+            "speedup": speedup,
+        }
+        results.append(row)
+        print(
+            f"{row['spec']} backend_ok={backend_ok} candidate_ok={candidate_ok} "
+            f"candidate={(candidate_time or {}).get('mean_us')}us "
+            f"baseline={baseline_time['mean_us']:.3f}us speedup={speedup}",
+            flush=True,
+        )
+
+    final_backend = {
+        "hits": getattr(cand, "_DUAL_PERSIST_HITS", 0),
+        "fallbacks": getattr(cand, "_DUAL_PERSIST_FALLBACKS", 0),
+        "error": getattr(cand, "_DUAL_PERSIST_ERROR", None),
+    }
+    valid = all(
+        row["backend_ok"]
+        and row["candidate_passed"]
+        and row["baseline_passed"]
+        and row["speedup"] is not None
+        for row in results
+    )
+    aggregate_speedup = None
+    if valid and results:
+        aggregate_speedup = __import__("math").prod(
+            row["speedup"] for row in results
+        ) ** (1.0 / len(results))
+    passed = valid and aggregate_speedup is not None and aggregate_speedup > 1.0
+    return {
+        "mode": "dualprobe",
+        "passed": passed,
+        "aggregate_speedup": aggregate_speedup,
+        "backend_status": final_backend,
         "shapes": results,
     }
 
@@ -1194,6 +1323,8 @@ def main():
         result = run_largefrontierprobe()
     elif mode == "nocusolverprobe":
         result = run_nocusolverprobe(filter_ns)
+    elif mode == "dualprobe":
+        result = run_dualprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

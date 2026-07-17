@@ -68,6 +68,16 @@ def _build_image(submission_path):
         "/root/baseline_exp012.py",
         copy=True,
     )
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "028-dual-matrix-persistent"
+            / "baseline-exp021.py"
+        ),
+        "/root/baseline_exp028.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
     )
 
@@ -88,6 +98,7 @@ def main() -> int:
             "frontierprobe",
             "largefrontierprobe",
             "nocusolverprobe",
+            "dualprobe",
         ],
     )
     parser.add_argument(
