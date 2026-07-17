@@ -100,7 +100,18 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#880770`** (exp 014 — current best): `done`, public
+- **Ranked submission `#881981`** (exp 015 — current best): `done`, public
+  geomean **1262.9337990784535μs** and secret **1270.7067480724075μs**
+  (**−12.74% / −11.95%** vs exp 014; rank 12 → 11). A two-level blocked
+  tensor-core factorization (rank-2 one-warp diagonal potrf+inverse micro
+  kernel, tf32x3 panel dots, rank-128 tf32 trailing Schur tiles, per-shape
+  CUDA-graph replay) replaces cuSOLVER at `64×256`, `16×512`, `640×512`,
+  `4×1024`, `60×1024`, `8×2048` (paired 1.17–1.99×), plus a graph-replayed
+  exact cuSOLVER path at `1024×64` (1.086×) and a multi-capture-safe manual
+  graph at `256×128`. Full-grid paired aggregate **1.1859×**; single-module
+  verify 57/57 and benchmark 15/15; Popcorn test `#881978` 17/17. See
+  `experiments/015-mid-shape-tensorcore/`.
+- **Ranked submission `#880770`** (exp 014): `done`, public
   geomean **1447.2589334363144μs** and secret
   **1443.2264907145392μs**. It fuses both operands' tiled `amax` work and E4M3
   scale/cast passes for the `1×32768` left-looking panel products while keeping

@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "experiment": "015-mid-shape-tensorcore",
+  "mode": "paired-probe",
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "device": "NVIDIA B200"
+  },
+  "shapes": [
+    {
+      "shape": "64x256",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 365.8576051394145,
+        "best_us": 359.0260148048401,
+        "median_us": 364.39400911331177
+      },
+      "candidate": {
+        "mean_us": 425.02506375312805,
+        "best_us": 423.7619936466217,
+        "median_us": 424.83198642730713
+      },
+      "speedup_mean": 0.8607906599878061,
+      "candidate_checks": [
+        {
+          "ok": false,
+          "msg": "L @ L.T does not reconstruct A: relative_residual=0.000899"
+        }
+      ],
+      "candidate_all_ok": false,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 288,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "16x512",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 580.5989305178324,
+        "best_us": 580.1299810409546,
+        "median_us": 580.456018447876
+      },
+      "candidate": {
+        "mean_us": 968.3908065160116,
+        "best_us": 966.2320017814636,
+        "median_us": 968.504011631012
+      },
+      "speedup_mean": 0.599550229732827,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.5; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.7; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17.5; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.9; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17.3; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.8; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.9; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.8; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.4; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.5; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17.1; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.9; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=16.9; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17.3; batch=16; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 293,
+        "_FUSED_CTA_FALLBACKS": 1,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 581,
+        "_FUSED_CTA_FALLBACKS": 1,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "640x512",
+      "rotating_inputs": 1,
+      "baseline": {
+        "mean_us": 3951.2191772460938,
+        "best_us": 3945.8560943603516,
+        "median_us": 3951.7760276794434
+      },
+      "candidate": {
+        "mean_us": 3689.6085262298584,
+        "best_us": 3682.111978530884,
+        "median_us": 3688.2879734039307
+      },
+      "speedup_mean": 1.070904717710948,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=17.8; batch=640; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 586,
+        "_FUSED_CTA_FALLBACKS": 2,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 604,
+        "_FUSED_CTA_FALLBACKS": 2,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    }
+  ],
+  "families": {
+    "64x256": [
+      {
+        "family": "dense",
+        "ok": false,
+        "msg": "L @ L.T does not reconstruct A: relative_residual=0.000893",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": false,
+        "msg": "L @ L.T does not reconstruct A: relative_residual=0.000906",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00586; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0062; batch=64; n=256",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=10.1; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=3.55; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ],
+    "16x512": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=16.1; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=17.2; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00195; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00487; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=9.7; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=1.58; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ],
+    "640x512": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=17.5; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=18.2; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00195; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00519; batch=640; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=10.7; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=1.77; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ]
+  },
+  "final_counters": {
+    "_FUSED_CTA_HITS": 609,
+    "_FUSED_CTA_FALLBACKS": 3,
+    "_FUSED_CTA_ERROR": null,
+    "_GRAPH_SP_HITS": null,
+    "_GRAPH_SP_FALLBACKS": null,
+    "_GRAPH_SP_ERROR": null
+  },
+  "passed": false,
+  "geomean_target_speedup": 0.8206500189288476
+}

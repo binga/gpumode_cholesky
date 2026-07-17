@@ -1,0 +1,30 @@
+Submission #881981
+============================================================
+Leaderboard:    cholesky (id: 776)
+File:           submission.py
+User ID:        6457454
+Submitted:      2026-07-17T05:37:07.410871Z
+Status:         succeeded
+
+Runs:
+  - leaderboard on B200: passed (score: 0.0012707067480724075) [secret] (2026-07-17T05:37:45.863903Z - 2026-07-17T05:38:00.430866Z)
+  - test on B200: passed (score: -) (2026-07-17T05:37:08.460365Z - 2026-07-17T05:37:11.928017Z)
+  - benchmark on B200: passed (score: -) (2026-07-17T05:37:11.928215Z - 2026-07-17T05:37:29.272491Z)
+  - leaderboard on B200: passed (score: 0.0012629337990784535) (2026-07-17T05:37:29.272933Z - 2026-07-17T05:37:42.505005Z)
+  - test on B200: passed (score: -) [secret] (2026-07-17T05:37:14.257446Z - 2026-07-17T05:37:21.242639Z)
+  - benchmark on B200: passed (score: -) [secret] (2026-07-17T05:37:21.242846Z - 2026-07-17T05:37:45.863739Z)
+
+Code:
+------------------------------------------------------------
+#!POPCORN leaderboard cholesky
+#!POPCORN gpu B200
+
+"""GPU MODE `cholesky` submission — experiment 015 final candidate.
+
+Integrates two measured frontiers on top of the exact exp-014 ranked winner
+(#880770): (1) a two-level blocked tensor-core factorization (rank-2 1-warp
+diagonal potrf+inverse micro kernel, tf32x3 panel dots, tf32/tf32x3 rank-128
+trailing Schur tiles, per-shape CUDA-graph replay) for 64x256, 16x512,
+640x512, 4x1024, 60x1024, 8x2048 — paired 1.31x/1.15x/1.69x/1.40x/1.94x/1.59x;
+(2) a graph-replayed exact cuSOLVER factorization for 1024x64 (1.08x).
+Rejected on measurement: fused one-CTA whole-matrix potrf (r1), rank-32

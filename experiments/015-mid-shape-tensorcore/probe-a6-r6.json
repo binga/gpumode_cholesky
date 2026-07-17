@@ -1,0 +1,1083 @@
+{
+  "schema_version": 1,
+  "experiment": "015-mid-shape-tensorcore",
+  "mode": "paired-probe",
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "device": "NVIDIA B200"
+  },
+  "shapes": [
+    {
+      "shape": "64x256",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 362.01773683230084,
+        "best_us": 361.42200231552124,
+        "median_us": 361.844003200531
+      },
+      "candidate": {
+        "mean_us": 275.8394678433736,
+        "best_us": 274.67599511146545,
+        "median_us": 275.64799785614014
+      },
+      "speedup_mean": 1.312421821513449,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00877; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00896; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00887; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00905; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0087; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00876; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0088; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00907; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00859; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00907; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00837; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00871; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00885; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00901; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00869; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00961; batch=64; n=256"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 288,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "16x512",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 582.3733329772949,
+        "best_us": 581.745982170105,
+        "median_us": 582.2439789772034
+      },
+      "candidate": {
+        "mean_us": 507.0810715357463,
+        "best_us": 504.75597381591797,
+        "median_us": 506.4780116081238
+      },
+      "speedup_mean": 1.1484817037510755,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00514; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00496; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00525; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00524; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00519; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00498; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00507; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00502; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00499; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00509; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00519; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00508; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00505; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00497; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00522; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00513; batch=16; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 302,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 590,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "640x512",
+      "rotating_inputs": 1,
+      "baseline": {
+        "mean_us": 3959.929609298706,
+        "best_us": 3949.9518871307373,
+        "median_us": 3961.2479209899902
+      },
+      "candidate": {
+        "mean_us": 2339.022938410441,
+        "best_us": 2332.319974899292,
+        "median_us": 2338.6878967285156
+      },
+      "speedup_mean": 1.6929845125801994,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=7.28; batch=640; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 604,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 622,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "4x1024",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 1314.9416128794353,
+        "best_us": 1313.3100271224976,
+        "median_us": 1314.9900436401367
+      },
+      "candidate": {
+        "mean_us": 1489.9693409601848,
+        "best_us": 1470.6920385360718,
+        "median_us": 1474.1779565811157
+      },
+      "speedup_mean": 0.882529308980307,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0013; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00136; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00141; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00134; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00133; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00135; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00133; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00132; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00136; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00135; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00129; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00138; batch=4; n=1024"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 1,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 289,
+        "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "60x1024",
+      "rotating_inputs": 1,
+      "baseline": {
+        "mean_us": 3221.250136693319,
+        "best_us": 3213.792085647583,
+        "median_us": 3220.1600074768066
+      },
+      "candidate": {
+        "mean_us": 4040.7487551371255,
+        "best_us": 3489.3438816070557,
+        "median_us": 3848.2561111450195
+      },
+      "speedup_mean": 0.797191394935913,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00254; batch=60; n=1024"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 303,
+        "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 321,
+        "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "8x2048",
+      "rotating_inputs": 2,
+      "baseline": {
+        "mean_us": 3517.9306507110596,
+        "best_us": 3510.7359886169434,
+        "median_us": 3517.087936401367
+      },
+      "candidate": {
+        "mean_us": 4511.933851242065,
+        "best_us": 3790.656089782715,
+        "median_us": 4315.807819366455
+      },
+      "speedup_mean": 0.7796946424076292,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.04; batch=8; n=2048"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.04; batch=8; n=2048"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 335,
+        "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 635,
+        "_FUSED_CTA_FALLBACKS": 371,
+        "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    }
+  ],
+  "families": {
+    "64x256": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00928; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0138; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00586; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0334; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00615; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00884; batch=64; n=256",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ],
+    "16x512": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00495; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00692; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00195; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00836; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00321; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00434; batch=16; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ],
+    "640x512": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=7.61; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=10.4; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00195; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00519; batch=640; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.729; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.265; batch=640; n=512",
+        "hits_delta": 1,
+        "fallbacks_delta": 0
+      }
+    ],
+    "4x1024": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00137; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00122; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00124; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00115; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00208; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      }
+    ],
+    "60x1024": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00254; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00324; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000488; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00367; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000768; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000763; batch=60; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      }
+    ],
+    "8x2048": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=2.05; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=2.77; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000732; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00289; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.517; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0583; batch=8; n=2048",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      }
+    ]
+  },
+  "profiles": {
+    "64x256": [
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 131.65380000000033,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 40.40540000000046,
+        "count_per_call": 6.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 26.37479999999987,
+        "count_per_call": 7.0
+      },
+      {
+        "kernel": "_trailing_nb",
+        "self_us": 13.036999999999898,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 9.478599999999778,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_clear_upper_tiles",
+        "self_us": 6.457999999999993,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 4.621000000000095,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.487999999999738,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 3.3728000000000975,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 2.5281999999999245,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.7216000000000349,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.6388000000000829,
+        "count_per_call": 1.0
+      }
+    ],
+    "16x512": [
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 258.96619999999893,
+        "count_per_call": 16.0
+      },
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 80.32980000000043,
+        "count_per_call": 12.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 59.83100000000013,
+        "count_per_call": 15.0
+      },
+      {
+        "kernel": "_trailing_nb",
+        "self_us": 42.25779999999995,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 9.317600000000493,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_clear_upper_tiles",
+        "self_us": 5.990399999999499,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.5387999999995374,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 3.4045999999996637,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 3.321400000000176,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 2.508400000000256,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.702400000000307,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.631999999999607,
+        "count_per_call": 1.0
+      }
+    ],
+    "640x512": [
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 590.7868000000012,
+        "count_per_call": 12.0
+      },
+      {
+        "kernel": "_trailing_nb",
+        "self_us": 464.3905999999997,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 385.3087999999996,
+        "count_per_call": 1.8
+      },
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 366.75499999999977,
+        "count_per_call": 16.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 273.07900000000166,
+        "count_per_call": 15.0
+      },
+      {
+        "kernel": "_clear_upper_tiles",
+        "self_us": 133.04840000000058,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 11.56780000000017,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 5.812399999999434,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 5.3511999999998805,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 3.152800000000025,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.857600000000275,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.788199999999597,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memset (Device)",
+        "self_us": 1.6614000000001397,
+        "count_per_call": 1.0
+      }
+    ],
+    "4x1024": [
+      {
+        "kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1, 1> >(int, int, void*, int, vo",
+        "self_us": 1177.5013999999999,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 63.017199999999775,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co",
+        "self_us": 26.932400000001145,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in",
+        "self_us": 22.000200000000405,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 20.96279999999888,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::Opaqu",
+        "self_us": 19.985799999999653,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 17.137800000000606,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "Memset (Device)",
+        "self_us": 10.066399999998703,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "xxtrf4_set_info_ker(int, int*)",
+        "self_us": 5.552999999999519,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 4.278199999999538,
+        "count_per_call": 1.0
+      }
+    ],
+    "60x1024": [
+      {
+        "kernel": "void potrf_syrk_nc_kernel<float, 5, 6, 3, 3, 4>(int, int, int, int, int, int, int, float**, unsigned",
+        "self_us": 1118.081799999999,
+        "count_per_call": 15.0
+      },
+      {
+        "kernel": "void potrf_syrk_T16_nc_kernel<float, 5, 4, 4, 5, 4>(int, int, int, int, int, int, int, float**, unsi",
+        "self_us": 725.5791999999987,
+        "count_per_call": 48.0
+      },
+      {
+        "kernel": "void potrf_cta_lower_batch<float, float, 16>(int, int, int, float**, unsigned long, int*)",
+        "self_us": 411.3030000000023,
+        "count_per_call": 64.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co",
+        "self_us": 280.7282000000003,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in",
+        "self_us": 193.1251999999995,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void potrfBatch_trsm_lower<float, float, 16>(int, int, int, int, int, int, float**, unsigned long)",
+        "self_us": 188.12700000000822,
+        "count_per_call": 63.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 83.77060000000043,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 66.77879999999914,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 53.919599999999264,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 33.26100000000015,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scal",
+        "self_us": 1.8872000000001208,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void potrf_reset_info<256>(int, int*)",
+        "self_us": 1.8296000000002095,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void potrf_set_info<256>(int, int, int*)",
+        "self_us": 1.368999999999869,
+        "count_per_call": 1.0
+      }
+    ],
+    "8x2048": [
+      {
+        "kernel": "_panel_solve_8x2048",
+        "self_us": 1322.3040000000044,
+        "count_per_call": 31.0
+      },
+      {
+        "kernel": "_diag_factor_8x2048",
+        "self_us": 1223.8619999999974,
+        "count_per_call": 32.0
+      },
+      {
+        "kernel": "_lower_schur_8x2048",
+        "self_us": 704.7333999999986,
+        "count_per_call": 31.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 92.18300000000113,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_micro_potrf_gj32",
+        "self_us": 65.25460000000058,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "_panel_inner32",
+        "self_us": 23.40199999999977,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "_clear_upper_8x2048",
+        "self_us": 22.82660000000069,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 19.23020000000006,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 4.453999999999906,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.7563999999998487,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 3.6157999999999446,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 3.5964000000007217,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.791799999999057,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.7531999999997425,
+        "count_per_call": 1.0
+      }
+    ]
+  },
+  "final_counters": {
+    "_FUSED_CTA_HITS": 635,
+    "_FUSED_CTA_FALLBACKS": 385,
+    "_FUSED_CTA_ERROR": "OutOfResources(262152, 232448, 'shared memory')",
+    "_GRAPH_SP_HITS": null,
+    "_GRAPH_SP_FALLBACKS": null,
+    "_GRAPH_SP_ERROR": null
+  },
+  "passed": true,
+  "geomean_target_speedup": 1.0576560704747957
+}

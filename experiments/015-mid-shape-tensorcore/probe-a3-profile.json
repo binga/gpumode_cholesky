@@ -1,0 +1,433 @@
+{
+  "schema_version": 1,
+  "experiment": "015-mid-shape-tensorcore",
+  "mode": "paired-probe",
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "device": "NVIDIA B200"
+  },
+  "shapes": [
+    {
+      "shape": "64x256",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 358.86866847674054,
+        "best_us": 358.597993850708,
+        "median_us": 358.8480055332184
+      },
+      "candidate": {
+        "mean_us": 350.1945336659749,
+        "best_us": 349.01198744773865,
+        "median_us": 350.3119945526123
+      },
+      "speedup_mean": 1.0247694751827259,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00716; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0069; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00699; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00667; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00685; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00679; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00703; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00701; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00777; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00693; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00669; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00672; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00695; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00708; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00675; batch=64; n=256"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00704; batch=64; n=256"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 288,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "16x512",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 584.0861201286316,
+        "best_us": 583.8320255279541,
+        "median_us": 584.0219855308533
+      },
+      "candidate": {
+        "mean_us": 662.497866153717,
+        "best_us": 661.8620157241821,
+        "median_us": 662.5199913978577
+      },
+      "speedup_mean": 0.8816422662908746,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00412; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00399; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00401; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00414; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00393; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00398; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00408; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00404; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00413; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00408; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00418; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00406; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00412; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00401; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00426; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00409; batch=16; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 296,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 584,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "8x2048",
+      "rotating_inputs": 2,
+      "baseline": {
+        "mean_us": 3505.260785420736,
+        "best_us": 3498.608112335205,
+        "median_us": 3505.1519870758057
+      },
+      "candidate": {
+        "mean_us": 3465.013345082601,
+        "best_us": 3460.927963256836,
+        "median_us": 3465.3120040893555
+      },
+      "speedup_mean": 1.0116153781616029,
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.05; batch=8; n=2048"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.06; batch=8; n=2048"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 592,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 628,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": null,
+        "_GRAPH_SP_FALLBACKS": null,
+        "_GRAPH_SP_ERROR": null
+      }
+    }
+  ],
+  "families": {},
+  "profiles": {
+    "64x256": [
+      {
+        "kernel": "_micro_potrf_inv32",
+        "self_us": 195.30839999999978,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "_trailing32",
+        "self_us": 76.09100000000005,
+        "count_per_call": 7.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 27.322599999999966,
+        "count_per_call": 7.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 9.228999999999962,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_clear_upper_8x2048",
+        "self_us": 4.601600000000053,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 4.2883999999999105,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.475199999999904,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 2.886599999999953,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 2.54079999999999,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.6960000000000945,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.6385999999999967,
+        "count_per_call": 1.0
+      }
+    ],
+    "16x512": [
+      {
+        "kernel": "_micro_potrf_inv32",
+        "self_us": 389.32000000000016,
+        "count_per_call": 16.0
+      },
+      {
+        "kernel": "_trailing32",
+        "self_us": 154.85319999999982,
+        "count_per_call": 15.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 62.0021999999999,
+        "count_per_call": 15.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 9.107399999999988,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_clear_upper_8x2048",
+        "self_us": 4.460800000000063,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.5073999999999614,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 3.2768000000000486,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 3.0397999999999685,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 2.5151999999999135,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.766399999999976,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.6766000000000076,
+        "count_per_call": 1.0
+      }
+    ],
+    "8x2048": [
+      {
+        "kernel": "_micro_potrf_inv32",
+        "self_us": 1554.8910000000026,
+        "count_per_call": 64.0
+      },
+      {
+        "kernel": "_trailing32",
+        "self_us": 1520.9390000000017,
+        "count_per_call": 63.0
+      },
+      {
+        "kernel": "_panel_apply32",
+        "self_us": 271.7754000000001,
+        "count_per_call": 63.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 87.44299999999956,
+        "count_per_call": 2.0
+      },
+      {
+        "kernel": "_clear_upper_8x2048",
+        "self_us": 23.046399999999814,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a",
+        "self_us": 4.294399999999769,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto",
+        "self_us": 3.7183999999995647,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun",
+        "self_us": 3.616000000000895,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "Memcpy DtoH (Device -> Pinned)",
+        "self_us": 2.8605999999999767,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<bool, bool, bool, at::na",
+        "self_us": 1.7792000000003099,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFunctor<float, float, bool, at::",
+        "self_us": 1.70879999999961,
+        "count_per_call": 1.0
+      }
+    ]
+  },
+  "final_counters": {
+    "_FUSED_CTA_HITS": 636,
+    "_FUSED_CTA_FALLBACKS": 0,
+    "_FUSED_CTA_ERROR": null,
+    "_GRAPH_SP_HITS": null,
+    "_GRAPH_SP_FALLBACKS": null,
+    "_GRAPH_SP_ERROR": null
+  },
+  "passed": true,
+  "geomean_target_speedup": 0.9704608096228935
+}

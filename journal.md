@@ -63,23 +63,23 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#880770` = 1447.2589334363144μs public geomean** (Session 14;
-secret 1443.2264907145392μs). `nb` = block size.
+Current best: **`#881981` = 1262.9337990784535μs public geomean** (Session 15;
+secret 1270.7067480724075μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | **✓** (S2) | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
-| 1024×64  | **✓** | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | TBD |
-| 256×128  | ✗ | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | **✓** (S9) |
-| 64×256   | **✓** | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | TBD |
-| 16×512   | ✗ | TBD | ✗ | TBD | TBD | TBD | TBD | TBD | **✓** (S9) |
-| 640×512  | **✓** | ✗ (S5) | TBD | TBD | ✗ (S5) | TBD | TBD | TBD | ✗ (S5) |
-| 4×1024   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
-| 60×1024  | **✓** | ✗ (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
-| 2×2048   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
-| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S9) | ✗ | **✓** (S9) | **✓** (S9) | TBD | TBD | TBD |
-| 1×4096   | **✓** | — | ✗ | ✗ | TBD | TBD | TBD | TBD | ✗ |
-| 2×4096   | ✗ | **✓** (S4) | ✗ | ✗ | TBD | TBD | TBD | TBD | TBD |
+| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
+| 256×128  | ✗ | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | **✓** (S9; manual capture S15) |
+| 64×256   | ✗ (S15) | TBD | **✓** (S15, 1.35×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
+| 16×512   | ✗ | TBD | **✓** (S15, 1.17×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
+| 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S15, 1.71×) | TBD | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 4×1024   | ✗ | ✗ (S15) | **✓** (S15, 1.42×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
+| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S15, 1.59×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
+| 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
 | 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
 | 1×32768  | ✗ | — | ✗ (S13/S14 no-cusolver potrf) | ✗ (S13/S14) | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel + fused quantization** (S10/S14, 1.084×) | ✗ (S13 two-level) |
@@ -132,6 +132,80 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-17 — Session 15: mid-shape batched tensor-core factorization → ranked #881981 (NEW BEST 1262.934μs)
+
+### Goal and result
+
+Leader-gap analysis showed the equal-weight geomean was dominated by nine mid
+shapes on stock cuSOLVER sitting 19–260× above B200 hardware floors — not by
+1×32768. Experiment 015 attacked that region. **ADOPTED.** Ranked `#881981`:
+**1262.9337990784535μs public** / **1270.7067480724075μs secret**, improving
+`#880770` by **12.74% / 11.95%**; rank 12 → 11. Popcorn test `#881978` 17/17.
+Exact ranked SHA-256
+`0400f06ad250b3bef240eb5cebae10ca9c045cc227924e06185be966e7310bb5`.
+
+### What shipped
+
+1. **Two-level blocked tensor-core factorization** (new Triton kernels, all
+   launches replayed as a per-shape CUDA graph with one shared memory pool)
+   for 64×256, 16×512, 640×512, 4×1024, 60×1024, 8×2048: 1-warp rank-2
+   diagonal potrf with the triangular inverse built in the same 16-step
+   serial loop; panels as `tl.dot(P, Dinv^T)` tf32x3; narrow in-panel rank-32
+   updates; one rank-128 trailing Schur update per outer panel (tf32 at
+   n≥1024, tf32x3 at n≤512 — 4× less trailing RMW traffic than rank-32).
+2. **Graph-replayed exact cuSOLVER path for 1024×64** (1.086×).
+3. **256×128 moved from `make_graphed_callables` to manual static-buffer
+   capture** (same vendor kernel; multi-capture-safe).
+
+Paired same-process wins vs exact `#880770`: 64×256 1.350×, 16×512 1.171×,
+640×512 **1.714×**, 4×1024 1.421×, 60×1024 **1.989×**, 8×2048 1.590×,
+1024×64 1.086×. Full-grid paired aggregate **1.1859×** (1522.3→1283.6μs);
+untouched shapes 0.999–1.001×. Single-module gates: verify **57/57**,
+benchmark 15/15 (geomean 1325.7μs). Zero fallbacks/errors on timed runs;
+worst residual 7.28/20 (640×512 tf32); lowrank takes exactly one expected
+safety fallback per tf32 shape.
+
+### Bounded ladder (measured, rounds r1–r6 + candidate B fork)
+
+| variant | result |
+|---|---|
+| fused one-CTA whole-matrix potrf (r1) | rejected: 0.60–1.07×, over-tolerance at n=256 |
+| split kernels, IEEE panels, rank-32 trailing, graphs (r2/r3) | rejected: micro 24μs/launch serial floor, trailing RMW ×(n/32) |
+| two-level NB=128 + GJ-fused micro (r4) | frontier: 1.06–1.87× |
+| rank-2 micro (r5) | frontier: 1.13–1.94× |
+| ILP inverse + tiled clear (r6, TILE=128) | **adopted core** |
+| TILE=256 trailing (r6) | rejected: register/smem budget |
+| 2×2048 on new path | rejected 0.651× — stays on per-matrix loop |
+| cand-B superpanels 1×4096/2×4096 (3 variants) | rejected 0.18–0.97× |
+| cand-B fused Triton 1024×64 | rejected 0.673× |
+
+### Defects found
+
+- **Graph-entry use-after-free**: the `dinv` workspace wasn't kept alive with
+  its captured graph — replays wrote freed memory (async illegal access that
+  vanished under `CUDA_LAUNCH_BLOCKING=1`). Keep every captured buffer in the
+  graph cache entry.
+- **Dual-module probe artifact**: `make_graphed_callables` replays corrupt
+  (residual exactly 1.42) once another module captured a manual graph earlier
+  in the same process. Popcorn-like single-module runs are clean; the paired
+  harness result for 256×128 was a false alarm, confirmed by
+  `modal_verify.py` verify 57/57 + benchmark before ranking.
+
+### Cost and next
+
+~14 Modal B200 runs ≈ $6–9 (incl. 4 in the candidate-B fork); Popcorn one
+test + one ranked. The board moved sharply today: leaders now 492–506μs.
+Next levers: micro kernel is still ~16μs/launch (serial floor n×~500ns) —
+rank-4 pivots or manual graph-node dependencies to overlap diag with
+trailing; persistent per-shape kernels; FP8/BF16 trailing at mid n; 2×2048,
+1×4096, 2×4096 remain open.
+
+Artifacts: `experiments/015-mid-shape-tensorcore/` (goal, baseline, all six
+candidate rounds, probe harness, paired/full-grid/verify/benchmark JSON,
+ranked artifacts, notes, exact ranked `submission.py`).
 
 ---
 

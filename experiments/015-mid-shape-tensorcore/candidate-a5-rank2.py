@@ -1,17 +1,8 @@
 #!POPCORN leaderboard cholesky
 #!POPCORN gpu B200
 
-"""GPU MODE `cholesky` submission — experiment 015 final candidate.
-
-Integrates two measured frontiers on top of the exact exp-014 ranked winner
-(#880770): (1) a two-level blocked tensor-core factorization (rank-2 1-warp
-diagonal potrf+inverse micro kernel, tf32x3 panel dots, tf32/tf32x3 rank-128
-trailing Schur tiles, per-shape CUDA-graph replay) for 64x256, 16x512,
-640x512, 4x1024, 60x1024, 8x2048 — paired 1.31x/1.15x/1.69x/1.40x/1.94x/1.59x;
-(2) a graph-replayed exact cuSOLVER factorization for 1024x64 (1.08x).
-Rejected on measurement: fused one-CTA whole-matrix potrf (r1), rank-32
-single-level trailing (r3), TILE=256 trailing (r6 compile budget), 2x2048
-(0.65x), 1x4096/2x4096 superpanels (0.18-0.97x, candidate B).
+"""GPU MODE `cholesky` submission — experiment 015 candidate A round 5
+(rank-2 micro factorization; 2x2048 dropped — 0.651x in round 4).
 
 Two-level blocked tensor-core factorization for seven mid shapes: a
 Gauss-Jordan-fused 1-warp diagonal potrf+inverse micro kernel (BK=32), panel
@@ -403,26 +394,6 @@ if _HAVE_TRITON:
         )
 
     @triton.jit
-    def _clear_upper_tiles(
-        out_ptr,
-        n: tl.constexpr,
-        TILE: tl.constexpr,
-    ):
-        """Zero the strict upper triangle, one TILE x TILE tile per CTA over
-        the upper-triangular tile grid only (no div/mod per element)."""
-        tri = tl.program_id(0)
-        b = tl.program_id(1).to(tl.int64)
-        br = ((tl.sqrt(8.0 * tri + 1.0) - 1.0) * 0.5).to(tl.int32)
-        bc = tri - br * (br + 1) // 2
-        # (br, bc) enumerates lower tiles; mirror to upper: row tile bc,
-        # col tile br.
-        rows = bc * TILE + tl.arange(0, TILE)
-        cols = br * TILE + tl.arange(0, TILE)
-        ptrs = out_ptr + b * n * n + rows[:, None] * n + cols[None, :]
-        mask = cols[None, :] > rows[:, None]
-        tl.store(ptrs, tl.zeros((TILE, TILE), dtype=tl.float32), mask=mask)
-
-    @triton.jit
     def _micro_potrf_gj32(
         out_ptr,
         inv_ptr,
@@ -445,18 +416,16 @@ if _HAVE_TRITON:
         for it in range(0, 16):
             p = 2 * it
             q = p + 1
-            # Independent extractions issue together (ILP): both columns and
-            # both raw diagonal entries.
             colp = tl.sum(tl.where(c[None, :] == p, a, 0.0), axis=1)
             colq = tl.sum(tl.where(c[None, :] == q, a, 0.0), axis=1)
             dpp = tl.sum(tl.where(r == p, colp, 0.0), axis=0)
-            aqq = tl.sum(tl.where(r == q, colq, 0.0), axis=0)
             inv1 = 1.0 / tl.sqrt(dpp)
             lp = tl.where(r >= p, colp * inv1, 0.0)
             l21 = tl.sum(tl.where(r == q, lp, 0.0), axis=0)
-            dqq = aqq - l21 * l21
+            colq = colq - l21 * lp
+            dqq = tl.sum(tl.where(r == q, colq, 0.0), axis=0)
             inv2 = 1.0 / tl.sqrt(dqq)
-            lq = tl.where(r >= q, (colq - l21 * lp) * inv2, 0.0)
+            lq = tl.where(r >= q, colq * inv2, 0.0)
             trail = (r[:, None] > q) & (c[None, :] > q)
             a = tl.where(
                 c[None, :] == p,
@@ -473,26 +442,23 @@ if _HAVE_TRITON:
                     ),
                 ),
             )
-            # Rows p and q of the factor are final; both inverse-row
-            # contributions reduce against X rows < p (independent, ILP),
-            # and row q gets a scalar correction for its row-p term.
+            # Rows p and q of the factor are final; build inverse rows from
+            # them (row q consumes the freshly written row p of X).
             lpp = dpp * inv1
             lqq = dqq * inv2
             rowp = tl.sum(tl.where(r[:, None] == p, a, 0.0), axis=0)
-            rowq = tl.sum(tl.where(r[:, None] == q, a, 0.0), axis=0)
             rmp = tl.where(c < p, rowp, 0.0)
-            rmq = tl.where(c < p, rowq, 0.0)
             contrib_p = tl.sum(rmp[:, None] * x, axis=0)
-            contrib_q = tl.sum(rmq[:, None] * x, axis=0)
-            lqp = tl.sum(tl.where(c == p, rowq, 0.0), axis=0)
             eqp = tl.where(c == p, 1.0, 0.0)
-            eqq = tl.where(c == q, 1.0, 0.0)
-            xp = (eqp - contrib_p) / lpp
-            xq = (eqq - contrib_q - lqp * xp) / lqq
             x = tl.where(
-                r[:, None] == p,
-                xp[None, :],
-                tl.where(r[:, None] == q, xq[None, :], x),
+                r[:, None] == p, ((eqp - contrib_p) / lpp)[None, :], x
+            )
+            rowq = tl.sum(tl.where(r[:, None] == q, a, 0.0), axis=0)
+            rmq = tl.where(c < q, rowq, 0.0)
+            contrib_q = tl.sum(rmq[:, None] * x, axis=0)
+            eqq = tl.where(c == q, 1.0, 0.0)
+            x = tl.where(
+                r[:, None] == q, ((eqq - contrib_q) / lqq)[None, :], x
             )
         a = tl.where(c[None, :] <= r[:, None], a, 0.0)
         tl.store(ptr, a)
@@ -617,19 +583,18 @@ if _HAVE_TRITON:
     # (batch, n) -> (panel_prec, trailing_prec) for the two-level blocked
     # path. tf32x3 keeps tensor cores with near-FP32 accuracy where the
     # n-scaled tolerance is tight; plain tf32 is enough from n=1024 up.
-    # (batch, n) -> (panel_prec, trailing_prec, trailing_tile)
     _SPLIT32_SHAPES = {
-        (64, 256): ("tf32x3", "tf32x3", 128),
-        (16, 512): ("tf32x3", "tf32x3", 128),
-        (640, 512): ("tf32x3", "tf32", 128),
-        (4, 1024): ("tf32x3", "tf32", 128),
-        (60, 1024): ("tf32x3", "tf32", 128),
-        (8, 2048): ("tf32x3", "tf32", 128),
+        (64, 256): ("tf32x3", "tf32x3"),
+        (16, 512): ("tf32x3", "tf32x3"),
+        (640, 512): ("tf32x3", "tf32"),
+        (4, 1024): ("tf32x3", "tf32"),
+        (60, 1024): ("tf32x3", "tf32"),
+        (8, 2048): ("tf32x3", "tf32"),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
 
-    def _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile):
+    def _split32_launch(work, dinv, panel_prec, trailing_prec):
         """Launch the full two-level blocked factorization on `work`."""
         batch, n, _ = work.shape
         tile = _SPLIT32_TILE
@@ -665,7 +630,7 @@ if _HAVE_TRITON:
                     )
             rem_out = n - panel_end
             if rem_out > 0:
-                tr = triton.cdiv(rem_out, trailing_tile)
+                tr = triton.cdiv(rem_out, tile)
                 _trailing_nb[(tr * (tr + 1) // 2, batch)](
                     work,
                     n=n,
@@ -673,15 +638,17 @@ if _HAVE_TRITON:
                     remaining=rem_out,
                     NB=nb,
                     PREC=trailing_prec,
-                    TILE=trailing_tile,
+                    TILE=tile,
                     num_warps=8,
                     num_stages=3,
                 )
-        ct = triton.cdiv(n, tile)
-        _clear_upper_tiles[(ct * (ct + 1) // 2, batch)](
+        grid = 4096
+        _clear_upper_8x2048[(grid,)](
             work,
+            total=work.numel(),
             n=n,
-            TILE=tile,
+            BLOCK=256,
+            GRID=grid,
             num_warps=8,
         )
 
@@ -689,7 +656,7 @@ if _HAVE_TRITON:
 
     def _split32_factor(data: torch.Tensor) -> torch.Tensor:
         batch, n, _ = data.shape
-        panel_prec, trailing_prec, trailing_tile = _SPLIT32_SHAPES[(batch, n)]
+        panel_prec, trailing_prec = _SPLIT32_SHAPES[(batch, n)]
         data = data.contiguous()
         key = (batch, n)
         entry = _SPLIT32_GRAPHS.get(key)
@@ -701,11 +668,11 @@ if _HAVE_TRITON:
                 )
                 for _ in range(2):
                     work.copy_(data)
-                    _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
+                    _split32_launch(work, dinv, panel_prec, trailing_prec)
                 torch.cuda.synchronize()
                 graph = torch.cuda.CUDAGraph()
-                with torch.cuda.graph(graph, pool=_shared_graph_pool()):
-                    _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
+                with torch.cuda.graph(graph):
+                    _split32_launch(work, dinv, panel_prec, trailing_prec)
                 # Keep BOTH buffers alive: the graph nodes hold raw device
                 # pointers into them, so dropping either is a use-after-free
                 # on every subsequent replay.
@@ -719,7 +686,7 @@ if _HAVE_TRITON:
             dinv = torch.empty(
                 batch, 32, 32, device=data.device, dtype=torch.float32
             )
-            _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
+            _split32_launch(work, dinv, panel_prec, trailing_prec)
             return work
         graph, work, _dinv = entry
         work.copy_(data)
@@ -779,21 +746,6 @@ if _HAVE_TRITON:
 # ---------------------------------------------------------------------------
 # Exact graph-replay paths for two overhead-bound ranked shapes.
 # ---------------------------------------------------------------------------
-_GRAPH_POOL = None
-
-
-def _shared_graph_pool():
-    """All CUDA graph captures in this module share one memory pool. With
-    separate private pools, a capture that follows an earlier capture in the
-    same process produced deterministically corrupted replays for the earlier
-    pattern (measured: 256x128 after the 1024x64 capture, relative residual
-    1.42); one shared pool is the documented multi-capture arrangement."""
-    global _GRAPH_POOL
-    if _GRAPH_POOL is None:
-        _GRAPH_POOL = torch.cuda.graph_pool_handle()
-    return _GRAPH_POOL
-
-
 _GRAPH_16X512 = None
 _GRAPH_INPUT_16X512 = None
 _GRAPH_OUTPUT_16X512 = None
@@ -818,7 +770,7 @@ def _graph_cholesky_16x512(data: torch.Tensor) -> torch.Tensor:
             torch.cuda.synchronize()
 
             graph = torch.cuda.CUDAGraph()
-            with torch.cuda.graph(graph, pool=_shared_graph_pool()):
+            with torch.cuda.graph(graph):
                 static_output = torch.linalg.cholesky_ex(
                     static_input, check_errors=False
                 ).L
@@ -840,37 +792,24 @@ def _graph_cholesky_16x512(data: torch.Tensor) -> torch.Tensor:
 
 
 def _graph_cholesky_256x128(data: torch.Tensor) -> torch.Tensor:
-    # Experiment 015: converted from make_graphed_callables to the same
-    # manual static-buffer capture pattern as the 16x512 path. The callable
-    # version produced corrupted replays once another manual graph (the new
-    # 1024x64 path) had been captured earlier in the process; the manual
-    # pattern is measured clean in that ordering with identical numerics.
     global _GRAPH_256X128, _GRAPH_ERROR_256X128
-    if _GRAPH_256X128 is None and _GRAPH_ERROR_256X128 is None:
+    if _GRAPH_256X128 is None:
         try:
-            static_input = torch.empty_like(data.contiguous())
-            static_input.copy_(data)
-            for _ in range(3):
-                torch.linalg.cholesky_ex(static_input, check_errors=False).L
-            torch.cuda.synchronize()
-            graph = torch.cuda.CUDAGraph()
-            with torch.cuda.graph(graph, pool=_shared_graph_pool()):
-                static_output = torch.linalg.cholesky_ex(
-                    static_input, check_errors=False
-                ).L
-            graph.replay()
-            torch.cuda.synchronize()
-            _GRAPH_256X128 = (graph, static_input, static_output)
+            def _factor(x: torch.Tensor) -> torch.Tensor:
+                return torch.linalg.cholesky_ex(x, check_errors=False).L
+
+            _GRAPH_256X128 = torch.cuda.make_graphed_callables(
+                _factor,
+                (data,),
+                num_warmup_iters=5,
+            )
         except Exception as exc:  # pragma: no cover
             _GRAPH_ERROR_256X128 = repr(exc)
             _GRAPH_256X128 = False
 
-    if _GRAPH_256X128 is False or _GRAPH_256X128 is None:
+    if _GRAPH_256X128 is False:
         return torch.linalg.cholesky_ex(data, check_errors=False).L
-    graph, static_input, static_output = _GRAPH_256X128
-    static_input.copy_(data)
-    graph.replay()
-    return static_output.clone()
+    return _GRAPH_256X128(data).clone()
 
 
 # ---------------------------------------------------------------------------
@@ -879,52 +818,6 @@ def _graph_cholesky_256x128(data: torch.Tensor) -> torch.Tensor:
 _FUSED_CTA_HITS = 0
 _FUSED_CTA_FALLBACKS = 0
 _FUSED_CTA_ERROR = None
-
-_GRAPH_SP_HITS = 0
-_GRAPH_SP_FALLBACKS = 0
-_GRAPH_SP_ERROR = None
-
-_SP_STATE = {}
-
-
-def _graph_cholesky_1024x64(data):
-    """Graph-replayed exact cuSOLVER factorization for (1024, 64): identical
-    numerics to the shipped default, minus the per-call launch train."""
-    global _GRAPH_SP_HITS, _GRAPH_SP_FALLBACKS, _GRAPH_SP_ERROR
-
-    key = (1024, 64)
-    state = _SP_STATE.get(key)
-    if state is None:
-        try:
-            static_in = torch.empty_like(data.contiguous())
-            static_in.copy_(data)
-            for _ in range(3):
-                torch.linalg.cholesky_ex(static_in, check_errors=False).L
-            torch.cuda.synchronize()
-            graph = torch.cuda.CUDAGraph()
-            with torch.cuda.graph(graph, pool=_shared_graph_pool()):
-                static_out = torch.linalg.cholesky_ex(
-                    static_in, check_errors=False
-                ).L
-            graph.replay()
-            torch.cuda.synchronize()
-            state = (graph, static_in, static_out)
-            _SP_STATE[key] = state
-        except Exception as exc:  # pragma: no cover
-            _GRAPH_SP_ERROR = repr(exc)
-            _SP_STATE[key] = False
-            _GRAPH_SP_FALLBACKS += 1
-            return None
-
-    if state is False:
-        _GRAPH_SP_FALLBACKS += 1
-        return None
-
-    graph, static_in, static_out = state
-    static_in.copy_(data)
-    graph.replay()
-    _GRAPH_SP_HITS += 1
-    return static_out.clone()
 
 _LEFT_16384_HITS = 0
 _LEFT_32768_HITS = 0
@@ -1241,11 +1134,6 @@ def custom_kernel(data: input_t) -> output_t:
         except Exception as exc:
             _FUSED_CTA_ERROR = repr(exc)
             _FUSED_CTA_FALLBACKS += 1
-
-    if is_f32_cuda and batch == 1024 and n == 64:
-        l = _graph_cholesky_1024x64(data)
-        if l is not None:
-            return l
 
     if is_f32_cuda and batch == 256 and n == 128:
         return _graph_cholesky_256x128(data)

@@ -1,0 +1,15 @@
+{
+  "submission_id": 881981,
+  "test_submission_id": 881978,
+  "leaderboard": "cholesky",
+  "source_sha256": "0400f06ad250b3bef240eb5cebae10ca9c045cc227924e06185be966e7310bb5",
+  "public_score_us": 1262.9337990784536,
+  "secret_score_us": 1270.7067480724074,
+  "previous_ranked_submission_id": 880770,
+  "previous_public_score_us": 1447.2589334363145,
+  "previous_secret_score_us": 1443.2264907145393,
+  "public_improvement_pct": 12.737,
+  "secret_improvement_pct": 11.955,
+  "rank_after": 11,
+  "all_runs_passed": true
+}
