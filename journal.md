@@ -63,8 +63,8 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#882706` = 1205.3363990652266μs public geomean** (Session 16;
-secret 1197.790680258142μs). `nb` = block size.
+Current best: **`#882927` = 1120.2139424233μs public geomean** (Session 18;
+secret 1126.4634299045994μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -74,10 +74,10 @@ secret 1197.790680258142μs). `nb` = block size.
 | 64×256   | ✗ (S15) | TBD | **✓** (S15, 1.35×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S15, 1.17×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S15, 1.71×) | TBD | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 4×1024   | ✗ | ✗ (S15) | **✓** (S15, 1.42×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64, 1.089× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
-| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S15, 1.59×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
 | 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
@@ -132,6 +132,32 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-18 — Session 18: panel-inner 64×64 subtiling → ranked #882927 (NEW BEST 1120.214us)
+
+**ADOPTED.** Starting from exact ranked `#882825` (SHA-256
+`ad8bce6fdc3d037dbdc91912ddfec802d5eea844a4b6e18e4cc8552c45f66dcd`),
+experiment 020 replaced the spilling 128×128 `_panel_inner32` output tile with
+a separate 64×64 specialization only for `4×1024` and `8×2048`. Static cubin
+resources moved from 255 registers / 408-byte stack to 114 registers / zero
+stack. Torch-profiler panel-inner time fell 45.5% / 33.7%.
+
+Two independent same-process paired probes passed 12/12 target families each.
+The clean candidate reproduced **1.08866× / 1.05517×** target speedups. The
+15-shape retry passed at 1168.91→1157.40us (**1.00995×**); the largest
+off-target mean regression was 0.254%. NCU was present but its counter library
+could not initialize in the Modal sandbox (`LibraryNotLoaded`), so the package
+retains profiler timing and static resource evidence instead of claiming NCU
+coverage.
+
+The exact source was named `submission.py`. Popcorn test `#882926` passed
+**17/17**. Exactly one ranked job, `#882927`, passed all public and secret stages
+at **1120.2139424233us public / 1126.4634299045994us secret**, improving
+`#882825` by **0.2099% / 0.1815%**. Exact adopted/ranked SHA-256:
+`535813d6dcdb7589d43800dc49b2fc54de86a9a2aa4712112def52ec7ce80438`.
+Evidence is in `experiments/020-panel-inner-subtile/`.
 
 ---
 

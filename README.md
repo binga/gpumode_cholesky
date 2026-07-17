@@ -90,7 +90,7 @@ popcorn submissions                                # view your entries
   The first ranked attempt `#878263` exposed reusable graph-output aliasing in
   Popcorn's retained-output benchmark; returning owned outputs fixed it before
   the successful retry. See `experiments/009-combined-shape-frontiers/`.
-- **Ranked submission `#878893`** (exp 012 — current best): `done`, public
+- **Ranked submission `#878893`** (exp 012): `done`, public
   geomean **1459.321342997556μs** and secret **1448.3768036226527μs**. It
   keeps all exp-009 paths and replaces only the two largest single-matrix
   dispatches: left-looking TF32 at `1×16384` and left-looking native Blackwell
@@ -100,7 +100,15 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#882825`** (exp 019 — current best): `done`, public
+- **Ranked submission `#882927`** (exp 020 — current best): `done`, public
+  geomean **1120.2139424233us** and secret **1126.4634299045994us**
+  (**−0.210% / −0.181%** vs exp 019). Replaces the spilling 128×128 panel-inner
+  output tile with a 64×64 specialization only at `4×1024` and `8×2048`.
+  Registers fell **255→114**, stack **408→0 bytes**, and paired target gains
+  reproduced at **1.089× / 1.055×**. The full grid passed 15/15 at **1.00995×**;
+  Popcorn test `#882926` passed 17/17. Ranked file name: `submission.py`. See
+  `experiments/020-panel-inner-subtile/`.
+- **Ranked submission `#882825`** (exp 019): `done`, public
   geomean **1122.5699497054058μs** and secret **1128.5112827701096μs**
   (**−6.87% / −5.78%** vs exp 017). Uses FP16 tensor-core inputs with FP32
   accumulation for five split32 trailing Schur-update specializations and

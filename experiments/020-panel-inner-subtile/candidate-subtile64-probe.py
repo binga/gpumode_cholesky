@@ -841,6 +841,7 @@ if _HAVE_TRITON:
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
     _PANEL_INNER_SUBTILE64_SHAPES = {(4, 1024), (8, 2048)}
+    _TRITON_COMPILED = {}
 
     def _split32_launch(
         work,
@@ -897,7 +898,7 @@ if _HAVE_TRITON:
                 if width > 0:
                     if (batch, n) in _PANEL_INNER_SUBTILE64_SHAPES:
                         ntiles_c = triton.cdiv(width, 64)
-                        _panel_inner32_subtile64[
+                        compiled = _panel_inner32_subtile64[
                             (
                                 triton.cdiv(remaining, 64) * ntiles_c,
                                 batch,
@@ -914,6 +915,17 @@ if _HAVE_TRITON:
                             FIRST=ft and k == 0,
                             num_warps=4,
                         )
+                        if compiled is not None:
+                            _TRITON_COMPILED.setdefault(
+                                (
+                                    "inner-subtile64",
+                                    n,
+                                    panel_prec,
+                                    ntiles_c,
+                                    bool(ft and k == 0),
+                                ),
+                                compiled,
+                            )
                     else:
                         _panel_inner32[(triton.cdiv(remaining, tile), batch)](
                             work,

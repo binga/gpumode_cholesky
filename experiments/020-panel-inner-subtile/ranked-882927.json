@@ -1,0 +1,31 @@
+{
+  "submission_id": 882927,
+  "leaderboard": "cholesky",
+  "file_name": "submission.py",
+  "status": "succeeded",
+  "candidate_sha256": "535813d6dcdb7589d43800dc49b2fc54de86a9a2aa4712112def52ec7ce80438",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0011202139424233,
+    "geomean_us": 1120.2139424233
+  },
+  "secret": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0011264634299045994,
+    "geomean_us": 1126.4634299045994
+  },
+  "baseline": {
+    "submission_id": 882825,
+    "sha256": "ad8bce6fdc3d037dbdc91912ddfec802d5eea844a4b6e18e4cc8552c45f66dcd",
+    "public_geomean_us": 1122.5699497054058,
+    "secret_geomean_us": 1128.5112827701096
+  },
+  "improvement": {
+    "public_percent": 0.20987621152018862,
+    "secret_percent": 0.18146498814644685
+  }
+}

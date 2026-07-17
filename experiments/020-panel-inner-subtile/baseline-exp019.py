@@ -717,57 +717,6 @@ if _HAVE_TRITON:
         tl.store(t_ptrs, t - prod, mask=valid)
 
     @triton.jit
-    def _panel_inner32_subtile64(
-        out_ptr,
-        src_ptr,
-        n: tl.constexpr,
-        k,
-        width,
-        remaining,
-        PREC: tl.constexpr,
-        NTILES_C: tl.constexpr,
-        FIRST: tl.constexpr,
-    ):
-        """The same panel update with a 64x64 output tile.
-
-        The shipped 128x128 specialization reaches the 255-register ceiling
-        and spills its epilogue. Splitting both output axes reduces the live
-        accumulator surface by 4x; NTILES_C maps the one-dimensional launch
-        grid back to independent row/column tiles.
-        """
-        pid = tl.program_id(0)
-        rt = pid // NTILES_C
-        ct = pid - rt * NTILES_C
-        b = tl.program_id(1).to(tl.int64)
-        rows = rt * 64 + tl.arange(0, 64)
-        cw = ct * 64 + tl.arange(0, 64)
-        c = tl.arange(0, 32)
-        base = b * n * n
-        rmask = rows < remaining
-        li = tl.load(
-            out_ptr + base + (k + 32 + rows)[:, None] * n + (k + c)[None, :],
-            mask=rmask[:, None],
-            other=0.0,
-        )
-        wmask = cw < width
-        lj = tl.load(
-            out_ptr + base + (k + 32 + cw)[:, None] * n + (k + c)[None, :],
-            mask=wmask[:, None],
-            other=0.0,
-        )
-        prod = tl.dot(
-            li, tl.trans(lj), input_precision=PREC, out_dtype=tl.float32
-        )
-        t_off = (k + 32 + rows)[:, None] * n + (k + 32 + cw)[None, :]
-        t_ptrs = out_ptr + base + t_off
-        valid = rmask[:, None] & wmask[None, :]
-        if FIRST:
-            t = tl.load(src_ptr + base + t_off, mask=valid, other=0.0)
-        else:
-            t = tl.load(t_ptrs, mask=valid, other=0.0)
-        tl.store(t_ptrs, t - prod, mask=valid)
-
-    @triton.jit
     def _trailing_nb(
         out_ptr,
         src_ptr,
@@ -840,7 +789,6 @@ if _HAVE_TRITON:
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
-    _PANEL_INNER_SUBTILE64_SHAPES = {(4, 1024), (8, 2048)}
 
     def _split32_launch(
         work,
@@ -895,38 +843,18 @@ if _HAVE_TRITON:
                 )
                 width = panel_end - (k + 32)
                 if width > 0:
-                    if (batch, n) in _PANEL_INNER_SUBTILE64_SHAPES:
-                        ntiles_c = triton.cdiv(width, 64)
-                        _panel_inner32_subtile64[
-                            (
-                                triton.cdiv(remaining, 64) * ntiles_c,
-                                batch,
-                            )
-                        ](
-                            work,
-                            src,
-                            n=n,
-                            k=k,
-                            width=width,
-                            remaining=remaining,
-                            PREC=panel_prec,
-                            NTILES_C=ntiles_c,
-                            FIRST=ft and k == 0,
-                            num_warps=4,
-                        )
-                    else:
-                        _panel_inner32[(triton.cdiv(remaining, tile), batch)](
-                            work,
-                            src,
-                            n=n,
-                            k=k,
-                            width=width,
-                            remaining=remaining,
-                            PREC=panel_prec,
-                            TILE_R=tile,
-                            FIRST=ft and k == 0,
-                            num_warps=4,
-                        )
+                    _panel_inner32[(triton.cdiv(remaining, tile), batch)](
+                        work,
+                        src,
+                        n=n,
+                        k=k,
+                        width=width,
+                        remaining=remaining,
+                        PREC=panel_prec,
+                        TILE_R=tile,
+                        FIRST=ft and k == 0,
+                        num_warps=4,
+                    )
             rem_out = n - panel_end
             if rem_out > 0:
                 tr = triton.cdiv(rem_out, trailing_tile)
