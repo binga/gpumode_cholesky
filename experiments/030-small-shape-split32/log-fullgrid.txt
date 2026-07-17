@@ -1,0 +1,58 @@
+Building image im-m9BuVqrSwMkLWF85XNr2A2
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 2.92s
+
+Built image im-m9BuVqrSwMkLWF85XNr2A2 in 4.09s
+
+
+Building image im-m7rZVM7PEgmRYqmHHq7kNn
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 826.78ms
+
+Built image im-m7rZVM7PEgmRYqmHHq7kNn in 1.80s
+
+
+probing 4096x32 ...
+  base 39.9us cand 39.6us speedup 1.007x ok=True
+probing 1024x64 ...
+  base 119.5us cand 119.4us speedup 1.002x ok=True
+probing 256x128 ...
+  base 156.9us cand 141.7us speedup 1.108x ok=True
+probing 64x256 ...
+  base 227.9us cand 220.4us speedup 1.034x ok=True
+probing 16x512 ...
+  base 398.4us cand 388.4us speedup 1.026x ok=True
+probing 640x512 ...
+  base 1547.9us cand 1542.2us speedup 1.004x ok=True
+probing 4x1024 ...
+  base 755.4us cand 735.3us speedup 1.027x ok=True
+probing 60x1024 ...
+  base 1539.9us cand 1485.6us speedup 1.036x ok=True
+probing 2x2048 ...
+  base 1356.5us cand 1356.3us speedup 1.000x ok=True
+probing 8x2048 ...
+  base 1853.1us cand 1815.4us speedup 1.021x ok=True
+probing 1x4096 ...
+  base 1532.3us cand 1531.7us speedup 1.000x ok=True
+probing 2x4096 ...
+  base 3208.9us cand 3207.4us speedup 1.000x ok=True
+probing 1x8192 ...
+  base 5783.2us cand 5785.0us speedup 1.000x ok=True
+probing 1x16384 ...
+  base 15157.3us cand 15173.5us speedup 0.999x ok=True
+probing 1x32768 ...
+  base 46193.6us cand 46174.5us speedup 1.000x ok=True
+full grid geomean: baseline 1128.4us -> candidate 1109.2us (1.0173x)
+wrote /Users/phani/projects/gpumode_cholesky/experiments/030-small-shape-split32/fullgrid-final.json

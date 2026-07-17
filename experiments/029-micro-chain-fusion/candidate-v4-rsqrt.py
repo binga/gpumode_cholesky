@@ -832,11 +832,6 @@ if _HAVE_TRITON:
     # copy-in/clone-out — a win only where per-launch GPU time far exceeds
     # enqueue time (the bandwidth-bound high-batch shapes).
     _SPLIT32_SHAPES = {
-        # exp 030: 256x128 moves off graph-replayed vendor factorization onto
-        # the split32 chain (10 kernel launches, paired 1.10x). 1024x64 was
-        # measured a wash (0.998x) and keeps its ranked vendor route. tf32x3
-        # both levels: the n-scaled tolerance is tightest at small n.
-        (256, 128): ("tf32x3", "tf32x3", 128, "graph", True),
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
@@ -851,7 +846,6 @@ if _HAVE_TRITON:
     # the isolated probe but regressed in the full grid, so it stays on the
     # exact #882927 128x128 panel-inner specialization.
     _PANEL_INNER_SUBTILE64_SHAPES = {
-        (256, 128),
         (64, 256),
         (16, 512),
         (640, 512),

@@ -533,21 +533,20 @@ if _HAVE_TRITON:
             m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)
             m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)
             m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)
-            # Scalar Cholesky of the 4x4 pivot block. tl.rsqrt replaces the
-            # sqrt.approx + div.full pair on the serial scalar chain (exp 029).
-            inv0 = tl.rsqrt(m00)
+            # Scalar Cholesky of the 4x4 pivot block.
+            inv0 = 1.0 / tl.sqrt(m00)
             s01 = m01 * inv0
             s02 = m02 * inv0
             s03 = m03 * inv0
             d1 = m11 - s01 * s01
-            inv1 = tl.rsqrt(d1)
+            inv1 = 1.0 / tl.sqrt(d1)
             s12 = (m12 - s01 * s02) * inv1
             s13 = (m13 - s01 * s03) * inv1
             d2 = m22 - s02 * s02 - s12 * s12
-            inv2 = tl.rsqrt(d2)
+            inv2 = 1.0 / tl.sqrt(d2)
             s23 = (m23 - s02 * s03 - s12 * s13) * inv2
             d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23
-            inv3 = tl.rsqrt(d3)
+            inv3 = 1.0 / tl.sqrt(d3)
             # Finalized pivot columns.
             l0 = tl.where(r >= p0, c0 * inv0, 0.0)
             l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)
@@ -832,10 +831,12 @@ if _HAVE_TRITON:
     # copy-in/clone-out — a win only where per-launch GPU time far exceeds
     # enqueue time (the bandwidth-bound high-batch shapes).
     _SPLIT32_SHAPES = {
-        # exp 030: 256x128 moves off graph-replayed vendor factorization onto
-        # the split32 chain (10 kernel launches, paired 1.10x). 1024x64 was
-        # measured a wash (0.998x) and keeps its ranked vendor route. tf32x3
-        # both levels: the n-scaled tolerance is tightest at small n.
+        # exp 030: the two graph-replayed vendor shapes move onto the split32
+        # chain. At n=64/128 the whole factorization is 4/10 kernel launches
+        # (no trailing pass at n=64), and the high batch keeps every kernel
+        # occupancy-bound rather than latency-bound. tf32x3 both levels: the
+        # n-scaled tolerance is tightest at small n.
+        (1024, 64): ("tf32x3", "tf32x3", 128, "graph", True),
         (256, 128): ("tf32x3", "tf32x3", 128, "graph", True),
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
@@ -851,6 +852,7 @@ if _HAVE_TRITON:
     # the isolated probe but regressed in the full grid, so it stays on the
     # exact #882927 128x128 panel-inner specialization.
     _PANEL_INNER_SUBTILE64_SHAPES = {
+        (1024, 64),
         (256, 128),
         (64, 256),
         (16, 512),

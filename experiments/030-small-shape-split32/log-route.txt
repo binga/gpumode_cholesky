@@ -1,0 +1,54 @@
+Building image im-JMg1n2Zif4EK4a9IfxdCvo
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 485.04ms
+
+Built image im-JMg1n2Zif4EK4a9IfxdCvo in 1.44s
+
+
+Building image im-SuOhpNVt5rwQkhE28SoWB9
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 1.75s
+
+Built image im-SuOhpNVt5rwQkhE28SoWB9 in 3.41s
+
+
+USDT:2026-07-17 21:16:09 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:16:09 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-17 21:16:10 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:16:10 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+
+probing 1024x64 ...
+  base 119.3us cand 119.5us speedup 0.998x ok=True
+  prof      40.9us x2.0    _micro_potrf_gj32
+  prof      11.1us x1.0    _panel_apply32
+  prof      10.5us x1.0    _panel_inner32_subtile64
+  prof       8.9us x2.0    Memcpy DtoD (Device -> Device)
+  prof       8.9us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  prof       3.7us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       2.9us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       2.6us x1.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto
+  families ok=6/6
+probing 256x128 ...
+  base 157.4us cand 142.8us speedup 1.102x ok=True
+  prof      57.4us x4.0    _micro_potrf_gj32
+  prof      19.2us x3.0    _panel_inner32_subtile64
+  prof      13.7us x3.0    _panel_apply32
+  prof       9.1us x2.0    Memcpy DtoD (Device -> Device)
+  prof       5.3us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  prof       3.5us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       2.9us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       2.5us x1.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto
+  families ok=6/6
+wrote /Users/phani/projects/gpumode_cholesky/experiments/030-small-shape-split32/probe-route-initial.json

@@ -1,0 +1,13 @@
+probing 64x256 ...
+  base 224.4us cand 221.7us speedup 1.012x ok=True
+  families ok=6/6
+probing 640x512 ...
+  base 1545.6us cand 1542.1us speedup 1.002x ok=True
+  families ok=6/6
+probing 60x1024 ...
+  base 1530.7us cand 1473.0us speedup 1.039x ok=True
+  families ok=6/6
+probing 8x2048 ...
+  base 1846.9us cand 1805.6us speedup 1.023x ok=True
+  families ok=6/6
+wrote /Users/phani/projects/gpumode_cholesky/experiments/029-micro-chain-fusion/probe-v4-remaining.json

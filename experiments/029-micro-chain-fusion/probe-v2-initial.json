@@ -1,0 +1,731 @@
+{
+  "schema_version": 1,
+  "experiment": "029-micro-chain-fusion",
+  "mode": "paired-probe",
+  "baseline_sha256": "3466e8f7a9ebb240924e642ef81acad054c31f5e17ceefa492c9d26f0ffe195d",
+  "candidate_sha256": "0b7241bd64ad0a1c28a091433201035537511850c3ad5b1a1d72db53cb865a8c",
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "device": "NVIDIA B200",
+    "cuda": "13.0",
+    "driver": "580.95.05",
+    "triton": "3.7.1",
+    "ncu_available": true
+  },
+  "shapes": [
+    {
+      "shape": "16x512",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 397.30146527290344,
+        "best_us": 393.1039869785309,
+        "median_us": 397.163987159729
+      },
+      "candidate": {
+        "mean_us": 4867.40706761678,
+        "best_us": 3095.4699516296387,
+        "median_us": 4452.653884887695
+      },
+      "speedup_mean": 0.08162486920729921,
+      "paired_speedup_mean": 0.09357473234958258,
+      "paired_rounds": [
+        {
+          "round": 0,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 406.37001395225525,
+          "candidate_us": 4646.522045135498,
+          "speedup": 0.08745681393628361
+        },
+        {
+          "round": 1,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4494.884014129639,
+          "baseline_us": 401.4280140399933,
+          "speedup": 0.0893077580596311
+        },
+        {
+          "round": 2,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 399.4179964065552,
+          "candidate_us": 5087.048053741455,
+          "speedup": 0.07851665488254797
+        },
+        {
+          "round": 3,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4936.895847320557,
+          "baseline_us": 397.2359895706177,
+          "speedup": 0.08046270406660755
+        },
+        {
+          "round": 4,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 393.47800612449646,
+          "candidate_us": 4452.653884887695,
+          "speedup": 0.088369322273164
+        },
+        {
+          "round": 5,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4516.913890838623,
+          "baseline_us": 397.26799726486206,
+          "speedup": 0.0879512000595398
+        },
+        {
+          "round": 6,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 395.4260051250458,
+          "candidate_us": 4409.626007080078,
+          "speedup": 0.08967336560745771
+        },
+        {
+          "round": 7,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 10116.654396057129,
+          "baseline_us": 397.163987159729,
+          "speedup": 0.03925843185020929
+        },
+        {
+          "round": 8,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 393.1039869785309,
+          "candidate_us": 3735.640048980713,
+          "speedup": 0.10523069188258413
+        },
+        {
+          "round": 9,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 3328.439950942993,
+          "baseline_us": 397.6460099220276,
+          "speedup": 0.11946918549916125
+        },
+        {
+          "round": 10,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 395.39799094200134,
+          "candidate_us": 3120.594024658203,
+          "speedup": 0.1267060014271831
+        },
+        {
+          "round": 11,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 3095.4699516296387,
+          "baseline_us": 396.1699903011322,
+          "speedup": 0.12798379454226808
+        },
+        {
+          "round": 12,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 395.89598774909973,
+          "candidate_us": 3193.07804107666,
+          "speedup": 0.12398569112817841
+        },
+        {
+          "round": 13,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 10631.6499710083,
+          "baseline_us": 398.3300030231476,
+          "speedup": 0.03746643316036204
+        },
+        {
+          "round": 14,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 395.1900005340576,
+          "candidate_us": 3245.0358867645264,
+          "speedup": 0.12178293686856052
+        }
+      ],
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00384; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00368; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00372; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00368; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00356; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00364; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00366; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00359; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00357; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00361; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00363; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00376; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00361; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00367; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00358; batch=16; n=512"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00351; batch=16; n=512"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 288,
+        "_FUSED_CTA_ERROR": "CompilationError('def _micro_potrf_corr32(\\n    out_ptr,\\n    inv_ptr,\\n    src_ptr,\\n    n: tl.constexpr,\\n    j,\\n    k,\\n    PRIOR: tl.constexpr,\\n    PREC: tl.constexpr,\\n    FIRST: tl.constexpr,\\n    RECIPROCAL_SOLVE: tl.constexpr,\\n):\\n    \"\"\"Left-looking variant of the diagonal micro (exp 029 v2): before\\n    factoring, absorb the pending rank-PRIOR correction against the\\n    already-applied panel columns of this outer panel as one tensor-core\\n    dot. PRIOR is a compile-time constant (0/32/64/96), so the correction\\n    specializes statically and disappears entirely for the first micro\\n    step of each outer panel. This removes the narrow `_panel_inner32`\\n    launch from the serial chain.\"\"\"\\n    b = tl.program_id(0).to(tl.int64)\\n    r = tl.arange(0, 32)\\n    c = tl.arange(0, 32)\\n    off = (k + r)[:, None] * n + (k + c)[None, :]\\n    ptr = out_ptr + b * n * n + off\\n    if FIRST:\\n        a = tl.load(src_ptr + b * n * n + off)\\n    else:\\n        a = tl.load(ptr)\\n    if PRIOR > 0:\\n        d = tl.arange(0, PRIOR)\\n        lrow = tl.load(\\n            out_ptr + b * n * n + (k + r)[:, None] * n + (j + d)[None, :]\\n        )\\n        a = a - tl.dot(\\n            lrow, tl.trans(lrow), input_precision=PREC,\\n            out_dtype=tl.float32,\\n        )\\n    x = tl.where(r[:, None] == c[None, :], 1.0, 0.0)\\n    for it in range(0, 8):\\n        p0 = 4 * it\\n        p1 = p0 + 1\\n        p2 = p0 + 2\\n        p3 = p0 + 3\\n        c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)\\n        c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)\\n        c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)\\n        c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)\\n        m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)\\n        m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)\\n        m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)\\n        m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)\\n        m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)\\n        m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)\\n        m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)\\n        m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)\\n        m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)\\n        m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)\\n        inv0 = 1.0 / tl.sqrt(m00)\\n        s01 = m01 * inv0\\n        s02 = m02 * inv0\\n        s03 = m03 * inv0\\n        d1 = m11 - s01 * s01\\n        inv1 = 1.0 / tl.sqrt(d1)\\n        s12 = (m12 - s01 * s02) * inv1\\n        s13 = (m13 - s01 * s03) * inv1\\n        d2 = m22 - s02 * s02 - s12 * s12\\n        inv2 = 1.0 / tl.sqrt(d2)\\n        s23 = (m23 - s02 * s03 - s12 * s13) * inv2\\n        d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23\\n        inv3 = 1.0 / tl.sqrt(d3)\\n        l0 = tl.where(r >= p0, c0 * inv0, 0.0)\\n        l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)\\n        l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)\\n        l3 = tl.where(\\n            r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0\\n        )\\n        trail = (r[:, None] > p3) & (c[None, :] > p3)\\n        a = tl.where(\\n            c[None, :] == p0,\\n            l0[:, None],\\n            tl.where(\\n                c[None, :] == p1,\\n                l1[:, None],\\n                tl.where(\\n                    c[None, :] == p2,\\n                    l2[:, None],\\n                    tl.where(\\n                        c[None, :] == p3,\\n                        l3[:, None],\\n                        tl.where(\\n                            trail,\\n                            a\\n                            - l0[:, None] * l0[None, :]\\n                            - l1[:, None] * l1[None, :]\\n                            - l2[:, None] * l2[None, :]\\n                            - l3[:, None] * l3[None, :],\\n                            a,\\n                        ),\\n                    ),\\n                ),\\n            ),\\n        )\\n        row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)\\n        row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)\\n        row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)\\n        row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)\\n        rm0 = tl.where(c < p0, row0, 0.0)\\n        rm1 = tl.where(c < p0, row1, 0.0)\\n        rm2 = tl.where(c < p0, row2, 0.0)\\n        rm3 = tl.where(c < p0, row3, 0.0)\\n        g0 = tl.sum(rm0[:, None] * x, axis=0)\\n        g1 = tl.sum(rm1[:, None] * x, axis=0)\\n        g2 = tl.sum(rm2[:, None] * x, axis=0)\\n        g3 = tl.sum(rm3[:, None] * x, axis=0)\\n        e0 = tl.where(c == p0, 1.0, 0.0)\\n        e1 = tl.where(c == p1, 1.0, 0.0)\\n        e2 = tl.where(c == p2, 1.0, 0.0)\\n        e3 = tl.where(c == p3, 1.0, 0.0)\\n        if RECIPROCAL_SOLVE:\\n            x0 = (e0 - g0) * inv0\\n            x1 = (e1 - g1 - s01 * x0) * inv1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3\\n        else:\\n            lpp0 = m00 * inv0\\n            lpp1 = d1 * inv1\\n            lpp2 = d2 * inv2\\n            lpp3 = d3 * inv3\\n            x0 = (e0 - g0) / lpp0\\n            x1 = (e1 - g1 - s01 * x0) / lpp1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3\\n        x = tl.where(\\n            r[:, None] == p0,\\n            x0[None, :],\\n            tl.where(\\n                r[:, None] == p1,\\n                x1[None, :],\\n                tl.where(\\n                    r[:, None] == p2,\\n                    x2[None, :],\\n                    tl.where(r[:, None] == p3, x3[None, :], x),\\n                ),\\n            ),\\n        )\\n    a = tl.where(c[None, :] <= r[:, None], a, 0.0)\\n    tl.store(ptr, a)\\n    tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)\\n', <ast.Call object at 0x2af013efac80>, \"arange's range must be a power of 2\")",
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null
+      }
+    },
+    {
+      "shape": "4x1024",
+      "rotating_inputs": 16,
+      "baseline": {
+        "mean_us": 775.5301356315613,
+        "best_us": 763.3680105209351,
+        "median_us": 769.1400051116943
+      },
+      "candidate": {
+        "mean_us": 5080.044253667195,
+        "best_us": 3303.215980529785,
+        "median_us": 4245.625972747803
+      },
+      "speedup_mean": 0.15266208263278802,
+      "paired_speedup_mean": 0.178957834249147,
+      "paired_rounds": [
+        {
+          "round": 0,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 766.3159966468811,
+          "candidate_us": 3332.659959793091,
+          "speedup": 0.22994124990011225
+        },
+        {
+          "round": 1,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 3303.215980529785,
+          "baseline_us": 767.952024936676,
+          "speedup": 0.23248616786284387
+        },
+        {
+          "round": 2,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 763.4760141372681,
+          "candidate_us": 4142.603874206543,
+          "speedup": 0.18429858063209123
+        },
+        {
+          "round": 3,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4245.625972747803,
+          "baseline_us": 793.3940291404724,
+          "speedup": 0.18687327480875135
+        },
+        {
+          "round": 4,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 784.8299741744995,
+          "candidate_us": 4153.803825378418,
+          "speedup": 0.18894247469739384
+        },
+        {
+          "round": 5,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4285.749912261963,
+          "baseline_us": 768.8419818878174,
+          "speedup": 0.17939497115500905
+        },
+        {
+          "round": 6,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 763.3680105209351,
+          "candidate_us": 4317.299842834473,
+          "speedup": 0.17681607447023062
+        },
+        {
+          "round": 7,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4170.929908752441,
+          "baseline_us": 791.703999042511,
+          "speedup": 0.18981474547945976
+        },
+        {
+          "round": 8,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 785.0959897041321,
+          "candidate_us": 4313.198089599609,
+          "speedup": 0.1820217790593086
+        },
+        {
+          "round": 9,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4220.541954040527,
+          "baseline_us": 769.1400051116943,
+          "speedup": 0.1822372608748409
+        },
+        {
+          "round": 10,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 763.7580037117004,
+          "candidate_us": 4557.290077209473,
+          "speedup": 0.167590386122484
+        },
+        {
+          "round": 11,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 3929.028034210205,
+          "baseline_us": 768.4159874916077,
+          "speedup": 0.19557406585063247
+        },
+        {
+          "round": 12,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 769.8240280151367,
+          "candidate_us": 4354.854106903076,
+          "speedup": 0.17677378142125447
+        },
+        {
+          "round": 13,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 4698.634147644043,
+          "baseline_us": 791.1220192909241,
+          "speedup": 0.1683727641760751
+        },
+        {
+          "round": 14,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 785.7139706611633,
+          "candidate_us": 18175.228118896484,
+          "speedup": 0.04322993722671736
+        }
+      ],
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0013; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00136; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00141; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00134; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00133; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00135; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00133; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00132; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00136; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00135; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00131; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00129; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024"
+        },
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00138; batch=4; n=1024"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 302,
+        "_FUSED_CTA_ERROR": "CompilationError('def _micro_potrf_corr32(\\n    out_ptr,\\n    inv_ptr,\\n    src_ptr,\\n    n: tl.constexpr,\\n    j,\\n    k,\\n    PRIOR: tl.constexpr,\\n    PREC: tl.constexpr,\\n    FIRST: tl.constexpr,\\n    RECIPROCAL_SOLVE: tl.constexpr,\\n):\\n    \"\"\"Left-looking variant of the diagonal micro (exp 029 v2): before\\n    factoring, absorb the pending rank-PRIOR correction against the\\n    already-applied panel columns of this outer panel as one tensor-core\\n    dot. PRIOR is a compile-time constant (0/32/64/96), so the correction\\n    specializes statically and disappears entirely for the first micro\\n    step of each outer panel. This removes the narrow `_panel_inner32`\\n    launch from the serial chain.\"\"\"\\n    b = tl.program_id(0).to(tl.int64)\\n    r = tl.arange(0, 32)\\n    c = tl.arange(0, 32)\\n    off = (k + r)[:, None] * n + (k + c)[None, :]\\n    ptr = out_ptr + b * n * n + off\\n    if FIRST:\\n        a = tl.load(src_ptr + b * n * n + off)\\n    else:\\n        a = tl.load(ptr)\\n    if PRIOR > 0:\\n        d = tl.arange(0, PRIOR)\\n        lrow = tl.load(\\n            out_ptr + b * n * n + (k + r)[:, None] * n + (j + d)[None, :]\\n        )\\n        a = a - tl.dot(\\n            lrow, tl.trans(lrow), input_precision=PREC,\\n            out_dtype=tl.float32,\\n        )\\n    x = tl.where(r[:, None] == c[None, :], 1.0, 0.0)\\n    for it in range(0, 8):\\n        p0 = 4 * it\\n        p1 = p0 + 1\\n        p2 = p0 + 2\\n        p3 = p0 + 3\\n        c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)\\n        c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)\\n        c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)\\n        c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)\\n        m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)\\n        m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)\\n        m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)\\n        m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)\\n        m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)\\n        m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)\\n        m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)\\n        m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)\\n        m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)\\n        m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)\\n        inv0 = 1.0 / tl.sqrt(m00)\\n        s01 = m01 * inv0\\n        s02 = m02 * inv0\\n        s03 = m03 * inv0\\n        d1 = m11 - s01 * s01\\n        inv1 = 1.0 / tl.sqrt(d1)\\n        s12 = (m12 - s01 * s02) * inv1\\n        s13 = (m13 - s01 * s03) * inv1\\n        d2 = m22 - s02 * s02 - s12 * s12\\n        inv2 = 1.0 / tl.sqrt(d2)\\n        s23 = (m23 - s02 * s03 - s12 * s13) * inv2\\n        d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23\\n        inv3 = 1.0 / tl.sqrt(d3)\\n        l0 = tl.where(r >= p0, c0 * inv0, 0.0)\\n        l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)\\n        l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)\\n        l3 = tl.where(\\n            r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0\\n        )\\n        trail = (r[:, None] > p3) & (c[None, :] > p3)\\n        a = tl.where(\\n            c[None, :] == p0,\\n            l0[:, None],\\n            tl.where(\\n                c[None, :] == p1,\\n                l1[:, None],\\n                tl.where(\\n                    c[None, :] == p2,\\n                    l2[:, None],\\n                    tl.where(\\n                        c[None, :] == p3,\\n                        l3[:, None],\\n                        tl.where(\\n                            trail,\\n                            a\\n                            - l0[:, None] * l0[None, :]\\n                            - l1[:, None] * l1[None, :]\\n                            - l2[:, None] * l2[None, :]\\n                            - l3[:, None] * l3[None, :],\\n                            a,\\n                        ),\\n                    ),\\n                ),\\n            ),\\n        )\\n        row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)\\n        row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)\\n        row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)\\n        row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)\\n        rm0 = tl.where(c < p0, row0, 0.0)\\n        rm1 = tl.where(c < p0, row1, 0.0)\\n        rm2 = tl.where(c < p0, row2, 0.0)\\n        rm3 = tl.where(c < p0, row3, 0.0)\\n        g0 = tl.sum(rm0[:, None] * x, axis=0)\\n        g1 = tl.sum(rm1[:, None] * x, axis=0)\\n        g2 = tl.sum(rm2[:, None] * x, axis=0)\\n        g3 = tl.sum(rm3[:, None] * x, axis=0)\\n        e0 = tl.where(c == p0, 1.0, 0.0)\\n        e1 = tl.where(c == p1, 1.0, 0.0)\\n        e2 = tl.where(c == p2, 1.0, 0.0)\\n        e3 = tl.where(c == p3, 1.0, 0.0)\\n        if RECIPROCAL_SOLVE:\\n            x0 = (e0 - g0) * inv0\\n            x1 = (e1 - g1 - s01 * x0) * inv1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3\\n        else:\\n            lpp0 = m00 * inv0\\n            lpp1 = d1 * inv1\\n            lpp2 = d2 * inv2\\n            lpp3 = d3 * inv3\\n            x0 = (e0 - g0) / lpp0\\n            x1 = (e1 - g1 - s01 * x0) / lpp1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3\\n        x = tl.where(\\n            r[:, None] == p0,\\n            x0[None, :],\\n            tl.where(\\n                r[:, None] == p1,\\n                x1[None, :],\\n                tl.where(\\n                    r[:, None] == p2,\\n                    x2[None, :],\\n                    tl.where(r[:, None] == p3, x3[None, :], x),\\n                ),\\n            ),\\n        )\\n    a = tl.where(c[None, :] <= r[:, None], a, 0.0)\\n    tl.store(ptr, a)\\n    tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)\\n', <ast.Call object at 0x2af093ef5b40>, \"arange's range must be a power of 2\")",
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 590,
+        "_FUSED_CTA_ERROR": "CompilationError('def _micro_potrf_corr32(\\n    out_ptr,\\n    inv_ptr,\\n    src_ptr,\\n    n: tl.constexpr,\\n    j,\\n    k,\\n    PRIOR: tl.constexpr,\\n    PREC: tl.constexpr,\\n    FIRST: tl.constexpr,\\n    RECIPROCAL_SOLVE: tl.constexpr,\\n):\\n    \"\"\"Left-looking variant of the diagonal micro (exp 029 v2): before\\n    factoring, absorb the pending rank-PRIOR correction against the\\n    already-applied panel columns of this outer panel as one tensor-core\\n    dot. PRIOR is a compile-time constant (0/32/64/96), so the correction\\n    specializes statically and disappears entirely for the first micro\\n    step of each outer panel. This removes the narrow `_panel_inner32`\\n    launch from the serial chain.\"\"\"\\n    b = tl.program_id(0).to(tl.int64)\\n    r = tl.arange(0, 32)\\n    c = tl.arange(0, 32)\\n    off = (k + r)[:, None] * n + (k + c)[None, :]\\n    ptr = out_ptr + b * n * n + off\\n    if FIRST:\\n        a = tl.load(src_ptr + b * n * n + off)\\n    else:\\n        a = tl.load(ptr)\\n    if PRIOR > 0:\\n        d = tl.arange(0, PRIOR)\\n        lrow = tl.load(\\n            out_ptr + b * n * n + (k + r)[:, None] * n + (j + d)[None, :]\\n        )\\n        a = a - tl.dot(\\n            lrow, tl.trans(lrow), input_precision=PREC,\\n            out_dtype=tl.float32,\\n        )\\n    x = tl.where(r[:, None] == c[None, :], 1.0, 0.0)\\n    for it in range(0, 8):\\n        p0 = 4 * it\\n        p1 = p0 + 1\\n        p2 = p0 + 2\\n        p3 = p0 + 3\\n        c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)\\n        c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)\\n        c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)\\n        c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)\\n        m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)\\n        m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)\\n        m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)\\n        m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)\\n        m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)\\n        m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)\\n        m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)\\n        m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)\\n        m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)\\n        m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)\\n        inv0 = 1.0 / tl.sqrt(m00)\\n        s01 = m01 * inv0\\n        s02 = m02 * inv0\\n        s03 = m03 * inv0\\n        d1 = m11 - s01 * s01\\n        inv1 = 1.0 / tl.sqrt(d1)\\n        s12 = (m12 - s01 * s02) * inv1\\n        s13 = (m13 - s01 * s03) * inv1\\n        d2 = m22 - s02 * s02 - s12 * s12\\n        inv2 = 1.0 / tl.sqrt(d2)\\n        s23 = (m23 - s02 * s03 - s12 * s13) * inv2\\n        d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23\\n        inv3 = 1.0 / tl.sqrt(d3)\\n        l0 = tl.where(r >= p0, c0 * inv0, 0.0)\\n        l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)\\n        l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)\\n        l3 = tl.where(\\n            r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0\\n        )\\n        trail = (r[:, None] > p3) & (c[None, :] > p3)\\n        a = tl.where(\\n            c[None, :] == p0,\\n            l0[:, None],\\n            tl.where(\\n                c[None, :] == p1,\\n                l1[:, None],\\n                tl.where(\\n                    c[None, :] == p2,\\n                    l2[:, None],\\n                    tl.where(\\n                        c[None, :] == p3,\\n                        l3[:, None],\\n                        tl.where(\\n                            trail,\\n                            a\\n                            - l0[:, None] * l0[None, :]\\n                            - l1[:, None] * l1[None, :]\\n                            - l2[:, None] * l2[None, :]\\n                            - l3[:, None] * l3[None, :],\\n                            a,\\n                        ),\\n                    ),\\n                ),\\n            ),\\n        )\\n        row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)\\n        row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)\\n        row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)\\n        row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)\\n        rm0 = tl.where(c < p0, row0, 0.0)\\n        rm1 = tl.where(c < p0, row1, 0.0)\\n        rm2 = tl.where(c < p0, row2, 0.0)\\n        rm3 = tl.where(c < p0, row3, 0.0)\\n        g0 = tl.sum(rm0[:, None] * x, axis=0)\\n        g1 = tl.sum(rm1[:, None] * x, axis=0)\\n        g2 = tl.sum(rm2[:, None] * x, axis=0)\\n        g3 = tl.sum(rm3[:, None] * x, axis=0)\\n        e0 = tl.where(c == p0, 1.0, 0.0)\\n        e1 = tl.where(c == p1, 1.0, 0.0)\\n        e2 = tl.where(c == p2, 1.0, 0.0)\\n        e3 = tl.where(c == p3, 1.0, 0.0)\\n        if RECIPROCAL_SOLVE:\\n            x0 = (e0 - g0) * inv0\\n            x1 = (e1 - g1 - s01 * x0) * inv1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3\\n        else:\\n            lpp0 = m00 * inv0\\n            lpp1 = d1 * inv1\\n            lpp2 = d2 * inv2\\n            lpp3 = d3 * inv3\\n            x0 = (e0 - g0) / lpp0\\n            x1 = (e1 - g1 - s01 * x0) / lpp1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3\\n        x = tl.where(\\n            r[:, None] == p0,\\n            x0[None, :],\\n            tl.where(\\n                r[:, None] == p1,\\n                x1[None, :],\\n                tl.where(\\n                    r[:, None] == p2,\\n                    x2[None, :],\\n                    tl.where(r[:, None] == p3, x3[None, :], x),\\n                ),\\n            ),\\n        )\\n    a = tl.where(c[None, :] <= r[:, None], a, 0.0)\\n    tl.store(ptr, a)\\n    tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)\\n', <ast.Call object at 0x2af093bda410>, \"arange's range must be a power of 2\")",
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null
+      }
+    }
+  ],
+  "families": {
+    "16x512": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00355; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0047; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000977; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00487; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00153; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00152; batch=16; n=512",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      }
+    ],
+    "4x1024": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00137; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00122; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00124; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00115; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.00208; batch=4; n=1024",
+        "hits_delta": 0,
+        "fallbacks_delta": 1
+      }
+    ]
+  },
+  "profiles": {
+    "16x512": [
+      {
+        "kernel": "void potrf_cta_lower_batch<float, float, 16>(int, int, int, float**, unsigned long, int*)",
+        "self_us": 191.34139999999917,
+        "count_per_call": 32.0
+      },
+      {
+        "kernel": "void potrf_syrk_T16_nc_kernel<float, 5, 4, 4, 5, 4>(int, int, int, int, int, int, int, float**, unsi",
+        "self_us": 174.11099999999806,
+        "count_per_call": 24.0
+      },
+      {
+        "kernel": "void potrf_syrk_nc_kernel<float, 5, 6, 3, 3, 4>(int, int, int, int, int, int, int, float**, unsigned",
+        "self_us": 92.02999999999993,
+        "count_per_call": 7.0
+      },
+      {
+        "kernel": "void potrfBatch_trsm_lower<float, float, 16>(int, int, int, int, int, int, float**, unsigned long)",
+        "self_us": 72.4949999999997,
+        "count_per_call": 31.0
+      },
+      {
+        "kernel": "_micro_potrf_corr32",
+        "self_us": 47.29559999999865,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co",
+        "self_us": 20.15400000000045,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in",
+        "self_us": 15.593599999999606,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "_panel_apply_corr32",
+        "self_us": 13.905399999999144,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 13.867399999999567,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "void potrf_reset_info<256>(int, int*)",
+        "self_us": 1.1530000000000655,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scal",
+        "self_us": 0.9425999999999476,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void potrf_set_info<256>(int, int, int*)",
+        "self_us": 0.8727999999993699,
+        "count_per_call": 1.0
+      }
+    ],
+    "4x1024": [
+      {
+        "kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1, 1> >(int, int, void*, int, vo",
+        "self_us": 1203.0076000000001,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "_micro_potrf_corr32",
+        "self_us": 47.359800000000725,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co",
+        "self_us": 27.052999999999884,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in",
+        "self_us": 22.892800000000715,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::Opaqu",
+        "self_us": 20.710400000000483,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "_panel_apply_corr32",
+        "self_us": 13.842999999998801,
+        "count_per_call": 3.0
+      },
+      {
+        "kernel": "Memset (Device)",
+        "self_us": 9.017400000001908,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "xxtrf4_set_info_ker(int, int*)",
+        "self_us": 4.806000000000677,
+        "count_per_call": 4.0
+      },
+      {
+        "kernel": "Memcpy DtoD (Device -> Device)",
+        "self_us": 4.454399999999805,
+        "count_per_call": 1.0
+      }
+    ]
+  },
+  "final_counters": {
+    "_FUSED_CTA_HITS": 0,
+    "_FUSED_CTA_FALLBACKS": 604,
+    "_FUSED_CTA_ERROR": "CompilationError('def _micro_potrf_corr32(\\n    out_ptr,\\n    inv_ptr,\\n    src_ptr,\\n    n: tl.constexpr,\\n    j,\\n    k,\\n    PRIOR: tl.constexpr,\\n    PREC: tl.constexpr,\\n    FIRST: tl.constexpr,\\n    RECIPROCAL_SOLVE: tl.constexpr,\\n):\\n    \"\"\"Left-looking variant of the diagonal micro (exp 029 v2): before\\n    factoring, absorb the pending rank-PRIOR correction against the\\n    already-applied panel columns of this outer panel as one tensor-core\\n    dot. PRIOR is a compile-time constant (0/32/64/96), so the correction\\n    specializes statically and disappears entirely for the first micro\\n    step of each outer panel. This removes the narrow `_panel_inner32`\\n    launch from the serial chain.\"\"\"\\n    b = tl.program_id(0).to(tl.int64)\\n    r = tl.arange(0, 32)\\n    c = tl.arange(0, 32)\\n    off = (k + r)[:, None] * n + (k + c)[None, :]\\n    ptr = out_ptr + b * n * n + off\\n    if FIRST:\\n        a = tl.load(src_ptr + b * n * n + off)\\n    else:\\n        a = tl.load(ptr)\\n    if PRIOR > 0:\\n        d = tl.arange(0, PRIOR)\\n        lrow = tl.load(\\n            out_ptr + b * n * n + (k + r)[:, None] * n + (j + d)[None, :]\\n        )\\n        a = a - tl.dot(\\n            lrow, tl.trans(lrow), input_precision=PREC,\\n            out_dtype=tl.float32,\\n        )\\n    x = tl.where(r[:, None] == c[None, :], 1.0, 0.0)\\n    for it in range(0, 8):\\n        p0 = 4 * it\\n        p1 = p0 + 1\\n        p2 = p0 + 2\\n        p3 = p0 + 3\\n        c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)\\n        c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)\\n        c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)\\n        c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)\\n        m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)\\n        m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)\\n        m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)\\n        m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)\\n        m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)\\n        m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)\\n        m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)\\n        m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)\\n        m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)\\n        m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)\\n        inv0 = 1.0 / tl.sqrt(m00)\\n        s01 = m01 * inv0\\n        s02 = m02 * inv0\\n        s03 = m03 * inv0\\n        d1 = m11 - s01 * s01\\n        inv1 = 1.0 / tl.sqrt(d1)\\n        s12 = (m12 - s01 * s02) * inv1\\n        s13 = (m13 - s01 * s03) * inv1\\n        d2 = m22 - s02 * s02 - s12 * s12\\n        inv2 = 1.0 / tl.sqrt(d2)\\n        s23 = (m23 - s02 * s03 - s12 * s13) * inv2\\n        d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23\\n        inv3 = 1.0 / tl.sqrt(d3)\\n        l0 = tl.where(r >= p0, c0 * inv0, 0.0)\\n        l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)\\n        l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)\\n        l3 = tl.where(\\n            r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0\\n        )\\n        trail = (r[:, None] > p3) & (c[None, :] > p3)\\n        a = tl.where(\\n            c[None, :] == p0,\\n            l0[:, None],\\n            tl.where(\\n                c[None, :] == p1,\\n                l1[:, None],\\n                tl.where(\\n                    c[None, :] == p2,\\n                    l2[:, None],\\n                    tl.where(\\n                        c[None, :] == p3,\\n                        l3[:, None],\\n                        tl.where(\\n                            trail,\\n                            a\\n                            - l0[:, None] * l0[None, :]\\n                            - l1[:, None] * l1[None, :]\\n                            - l2[:, None] * l2[None, :]\\n                            - l3[:, None] * l3[None, :],\\n                            a,\\n                        ),\\n                    ),\\n                ),\\n            ),\\n        )\\n        row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)\\n        row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)\\n        row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)\\n        row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)\\n        rm0 = tl.where(c < p0, row0, 0.0)\\n        rm1 = tl.where(c < p0, row1, 0.0)\\n        rm2 = tl.where(c < p0, row2, 0.0)\\n        rm3 = tl.where(c < p0, row3, 0.0)\\n        g0 = tl.sum(rm0[:, None] * x, axis=0)\\n        g1 = tl.sum(rm1[:, None] * x, axis=0)\\n        g2 = tl.sum(rm2[:, None] * x, axis=0)\\n        g3 = tl.sum(rm3[:, None] * x, axis=0)\\n        e0 = tl.where(c == p0, 1.0, 0.0)\\n        e1 = tl.where(c == p1, 1.0, 0.0)\\n        e2 = tl.where(c == p2, 1.0, 0.0)\\n        e3 = tl.where(c == p3, 1.0, 0.0)\\n        if RECIPROCAL_SOLVE:\\n            x0 = (e0 - g0) * inv0\\n            x1 = (e1 - g1 - s01 * x0) * inv1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3\\n        else:\\n            lpp0 = m00 * inv0\\n            lpp1 = d1 * inv1\\n            lpp2 = d2 * inv2\\n            lpp3 = d3 * inv3\\n            x0 = (e0 - g0) / lpp0\\n            x1 = (e1 - g1 - s01 * x0) / lpp1\\n            x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2\\n            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3\\n        x = tl.where(\\n            r[:, None] == p0,\\n            x0[None, :],\\n            tl.where(\\n                r[:, None] == p1,\\n                x1[None, :],\\n                tl.where(\\n                    r[:, None] == p2,\\n                    x2[None, :],\\n                    tl.where(r[:, None] == p3, x3[None, :], x),\\n                ),\\n            ),\\n        )\\n    a = tl.where(c[None, :] <= r[:, None], a, 0.0)\\n    tl.store(ptr, a)\\n    tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)\\n', <ast.Call object at 0x2af093bd9810>, \"arange's range must be a power of 2\")",
+    "_GRAPH_SP_HITS": 0,
+    "_GRAPH_SP_FALLBACKS": 0,
+    "_GRAPH_SP_ERROR": null
+  },
+  "passed": true,
+  "geomean_target_speedup": 0.11162895022266953,
+  "compiled_artifacts": {}
+}

@@ -63,14 +63,14 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#882958` = 1096.0842452192236μs public geomean** (Session 19;
-secret 1109.6451814508845μs). `nb` = block size.
+Current best: **`#883174` = 1084.4572420163716μs public geomean** (Session 28;
+secret 1083.720390333199μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | **✓** rank-2 (S16b); rank-4 S22 1.077× Modal but rejected after mixed LB | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
-| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
-| 256×128  | ✗ | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | **✓** (S9; manual capture S15) |
+| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
+| 256×128  | ✗ | ✗ | **✓** split32 route (S28, 1.108×) | ✗ (S3) | **✓** (S28) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S28; vendor-graph fallback S9/S15) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S21, panel-inner 64×64, 1.128× vs S20) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -157,6 +157,68 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-18 — Session 28: 256×128 onto the split32 chain + rsqrt micro → ADOPTED `#883174`
+
+Experiment 030 routed `1024×64` and `256×128` onto the existing split32 chain
+(two `_SPLIT32_SHAPES` entries, zero new kernel code, vendor-graph fallback
+retained). Paired: `256×128` **1.1025×** (157.4→142.8us) with **0 fallbacks
+across all six families** (tf32x3 holds at small n); `1024×64` 0.998× (the
+one-warp micro stops being latency-hidden at batch 1024) — kept on its ranked
+vendor route.
+
+The finalist combined this routing with the S27 rsqrt micro. Full grid:
+**1.0173× aggregate** (Modal 1128.4→1109.2us), every shape ≥1.000× except
+1×8192/1×16384 at 0.999 (noise). Popcorn test 17/17 (`#883171`), ranked
+`#883174`: **public 1084.457us, secret 1083.720us** (from 1096.084/1109.645;
+secret −2.34%). Board: rank 10, 0.4us ahead of sankalp1999's same-hour
+1084.9us. Adopted as root `submission.py`
+(`e072778cef0aec070e13e2093c7be7a98f2de74211fe6d2704cce5370fcd02e5`).
+
+Next-lever note from the profiles: per-call fixed overhead (copy-in/clone-out
+~9us + finite-check chain ~12-15us) is now a top-3 cost on every sub-400us
+shape.
+
+---
+
+## 2026-07-18 — Session 27: micro-chain variants → rsqrt ADOPTED (via S28), three structures REJECTED
+
+Experiment 029 attacked `_micro_potrf_gj32` (13.7us/launch × n/32 launches =
+53-58% of the low-batch split32 shapes; graph replay makes end-to-end ≈ Σ
+kernel self-times). Paired on `16×512`/`4×1024`:
+
+- v1 inverse-free micro + substitution apply: **0.82-0.84×** — the micro did
+  drop to 7.5us/launch, but the 32-step substitution apply costs
+  16.4us/launch.
+- v2 left-looking fusion (panel_inner eliminated; micro/apply absorb a
+  rank-`PRIOR` correction with `PRIOR` as constexpr): first run hit the
+  `tl.arange` power-of-2 constraint (fallback, invalid timing); fixed run
+  **0.96×** — the fusion saved ~70us but the one-warp correction dot added
+  ~100us.
+- v3 separated elimination inverse: **0.87×** (micro 13.7→16.8us/launch).
+- v4 `tl.rsqrt` replacing `1/tl.sqrt` on the pivot chain: **1.028×/1.029×**,
+  and 1.012/1.002/1.039/1.023 on the other four split32 shapes, 6/6 families
+  everywhere. Winner; shipped via S28.
+
+**Structural finding:** any 32-step serial tile loop costs ~16us/launch in
+Triton regardless of per-step arithmetic — step latency, not math, is the
+floor. The rank-4 GJ interleave is the cheapest known home for the diagonal
+inverse; do not reopen 32-step serial structures for this chain.
+
+---
+
+## 2026-07-18 — Session 26: persistent dual-matrix kernel → REJECTED
+
+Experiment 028 built the persistent single-launch Triton path for `2×2048`
+(resident grid, device-side phased scheduler, atomic phase barriers). All five
+variants were correct but **0.40-0.49×** vs the ranked per-matrix loop; the
+spin-barrier phase transitions serialize the grid at ~us each and Triton
+cannot warp-specialize, so the serial diagonal chain stalls whole phases.
+Persistent scheduling is rejected for the mid shapes; the graph-replayed
+multi-kernel chain remains the right structure. No submission spent.
+`dualprobe` harness mode added to `scripts/_gpu_runner.py`/`modal_verify.py`.
 
 ---
 

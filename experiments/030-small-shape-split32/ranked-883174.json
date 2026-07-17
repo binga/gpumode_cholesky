@@ -1,0 +1,39 @@
+{
+  "submission_id": 883174,
+  "leaderboard": "cholesky",
+  "file_name": "submission.py",
+  "status": "succeeded",
+  "candidate_sha256": "e072778cef0aec070e13e2093c7be7a98f2de74211fe6d2704cce5370fcd02e5",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0010844572420163716,
+    "geomean_us": 1084.4572420163716
+  },
+  "secret": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.001083720390333199,
+    "geomean_us": 1083.720390333199
+  },
+  "baseline": {
+    "submission_id": 882958,
+    "sha256": "3466e8f7a9ebb240924e642ef81acad054c31f5e17ceefa492c9d26f0ffe195d",
+    "public_geomean_us": 1096.0842452192236,
+    "secret_geomean_us": 1109.6451814508845
+  },
+  "improvement": {
+    "public_percent": 1.0607,
+    "secret_percent": 2.3363
+  },
+  "test_submission_id": 883171,
+  "contents": "exp 029 v4 (tl.rsqrt micro pivot chain, all six split32 shapes) + exp 030 (256x128 routed onto the split32 chain, tf32x3/tf32x3, graph mode); 1024x64 measured 0.998x and kept its ranked vendor route",
+  "modal_fullgrid": {
+    "baseline_geomean_us": 1128.4,
+    "candidate_geomean_us": 1109.2,
+    "aggregate_speedup": 1.01729
+  },
+  "leaderboard_rank_after": 10
+}

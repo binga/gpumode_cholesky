@@ -1,0 +1,54 @@
+Building image im-w5SWlolkhunj0iD9dko1ge
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 547.98ms
+
+Built image im-w5SWlolkhunj0iD9dko1ge in 1.37s
+
+
+Building image im-YhPHsD2smhP8y2Zt0R6nYQ
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 661.13ms
+
+Built image im-YhPHsD2smhP8y2Zt0R6nYQ in 1.60s
+
+
+USDT:2026-07-17 21:10:09 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:10:09 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-17 21:10:15 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:10:15 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+
+probing 16x512 ...
+  base 397.3us cand 4867.4us speedup 0.082x ok=True
+  prof     191.3us x32.0   void potrf_cta_lower_batch<float, float, 16>(int, int, int, float**, unsigned long, int*)
+  prof     174.1us x24.0   void potrf_syrk_T16_nc_kernel<float, 5, 4, 4, 5, 4>(int, int, int, int, int, int, int, float**, unsi
+  prof      92.0us x7.0    void potrf_syrk_nc_kernel<float, 5, 6, 3, 3, 4>(int, int, int, int, int, int, int, float**, unsigned
+  prof      72.5us x31.0   void potrfBatch_trsm_lower<float, float, 16>(int, int, int, int, int, int, float**, unsigned long)
+  prof      47.3us x3.0    _micro_potrf_corr32
+  prof      20.2us x1.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co
+  prof      15.6us x1.0    void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in
+  prof      13.9us x3.0    _panel_apply_corr32
+  families ok=6/6
+probing 4x1024 ...
+  base 775.5us cand 5080.0us speedup 0.153x ok=True
+  prof    1203.0us x4.0    void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1, 1> >(int, int, void*, int, vo
+  prof      47.4us x3.0    _micro_potrf_corr32
+  prof      27.1us x4.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co
+  prof      22.9us x4.0    void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in
+  prof      20.7us x1.0    void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::Opaqu
+  prof      13.8us x3.0    _panel_apply_corr32
+  prof       9.0us x8.0    Memset (Device)
+  prof       4.8us x4.0    xxtrf4_set_info_ker(int, int*)
+  families ok=6/6
+wrote /Users/phani/projects/gpumode_cholesky/experiments/029-micro-chain-fusion/probe-v2-initial.json

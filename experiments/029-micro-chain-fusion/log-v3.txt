@@ -1,0 +1,54 @@
+Building image im-VSX0n4eZ488hMSK7OgZRiu
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 2.50s
+
+Built image im-VSX0n4eZ488hMSK7OgZRiu in 3.76s
+
+
+Building image im-48mdE5W6Vx3d1xLDHatewW
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 457.16ms
+
+Built image im-48mdE5W6Vx3d1xLDHatewW in 1.24s
+
+
+USDT:2026-07-17 21:10:10 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:10:10 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-17 21:10:13 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:10:13 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+
+probing 16x512 ...
+  base 394.5us cand 448.7us speedup 0.879x ok=True
+  prof     269.1us x16.0   _micro_potrf_gj32
+  prof      59.7us x15.0   _panel_apply32
+  prof      44.8us x12.0   _panel_inner32_subtile64
+  prof      26.8us x3.0    _trailing_nb
+  prof       9.0us x2.0    Memcpy DtoD (Device -> Device)
+  prof       3.5us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       3.2us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       3.0us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  families ok=6/6
+probing 4x1024 ...
+  base 772.2us cand 883.0us speedup 0.875x ok=True
+  prof     538.7us x32.0   _micro_potrf_gj32
+  prof     124.0us x31.0   _panel_apply32
+  prof      85.8us x24.0   _panel_inner32_subtile64
+  prof      63.3us x7.0    _trailing_nb
+  prof       9.2us x2.0    Memcpy DtoD (Device -> Device)
+  prof       3.2us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       3.1us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       2.5us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  families ok=6/6
+wrote /Users/phani/projects/gpumode_cholesky/experiments/029-micro-chain-fusion/probe-v3-initial.json

@@ -100,7 +100,20 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#882958`** (exp 021 — current best): `done`, public
+- **Ranked submission `#883174`** (exps 029+030 — current best): `done`, public
+  geomean **1084.4572420163716us** and secret **1083.720390333199us**
+  (**−1.061% / −2.336%** vs exp 021). Two changes: `tl.rsqrt` on the diagonal
+  micro's pivot chain (paired 1.002–1.039× across all six split32 shapes) and
+  `256×128` routed onto the split32 chain (**1.1025×**, zero fallbacks across
+  all six families). `1024×64` measured 0.998× and keeps its vendor-graph
+  route. Full grid passed 15/15 at **1.0173×**; Popcorn test `#883171` passed
+  17/17. Rejected with evidence in exp 029: inverse-free micro + substitution
+  apply (0.82×), left-looking PRIOR-constexpr fusion (0.96×), separated
+  elimination inverse (0.87×) — any 32-step serial tile loop costs
+  ~16us/launch in Triton. Exp 028's persistent dual-matrix kernel was also
+  rejected (0.40–0.49×). See `experiments/029-micro-chain-fusion/` and
+  `experiments/030-small-shape-split32/`.
+- **Ranked submission `#882958`** (exp 021): `done`, public
   geomean **1096.0842452192236us** and secret **1109.6451814508845us**
   (**−2.154% / −1.493%** vs exp 020). Extends the 64×64 panel-inner
   specialization to `64×256`, `16×512`, and `640×512`, with paired final-grid

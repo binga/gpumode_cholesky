@@ -533,21 +533,20 @@ if _HAVE_TRITON:
             m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)
             m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)
             m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)
-            # Scalar Cholesky of the 4x4 pivot block. tl.rsqrt replaces the
-            # sqrt.approx + div.full pair on the serial scalar chain (exp 029).
-            inv0 = tl.rsqrt(m00)
+            # Scalar Cholesky of the 4x4 pivot block.
+            inv0 = 1.0 / tl.sqrt(m00)
             s01 = m01 * inv0
             s02 = m02 * inv0
             s03 = m03 * inv0
             d1 = m11 - s01 * s01
-            inv1 = tl.rsqrt(d1)
+            inv1 = 1.0 / tl.sqrt(d1)
             s12 = (m12 - s01 * s02) * inv1
             s13 = (m13 - s01 * s03) * inv1
             d2 = m22 - s02 * s02 - s12 * s12
-            inv2 = tl.rsqrt(d2)
+            inv2 = 1.0 / tl.sqrt(d2)
             s23 = (m23 - s02 * s03 - s12 * s13) * inv2
             d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23
-            inv3 = tl.rsqrt(d3)
+            inv3 = 1.0 / tl.sqrt(d3)
             # Finalized pivot columns.
             l0 = tl.where(r >= p0, c0 * inv0, 0.0)
             l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)
@@ -581,51 +580,21 @@ if _HAVE_TRITON:
                     ),
                 ),
             )
-            # Inverse rows p0..p3. All four contributions reduce against X
-            # rows < p0 (independent); the in-block terms use the pivot
-            # scalars already in registers.
-            row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)
-            row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)
-            row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)
-            row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)
-            rm0 = tl.where(c < p0, row0, 0.0)
-            rm1 = tl.where(c < p0, row1, 0.0)
-            rm2 = tl.where(c < p0, row2, 0.0)
-            rm3 = tl.where(c < p0, row3, 0.0)
-            g0 = tl.sum(rm0[:, None] * x, axis=0)
-            g1 = tl.sum(rm1[:, None] * x, axis=0)
-            g2 = tl.sum(rm2[:, None] * x, axis=0)
-            g3 = tl.sum(rm3[:, None] * x, axis=0)
-            e0 = tl.where(c == p0, 1.0, 0.0)
-            e1 = tl.where(c == p1, 1.0, 0.0)
-            e2 = tl.where(c == p2, 1.0, 0.0)
-            e3 = tl.where(c == p3, 1.0, 0.0)
-            if RECIPROCAL_SOLVE:
-                x0 = (e0 - g0) * inv0
-                x1 = (e1 - g1 - s01 * x0) * inv1
-                x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2
-                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3
-            else:
-                lpp0 = m00 * inv0
-                lpp1 = d1 * inv1
-                lpp2 = d2 * inv2
-                lpp3 = d3 * inv3
-                x0 = (e0 - g0) / lpp0
-                x1 = (e1 - g1 - s01 * x0) / lpp1
-                x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2
-                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3
+        # Column-elimination inverse (exp 029 v3): with L complete, row p of
+        # X finalizes via one broadcast FMA against column p of L per step —
+        # no full-tile multiply + cross-lane reduce on the serial chain. The
+        # RECIPROCAL_SOLVE distinction collapses; the reciprocal multiply is
+        # always used (numerics identical to the shipped reciprocal branch).
+        for p in range(0, 32):
+            lcol = tl.sum(tl.where(c[None, :] == p, a, 0.0), axis=1)
+            lpp = tl.sum(tl.where(r == p, lcol, 0.0), axis=0)
+            xrow = tl.sum(tl.where(r[:, None] == p, x, 0.0), axis=0)
+            scaled = xrow * (1.0 / lpp)
+            below = tl.where(r > p, lcol, 0.0)
             x = tl.where(
-                r[:, None] == p0,
-                x0[None, :],
-                tl.where(
-                    r[:, None] == p1,
-                    x1[None, :],
-                    tl.where(
-                        r[:, None] == p2,
-                        x2[None, :],
-                        tl.where(r[:, None] == p3, x3[None, :], x),
-                    ),
-                ),
+                r[:, None] == p,
+                scaled[None, :],
+                x - below[:, None] * scaled[None, :],
             )
         a = tl.where(c[None, :] <= r[:, None], a, 0.0)
         tl.store(ptr, a)
@@ -832,11 +801,6 @@ if _HAVE_TRITON:
     # copy-in/clone-out — a win only where per-launch GPU time far exceeds
     # enqueue time (the bandwidth-bound high-batch shapes).
     _SPLIT32_SHAPES = {
-        # exp 030: 256x128 moves off graph-replayed vendor factorization onto
-        # the split32 chain (10 kernel launches, paired 1.10x). 1024x64 was
-        # measured a wash (0.998x) and keeps its ranked vendor route. tf32x3
-        # both levels: the n-scaled tolerance is tightest at small n.
-        (256, 128): ("tf32x3", "tf32x3", 128, "graph", True),
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
@@ -851,7 +815,6 @@ if _HAVE_TRITON:
     # the isolated probe but regressed in the full grid, so it stays on the
     # exact #882927 128x128 panel-inner specialization.
     _PANEL_INNER_SUBTILE64_SHAPES = {
-        (256, 128),
         (64, 256),
         (16, 512),
         (640, 512),

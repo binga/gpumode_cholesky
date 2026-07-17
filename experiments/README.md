@@ -55,3 +55,6 @@ and auditable.
 | 025 | tile-local dynamic E4M3 trailing update at 8×2048 | 0.513× fallback-contaminated; retained dense failure | — | **rejected: incorrect/fallback-only** |
 | 026 | recursive GEMM triangular inversion at 1×8192 with nb=2048 fixed | 5843.8→6126.0μs (0.954×), 6/6 families | — | **rejected: slower** |
 | 027 | transfer first-touch eager execution to 8×2048 | 1906.7→5678.1μs (0.336×), 6/6 families | — | **rejected: graph replay essential** |
+| 028 | persistent single-launch dual-matrix kernel for 2×2048 (resident grid, atomic phase barriers); five variants | 0.402–0.495×, all correct, spin-barrier floor ~2.75ms | — | **rejected: persistent scheduling loses to graph chain** |
+| 029 | micro-chain cost reduction: inverse-free micro+substitution apply (0.82×), left-looking PRIOR-constexpr fusion (0.96×), elimination inverse (0.87×), `tl.rsqrt` pivot chain (**1.028×**, all six split32 shapes positive) | rsqrt micro 13.7→12.8μs/launch; 32-step serial loops measured at ~16μs/launch floor | — (integrated in 030) | **rsqrt adopted via 030** |
+| 030 | route 256×128 onto the split32 chain (1.1025×, 0 family fallbacks); 1024×64 wash (0.998×) kept on vendor route; finalist = routing + 029 rsqrt | full grid 1.0173×; 1084.457μs public / 1083.720μs secret | #883174 | **adopted (current best)** |

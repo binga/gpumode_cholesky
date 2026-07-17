@@ -533,21 +533,20 @@ if _HAVE_TRITON:
             m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)
             m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)
             m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)
-            # Scalar Cholesky of the 4x4 pivot block. tl.rsqrt replaces the
-            # sqrt.approx + div.full pair on the serial scalar chain (exp 029).
-            inv0 = tl.rsqrt(m00)
+            # Scalar Cholesky of the 4x4 pivot block.
+            inv0 = 1.0 / tl.sqrt(m00)
             s01 = m01 * inv0
             s02 = m02 * inv0
             s03 = m03 * inv0
             d1 = m11 - s01 * s01
-            inv1 = tl.rsqrt(d1)
+            inv1 = 1.0 / tl.sqrt(d1)
             s12 = (m12 - s01 * s02) * inv1
             s13 = (m13 - s01 * s03) * inv1
             d2 = m22 - s02 * s02 - s12 * s12
-            inv2 = tl.rsqrt(d2)
+            inv2 = 1.0 / tl.sqrt(d2)
             s23 = (m23 - s02 * s03 - s12 * s13) * inv2
             d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23
-            inv3 = tl.rsqrt(d3)
+            inv3 = 1.0 / tl.sqrt(d3)
             # Finalized pivot columns.
             l0 = tl.where(r >= p0, c0 * inv0, 0.0)
             l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)
@@ -769,6 +768,230 @@ if _HAVE_TRITON:
         tl.store(t_ptrs, t - prod, mask=valid)
 
     @triton.jit
+    def _micro_potrf_corr32(
+        out_ptr,
+        inv_ptr,
+        src_ptr,
+        n: tl.constexpr,
+        j,
+        k,
+        PRIOR: tl.constexpr,
+        PRIOR_PAD: tl.constexpr,
+        PREC: tl.constexpr,
+        FIRST: tl.constexpr,
+        RECIPROCAL_SOLVE: tl.constexpr,
+    ):
+        """Left-looking variant of the diagonal micro (exp 029 v2): before
+        factoring, absorb the pending rank-PRIOR correction against the
+        already-applied panel columns of this outer panel as one tensor-core
+        dot. PRIOR is a compile-time constant (0/32/64/96), so the correction
+        specializes statically and disappears entirely for the first micro
+        step of each outer panel. This removes the narrow `_panel_inner32`
+        launch from the serial chain."""
+        b = tl.program_id(0).to(tl.int64)
+        r = tl.arange(0, 32)
+        c = tl.arange(0, 32)
+        off = (k + r)[:, None] * n + (k + c)[None, :]
+        ptr = out_ptr + b * n * n + off
+        if FIRST:
+            a = tl.load(src_ptr + b * n * n + off)
+        else:
+            a = tl.load(ptr)
+        if PRIOR > 0:
+            # PRIOR_PAD is the next power of two (tl.arange constraint); the
+            # depth mask zero-pads the dot, which is exact.
+            d = tl.arange(0, PRIOR_PAD)
+            lrow = tl.load(
+                out_ptr + b * n * n + (k + r)[:, None] * n + (j + d)[None, :],
+                mask=(d < PRIOR)[None, :],
+                other=0.0,
+            )
+            a = a - tl.dot(
+                lrow, tl.trans(lrow), input_precision=PREC,
+                out_dtype=tl.float32,
+            )
+        x = tl.where(r[:, None] == c[None, :], 1.0, 0.0)
+        for it in range(0, 8):
+            p0 = 4 * it
+            p1 = p0 + 1
+            p2 = p0 + 2
+            p3 = p0 + 3
+            c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)
+            c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)
+            c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)
+            c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)
+            m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)
+            m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)
+            m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)
+            m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)
+            m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)
+            m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)
+            m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)
+            m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)
+            m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)
+            m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)
+            inv0 = 1.0 / tl.sqrt(m00)
+            s01 = m01 * inv0
+            s02 = m02 * inv0
+            s03 = m03 * inv0
+            d1 = m11 - s01 * s01
+            inv1 = 1.0 / tl.sqrt(d1)
+            s12 = (m12 - s01 * s02) * inv1
+            s13 = (m13 - s01 * s03) * inv1
+            d2 = m22 - s02 * s02 - s12 * s12
+            inv2 = 1.0 / tl.sqrt(d2)
+            s23 = (m23 - s02 * s03 - s12 * s13) * inv2
+            d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23
+            inv3 = 1.0 / tl.sqrt(d3)
+            l0 = tl.where(r >= p0, c0 * inv0, 0.0)
+            l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)
+            l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)
+            l3 = tl.where(
+                r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0
+            )
+            trail = (r[:, None] > p3) & (c[None, :] > p3)
+            a = tl.where(
+                c[None, :] == p0,
+                l0[:, None],
+                tl.where(
+                    c[None, :] == p1,
+                    l1[:, None],
+                    tl.where(
+                        c[None, :] == p2,
+                        l2[:, None],
+                        tl.where(
+                            c[None, :] == p3,
+                            l3[:, None],
+                            tl.where(
+                                trail,
+                                a
+                                - l0[:, None] * l0[None, :]
+                                - l1[:, None] * l1[None, :]
+                                - l2[:, None] * l2[None, :]
+                                - l3[:, None] * l3[None, :],
+                                a,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            row0 = tl.sum(tl.where(r[:, None] == p0, a, 0.0), axis=0)
+            row1 = tl.sum(tl.where(r[:, None] == p1, a, 0.0), axis=0)
+            row2 = tl.sum(tl.where(r[:, None] == p2, a, 0.0), axis=0)
+            row3 = tl.sum(tl.where(r[:, None] == p3, a, 0.0), axis=0)
+            rm0 = tl.where(c < p0, row0, 0.0)
+            rm1 = tl.where(c < p0, row1, 0.0)
+            rm2 = tl.where(c < p0, row2, 0.0)
+            rm3 = tl.where(c < p0, row3, 0.0)
+            g0 = tl.sum(rm0[:, None] * x, axis=0)
+            g1 = tl.sum(rm1[:, None] * x, axis=0)
+            g2 = tl.sum(rm2[:, None] * x, axis=0)
+            g3 = tl.sum(rm3[:, None] * x, axis=0)
+            e0 = tl.where(c == p0, 1.0, 0.0)
+            e1 = tl.where(c == p1, 1.0, 0.0)
+            e2 = tl.where(c == p2, 1.0, 0.0)
+            e3 = tl.where(c == p3, 1.0, 0.0)
+            if RECIPROCAL_SOLVE:
+                x0 = (e0 - g0) * inv0
+                x1 = (e1 - g1 - s01 * x0) * inv1
+                x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2
+                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3
+            else:
+                lpp0 = m00 * inv0
+                lpp1 = d1 * inv1
+                lpp2 = d2 * inv2
+                lpp3 = d3 * inv3
+                x0 = (e0 - g0) / lpp0
+                x1 = (e1 - g1 - s01 * x0) / lpp1
+                x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2
+                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3
+            x = tl.where(
+                r[:, None] == p0,
+                x0[None, :],
+                tl.where(
+                    r[:, None] == p1,
+                    x1[None, :],
+                    tl.where(
+                        r[:, None] == p2,
+                        x2[None, :],
+                        tl.where(r[:, None] == p3, x3[None, :], x),
+                    ),
+                ),
+            )
+        a = tl.where(c[None, :] <= r[:, None], a, 0.0)
+        tl.store(ptr, a)
+        tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)
+
+    @triton.jit
+    def _panel_apply_corr32(
+        out_ptr,
+        inv_ptr,
+        src_ptr,
+        n: tl.constexpr,
+        j,
+        k,
+        remaining,
+        PRIOR: tl.constexpr,
+        PRIOR_PAD: tl.constexpr,
+        PREC: tl.constexpr,
+        TILE_R: tl.constexpr,
+        FIRST: tl.constexpr,
+    ):
+        """Left-looking panel apply (exp 029 v2): absorb the pending
+        rank-PRIOR correction against this outer panel's already-applied
+        columns (one PRIOR-deep tensor-core dot reading stable output of
+        earlier launches), then apply Dinv^T. Replaces the pair of
+        `_panel_apply32` + `_panel_inner32*` launches per micro step and
+        removes the in-panel read-modify-write traffic entirely."""
+        rt = tl.program_id(0)
+        b = tl.program_id(1).to(tl.int64)
+        rows = rt * TILE_R + tl.arange(0, TILE_R)
+        c = tl.arange(0, 32)
+        base = b * n * n
+        mask = rows < remaining
+        p_off = (k + 32 + rows)[:, None] * n + (k + c)[None, :]
+        p_ptrs = out_ptr + base + p_off
+        if FIRST:
+            p = tl.load(src_ptr + base + p_off, mask=mask[:, None], other=0.0)
+        else:
+            p = tl.load(p_ptrs, mask=mask[:, None], other=0.0)
+        if PRIOR > 0:
+            d = tl.arange(0, PRIOR_PAD)
+            dmask = d < PRIOR
+            lrows = tl.load(
+                out_ptr
+                + base
+                + (k + 32 + rows)[:, None] * n
+                + (j + d)[None, :],
+                mask=mask[:, None] & dmask[None, :],
+                other=0.0,
+            )
+            lcols = tl.load(
+                out_ptr + base + (k + c)[:, None] * n + (j + d)[None, :],
+                mask=dmask[None, :],
+                other=0.0,
+            )
+            p = p - tl.dot(
+                lrows, tl.trans(lcols), input_precision=PREC,
+                out_dtype=tl.float32,
+            )
+        dinv = tl.load(inv_ptr + b * 1024 + c[:, None] * 32 + c[None, :])
+        lik = tl.dot(
+            p, tl.trans(dinv), input_precision=PREC, out_dtype=tl.float32
+        )
+        tl.store(p_ptrs, lik, mask=mask[:, None])
+        # Zero-fill the mirrored upper tile so no separate clear pass is
+        # needed: block rows k..k+32, columns = this CTA's panel rows.
+        m_ptrs = (
+            out_ptr + base + (k + c)[:, None] * n + (k + 32 + rows)[None, :]
+        )
+        tl.store(
+            m_ptrs,
+            tl.zeros((32, TILE_R), dtype=tl.float32),
+            mask=mask[None, :],
+        )
+
+    @triton.jit
     def _trailing_nb(
         out_ptr,
         src_ptr,
@@ -832,11 +1055,6 @@ if _HAVE_TRITON:
     # copy-in/clone-out — a win only where per-launch GPU time far exceeds
     # enqueue time (the bandwidth-bound high-batch shapes).
     _SPLIT32_SHAPES = {
-        # exp 030: 256x128 moves off graph-replayed vendor factorization onto
-        # the split32 chain (10 kernel launches, paired 1.10x). 1024x64 was
-        # measured a wash (0.998x) and keeps its ranked vendor route. tf32x3
-        # both levels: the n-scaled tolerance is tightest at small n.
-        (256, 128): ("tf32x3", "tf32x3", 128, "graph", True),
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
@@ -851,7 +1069,6 @@ if _HAVE_TRITON:
     # the isolated probe but regressed in the full grid, so it stays on the
     # exact #882927 128x128 panel-inner specialization.
     _PANEL_INNER_SUBTILE64_SHAPES = {
-        (256, 128),
         (64, 256),
         (16, 512),
         (640, 512),
@@ -882,22 +1099,62 @@ if _HAVE_TRITON:
         ft = src is not None
         if not ft:
             src = work
+        # exp 029 v2: the five subtile shapes take the left-looking in-panel
+        # route (micro/apply absorb their own pending rank-PRIOR correction
+        # as a statically specialized tensor-core dot; no `_panel_inner32*`
+        # launches). 60x1024 keeps the exact ranked kernel sequence.
+        corr = (batch, n) in _PANEL_INNER_SUBTILE64_SHAPES
         for j in range(0, n, nb):
             panel_end = min(j + nb, n)
             for k in range(j, panel_end, 32):
-                _micro_potrf_gj32[(batch,)](
-                    work,
-                    dinv,
-                    src,
-                    n=n,
-                    k=k,
-                    FIRST=ft and k == 0,
-                    RECIPROCAL_SOLVE=fp16_trailing,
-                    num_warps=1,
-                )
+                if corr:
+                    _micro_potrf_corr32[(batch,)](
+                        work,
+                        dinv,
+                        src,
+                        n=n,
+                        j=j,
+                        k=k,
+                        PRIOR=k - j,
+                        PRIOR_PAD=max(triton.next_power_of_2(k - j), 16),
+                        PREC=panel_prec,
+                        FIRST=ft and j == 0,
+                        RECIPROCAL_SOLVE=fp16_trailing,
+                        num_warps=1,
+                    )
+                else:
+                    _micro_potrf_gj32[(batch,)](
+                        work,
+                        dinv,
+                        src,
+                        n=n,
+                        k=k,
+                        FIRST=ft and k == 0,
+                        RECIPROCAL_SOLVE=fp16_trailing,
+                        num_warps=1,
+                    )
                 remaining = n - k - 32
                 if remaining <= 0:
                     break
+                if corr:
+                    _panel_apply_corr32[
+                        (triton.cdiv(remaining, 64), batch)
+                    ](
+                        work,
+                        dinv,
+                        src,
+                        n=n,
+                        j=j,
+                        k=k,
+                        remaining=remaining,
+                        PRIOR=k - j,
+                        PRIOR_PAD=max(triton.next_power_of_2(k - j), 16),
+                        PREC=panel_prec,
+                        TILE_R=64,
+                        FIRST=ft and j == 0,
+                        num_warps=4,
+                    )
+                    continue
                 _panel_apply32[(triton.cdiv(remaining, tile), batch)](
                     work,
                     dinv,
@@ -912,38 +1169,18 @@ if _HAVE_TRITON:
                 )
                 width = panel_end - (k + 32)
                 if width > 0:
-                    if (batch, n) in _PANEL_INNER_SUBTILE64_SHAPES:
-                        ntiles_c = triton.cdiv(width, 64)
-                        _panel_inner32_subtile64[
-                            (
-                                triton.cdiv(remaining, 64) * ntiles_c,
-                                batch,
-                            )
-                        ](
-                            work,
-                            src,
-                            n=n,
-                            k=k,
-                            width=width,
-                            remaining=remaining,
-                            PREC=panel_prec,
-                            NTILES_C=ntiles_c,
-                            FIRST=ft and k == 0,
-                            num_warps=4,
-                        )
-                    else:
-                        _panel_inner32[(triton.cdiv(remaining, tile), batch)](
-                            work,
-                            src,
-                            n=n,
-                            k=k,
-                            width=width,
-                            remaining=remaining,
-                            PREC=panel_prec,
-                            TILE_R=tile,
-                            FIRST=ft and k == 0,
-                            num_warps=4,
-                        )
+                    _panel_inner32[(triton.cdiv(remaining, tile), batch)](
+                        work,
+                        src,
+                        n=n,
+                        k=k,
+                        width=width,
+                        remaining=remaining,
+                        PREC=panel_prec,
+                        TILE_R=tile,
+                        FIRST=ft and k == 0,
+                        num_warps=4,
+                    )
             rem_out = n - panel_end
             if rem_out > 0:
                 tr = triton.cdiv(rem_out, trailing_tile)

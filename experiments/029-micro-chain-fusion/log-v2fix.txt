@@ -1,0 +1,54 @@
+Building image im-Sw5lgHIoUdzl57dZKAEsqt
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 1.29s
+
+Built image im-Sw5lgHIoUdzl57dZKAEsqt in 2.12s
+
+
+Building image im-bsmbfzOU0wszAJokrwat0C
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 1.46s
+
+Built image im-bsmbfzOU0wszAJokrwat0C in 2.58s
+
+
+USDT:2026-07-17 21:13:07 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:13:07 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-17 21:13:18 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-17 21:13:18 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+
+probing 16x512 ...
+  base 404.9us cand 420.2us speedup 0.964x ok=True
+  prof     268.8us x16.0   _micro_potrf_corr32
+  prof      67.6us x15.0   _panel_apply_corr32
+  prof      27.0us x3.0    _trailing_nb
+  prof       9.2us x2.0    Memcpy DtoD (Device -> Device)
+  prof       3.6us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       3.5us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       2.9us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  prof       2.4us x1.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto
+  families ok=6/6
+probing 4x1024 ...
+  base 772.9us cand 804.5us speedup 0.961x ok=True
+  prof     534.4us x32.0   _micro_potrf_corr32
+  prof     138.0us x31.0   _panel_apply_corr32
+  prof      64.7us x7.0    _trailing_nb
+  prof       9.2us x2.0    Memcpy DtoD (Device -> Device)
+  prof       3.6us x1.0    Memcpy DtoH (Device -> Pinned)
+  prof       3.2us x1.0    void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFun
+  prof       2.5us x1.0    void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::native::func_wrapper_t<bool, a
+  prof       2.3us x1.0    void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::AbsFuncto
+  families ok=6/6
+wrote /Users/phani/projects/gpumode_cholesky/experiments/029-micro-chain-fusion/probe-v2fix-initial.json
