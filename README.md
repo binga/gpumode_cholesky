@@ -100,7 +100,16 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#882706`** (exps 016a+016b+017 — current best): `done`,
+- **Ranked submission `#882825`** (exp 019 — current best): `done`, public
+  geomean **1122.5699497054058μs** and secret **1128.5112827701096μs**
+  (**−6.87% / −5.78%** vs exp 017). Uses FP16 tensor-core inputs with FP32
+  accumulation for five split32 trailing Schur-update specializations and
+  replaces four inverse-row divides with existing reciprocal multiplies. A
+  compile-time false signal leaves `60×1024` on its exact ranked TF32/divide
+  specialization. Paired full grid 15/15 at **1.0093×**, affected families
+  36/36, local 10/10; Popcorn test `#882824` 17/17. See
+  `experiments/019-two-shape-compiler-fusion/`.
+- **Ranked submission `#882706`** (exps 016a+016b+017): `done`,
   public geomean **1205.3363990652266μs** and secret **1197.790680258142μs**
   (**−4.56% / −5.74%** vs exp 015). Adds a rank-2 one-warp n=32 kernel
   (4096×32 1.591×), a rank-4 pivot micro with first-touch eager mode and

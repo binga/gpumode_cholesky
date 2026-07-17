@@ -491,7 +491,6 @@ if _HAVE_TRITON:
         n: tl.constexpr,
         k,
         FIRST: tl.constexpr,
-        RECIPROCAL_SOLVE: tl.constexpr,
     ):
         """Factor the 32x32 diagonal block at (k, k) and build its triangular
         inverse in the same 32-step serial loop (row p of L is final after
@@ -599,20 +598,10 @@ if _HAVE_TRITON:
             e1 = tl.where(c == p1, 1.0, 0.0)
             e2 = tl.where(c == p2, 1.0, 0.0)
             e3 = tl.where(c == p3, 1.0, 0.0)
-            if RECIPROCAL_SOLVE:
-                x0 = (e0 - g0) * inv0
-                x1 = (e1 - g1 - s01 * x0) * inv1
-                x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2
-                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3
-            else:
-                lpp0 = m00 * inv0
-                lpp1 = d1 * inv1
-                lpp2 = d2 * inv2
-                lpp3 = d3 * inv3
-                x0 = (e0 - g0) / lpp0
-                x1 = (e1 - g1 - s01 * x0) / lpp1
-                x2 = (e2 - g2 - s02 * x0 - s12 * x1) / lpp2
-                x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) / lpp3
+            x0 = (e0 - g0) * inv0
+            x1 = (e1 - g1 - s01 * x0) * inv1
+            x2 = (e2 - g2 - s02 * x0 - s12 * x1) * inv2
+            x3 = (e3 - g3 - s03 * x0 - s13 * x1 - s23 * x2) * inv3
             x = tl.where(
                 r[:, None] == p0,
                 x0[None, :],
@@ -725,7 +714,6 @@ if _HAVE_TRITON:
         remaining,
         NB: tl.constexpr,
         PREC: tl.constexpr,
-        FP16_TRAILING: tl.constexpr,
         TILE: tl.constexpr,
         FIRST: tl.constexpr,
     ):
@@ -750,16 +738,9 @@ if _HAVE_TRITON:
             mask=cols[:, None] < remaining,
             other=0.0,
         )
-        if FP16_TRAILING:
-            prod = tl.dot(
-                li.to(tl.float16),
-                tl.trans(lj.to(tl.float16)),
-                out_dtype=tl.float32,
-            )
-        else:
-            prod = tl.dot(
-                li, tl.trans(lj), input_precision=PREC, out_dtype=tl.float32
-            )
+        prod = tl.dot(
+            li, tl.trans(lj), input_precision=PREC, out_dtype=tl.float32
+        )
         t_off = (j + NB + rows)[:, None] * n + (j + NB + cols)[None, :]
         t_ptrs = out_ptr + base + t_off
         valid = (rows[:, None] < remaining) & (cols[None, :] < remaining)
@@ -773,31 +754,28 @@ if _HAVE_TRITON:
     # (batch, n) -> (panel_prec, trailing_prec) for the two-level blocked
     # path. tf32x3 keeps tensor cores with near-FP32 accuracy where the
     # n-scaled tolerance is tight; plain tf32 is enough from n=1024 up.
-    # (batch, n) -> (panel_prec, trailing_prec, trailing_tile, mode,
-    # fp16_trailing). The last value is a compile-time signal: the lone
-    # measured regression keeps its ranked TF32 trailing update.
+    # (batch, n) -> (panel_prec, trailing_prec, trailing_tile, mode).
     # "eager" = first-touch launches reading the live input, no graph, no
     # copy-in/clone-out — a win only where per-launch GPU time far exceeds
     # enqueue time (the bandwidth-bound high-batch shapes).
     _SPLIT32_SHAPES = {
-        (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
-        (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
-        (640, 512): ("tf32x3", "tf32", 128, "eager", True),
-        (4, 1024): ("tf32x3", "tf32", 128, "graph", True),
-        (60, 1024): ("tf32x3", "tf32", 128, "eager", False),
-        (8, 2048): ("tf32x3", "tf32", 128, "graph", True),
+        (64, 256): ("tf32x3", "tf32x3", 128, "graph"),
+        (16, 512): ("tf32x3", "tf32x3", 128, "graph"),
+        (640, 512): ("tf32x3", "tf32", 128, "eager"),
+        (4, 1024): ("tf32x3", "tf32", 128, "graph"),
+        (60, 1024): ("tf32x3", "tf32", 128, "eager"),
+        (8, 2048): ("tf32x3", "tf32", 128, "graph"),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
+    # Populated during warmup/capture for experiment 019. Keeping the returned
+    # CompiledKernel objects lets the probe persist TTIR/TTGIR/LLVM/PTX/cubin
+    # for the exact specializations that executed on B200. Graph replay does
+    # not execute these Python assignments.
+    _TRITON_COMPILED = {}
 
     def _split32_launch(
-        work,
-        dinv,
-        panel_prec,
-        trailing_prec,
-        trailing_tile,
-        fp16_trailing,
-        src=None,
+        work, dinv, panel_prec, trailing_prec, trailing_tile, src=None
     ):
         """Launch the full two-level blocked factorization writing into
         `work`. With src=None the factorization runs in place on `work`
@@ -816,20 +794,23 @@ if _HAVE_TRITON:
         for j in range(0, n, nb):
             panel_end = min(j + nb, n)
             for k in range(j, panel_end, 32):
-                _micro_potrf_gj32[(batch,)](
+                compiled = _micro_potrf_gj32[(batch,)](
                     work,
                     dinv,
                     src,
                     n=n,
                     k=k,
                     FIRST=ft and k == 0,
-                    RECIPROCAL_SOLVE=fp16_trailing,
                     num_warps=1,
                 )
+                if compiled is not None:
+                    _TRITON_COMPILED.setdefault(
+                        ("micro", n, bool(ft and k == 0)), compiled
+                    )
                 remaining = n - k - 32
                 if remaining <= 0:
                     break
-                _panel_apply32[(triton.cdiv(remaining, tile), batch)](
+                compiled = _panel_apply32[(triton.cdiv(remaining, tile), batch)](
                     work,
                     dinv,
                     src,
@@ -841,9 +822,13 @@ if _HAVE_TRITON:
                     FIRST=ft and k == 0,
                     num_warps=4,
                 )
+                if compiled is not None:
+                    _TRITON_COMPILED.setdefault(
+                        ("apply", n, panel_prec, bool(ft and k == 0)), compiled
+                    )
                 width = panel_end - (k + 32)
                 if width > 0:
-                    _panel_inner32[(triton.cdiv(remaining, tile), batch)](
+                    compiled = _panel_inner32[(triton.cdiv(remaining, tile), batch)](
                         work,
                         src,
                         n=n,
@@ -855,10 +840,14 @@ if _HAVE_TRITON:
                         FIRST=ft and k == 0,
                         num_warps=4,
                     )
+                    if compiled is not None:
+                        _TRITON_COMPILED.setdefault(
+                            ("inner", n, panel_prec, bool(ft and k == 0)), compiled
+                        )
             rem_out = n - panel_end
             if rem_out > 0:
                 tr = triton.cdiv(rem_out, trailing_tile)
-                _trailing_nb[(tr * (tr + 1) // 2, batch)](
+                compiled = _trailing_nb[(tr * (tr + 1) // 2, batch)](
                     work,
                     src,
                     n=n,
@@ -866,21 +855,24 @@ if _HAVE_TRITON:
                     remaining=rem_out,
                     NB=nb,
                     PREC=trailing_prec,
-                    FP16_TRAILING=fp16_trailing,
                     TILE=trailing_tile,
                     FIRST=ft and j == 0,
                     num_warps=8,
                     num_stages=3,
                 )
+                if compiled is not None:
+                    _TRITON_COMPILED.setdefault(
+                        ("trailing", n, trailing_prec, bool(ft and j == 0)), compiled
+                    )
 
     _SPLIT32_GRAPHS = {}
     _SPLIT32_DINV = {}
 
     def _split32_factor(data: torch.Tensor) -> torch.Tensor:
         batch, n, _ = data.shape
-        panel_prec, trailing_prec, trailing_tile, mode, fp16_trailing = (
-            _SPLIT32_SHAPES[(batch, n)]
-        )
+        panel_prec, trailing_prec, trailing_tile, mode = _SPLIT32_SHAPES[
+            (batch, n)
+        ]
         data = data.contiguous()
 
         if mode == "eager":
@@ -892,13 +884,7 @@ if _HAVE_TRITON:
                 )
                 _SPLIT32_DINV[batch] = dinv
             _split32_launch(
-                out,
-                dinv,
-                panel_prec,
-                trailing_prec,
-                trailing_tile,
-                fp16_trailing,
-                src=data,
+                out, dinv, panel_prec, trailing_prec, trailing_tile, src=data
             )
             return out
 
@@ -912,25 +898,11 @@ if _HAVE_TRITON:
                 )
                 for _ in range(2):
                     work.copy_(data)
-                    _split32_launch(
-                        work,
-                        dinv,
-                        panel_prec,
-                        trailing_prec,
-                        trailing_tile,
-                        fp16_trailing,
-                    )
+                    _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
                 torch.cuda.synchronize()
                 graph = torch.cuda.CUDAGraph()
                 with torch.cuda.graph(graph, pool=_shared_graph_pool()):
-                    _split32_launch(
-                        work,
-                        dinv,
-                        panel_prec,
-                        trailing_prec,
-                        trailing_tile,
-                        fp16_trailing,
-                    )
+                    _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
                 # Keep BOTH buffers alive: the graph nodes hold raw device
                 # pointers into them, so dropping either is a use-after-free
                 # on every subsequent replay.
@@ -944,14 +916,7 @@ if _HAVE_TRITON:
             dinv = torch.empty(
                 batch, 32, 32, device=data.device, dtype=torch.float32
             )
-            _split32_launch(
-                work,
-                dinv,
-                panel_prec,
-                trailing_prec,
-                trailing_tile,
-                fp16_trailing,
-            )
+            _split32_launch(work, dinv, panel_prec, trailing_prec, trailing_tile)
             return work
         graph, work, _dinv = entry
         work.copy_(data)

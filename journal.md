@@ -135,6 +135,32 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 
 ---
 
+## 2026-07-17 — Session 17: FP16 trailing specialization → ranked #882825 (NEW BEST 1122.570μs)
+
+**ADOPTED.** Starting from exact ranked `#882706` (SHA-256
+`5f29c6a15241a62f7a34e2580070e057777ca96c4a95ed64a245908b753d9a56`),
+the compiler/precision pass first profiled and inspected exact Triton TTIR,
+TTGIR, PTX, cubin, resource, and SASS artifacts for `4×1024` and `8×2048`.
+The strongest candidate casts only the rank-128 trailing Schur operands to
+FP16 while retaining FP32 accumulation, and reuses existing reciprocal square
+roots for four inverse-row multiplies. PTX confirmed f16 tensor instructions
+and removal of the four late full divides.
+
+Promotion covered all six affected split32 shapes and six input families per
+shape (36/36, repeated after cleaning instrumentation and adding the static
+guard). `60×1024` showed no reliable gain, so one compile-time boolean preserves
+its exact TF32/divide kernels while enabling both optimizations on the five
+winners. The paired full grid passed 15/15 and improved 1174.1→1163.3μs
+(1.0093×); the five changed routes gained 1.5–4.9%. Local checks passed 10/10.
+
+Popcorn test `#882824` passed 17/17. Exactly one ranked job, `#882825`, passed
+all public and secret stages at **1122.5699497054058μs public** and
+**1128.5112827701096μs secret**, improving `#882706` by **6.867% / 5.784%**.
+Exact adopted/ranked SHA-256:
+`ad8bce6fdc3d037dbdc91912ddfec802d5eea844a4b6e18e4cc8552c45f66dcd`.
+Evidence and compiled artifacts are in
+`experiments/019-two-shape-compiler-fusion/`.
+
 ## 2026-07-17 — Session 16: rank-4 micro + first-touch + large-n overhaul → ranked #882706 (NEW BEST 1205.336μs)
 
 ### Goal and result
