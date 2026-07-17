@@ -63,19 +63,19 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#882927` = 1120.2139424233μs public geomean** (Session 18;
-secret 1126.4634299045994μs). `nb` = block size.
+Current best: **`#882958` = 1096.0842452192236μs public geomean** (Session 19;
+secret 1109.6451814508845μs). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
-| 4096×32  | ✗ | ✗ | **✓** (S2) | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
+| 4096×32  | ✗ | ✗ | **✓** rank-2 (S16b); rank-4 S22 1.077× Modal but rejected after mixed LB | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
 | 256×128  | ✗ | ✗ | ✗ (S2) | ✗ (S3) | TBD | TBD | TBD | TBD | **✓** (S9; manual capture S15) |
-| 64×256   | ✗ (S15) | TBD | **✓** (S15, 1.35×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
-| 16×512   | ✗ | TBD | **✓** (S15, 1.17×) | TBD | **✓** (S15) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
-| 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S15, 1.71×) | TBD | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
+| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
+| 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S21, panel-inner 64×64, 1.128× vs S20) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64, 1.089× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×; S21 subtile excluded: 1.055× isolated/0.977× grid) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
@@ -88,6 +88,31 @@ Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
 BF16x9) were tried in the blocked path and **lost to TF32** on B200 (S6), so
 they're folded into the TF32 result rather than tracked separately.
+
+### Transfer opportunities — build and leaderboard-test queue
+
+Build each opportunity in priority order against the exact current ranked
+source. Run free checks, paired same-process B200 timing, all six families for
+every changed shape, and the full 15-shape grid. Only an aggregate improvement
+may proceed to Popcorn test 17/17 and then exactly one leaderboard submission;
+leave losing shapes on their current ranked route.
+
+| Priority | Technique with positive evidence | Proven shapes | Untried transfer targets | Expected opportunity |
+|---:|---|---|---|---|
+| 1 | 64×64 panel-inner subtiling | `4×1024` **1.089×**, `8×2048` **1.055×** (S20); `64×256` **1.047×**, `16×512` **1.078×**, `640×512` **1.128×** (S21) | None | **COMPLETED.** S21 ranked at `#882958`; `60×1024` was measured and excluded after conflicting `1.055×` isolated / `0.977×` grid evidence. |
+| 2 | Rank-4 pivot processing | Six split32 shapes **1.05–1.26×** (S17); standalone `4096×32` **1.077×** Modal (S22) | None | **COMPLETED, NOT ADOPTED.** Ranked `#882969` regressed public 1.510% while improving secret 1.440%; current source stays rank-2. |
+| 3 | Reciprocal multiply replacing divides | `4×1024` **1.007×**; `8×2048` **1.005×** (S19) | None | **COMPLETED, REJECTED at `60×1024`.** Two correct probes measured `1.007×` then `0.994×`; below route noise, so no LB run. |
+| 4 | Dynamic E4M3 panel products with fused quantization | `1×32768` **1.373×**, then another **1.084×** from fused amax/quantization (S12/S14) | None | **COMPLETED, REJECTED at `1×16384`.** S24 passed 6/6 but measured `0.997×`; ~1.17ms quantization overhead erased the gain. |
+| 5 | FP8 or MXFP8 trailing Schur updates | FP8 wins at `1×32768`; FP16 trailing wins on five split32 shapes | MXFP8/refined variants remain | **FP8 ARCHITECTURE REJECTED.** S25 native tile-local E4M3 at `8×2048` was incorrect/fallback-only (0.513× invalid timing); no LB run. |
+| 6 | Recursive triangular inversion | `1×16384` **1.055×**; `1×32768` **1.028×** (S16a/S17) | None | **COMPLETED, REJECTED at `1×8192`.** Clean `nb=2048` isolation passed 6/6 but measured `0.954×` (S26). |
+| 7 | First-touch eager execution | Strongest at `640×512`; also shipped at `60×1024` (S17) | None | **COMPLETED, REJECTED at `8×2048`.** S27 passed 6/6 but measured `0.336×`; `4×1024` has less copy traffic and was closed by the stronger negative proxy. |
+| 8 | Graph-captured per-matrix loop | Graph replay wins at `1024×64`, `256×128`, and blocked mid shapes | Ineligible | **NOT BUILT:** would create a new cuSOLVER-based fast path for `2×2048`/`2×4096`, prohibited by the standing owner boundary. |
+
+Do not reopen already measured losses as transfers: rank-4 split32 at
+`2×2048`/`2×4096` (**0.764×/0.784×**), split32 at `1024×64`/`256×128`
+(**0.788×/0.904×**), graphed `4096×32` (**0.845×**), FP8 panels at
+`1×8192` versus its faster TF32 path, or fixed-scale FP8-shadow stacks at
+16384/32768 (≤1.0×).
 
 ### Blackwell B200-specific candidate solutions (the "what else")
 
@@ -132,6 +157,105 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-18 — Session 25: first-touch eager at 8×2048 → REJECTED
+
+Experiment 027 changed only `8×2048` from graph replay to first-touch eager
+execution. It passed all six families but regressed 1906.7→5678.1us
+(**0.336×**): eliminating copy-in/clone-out cannot offset eagerly submitting
+the long launch chain. The smaller `4×1024` route has less copy traffic to save
+and was closed by this stronger negative proxy. No full grid, Popcorn test, or
+leaderboard submission was run.
+
+The remaining graph-captured per-matrix transfer was not built because it
+would add a new cuSOLVER-based fast path, violating the standing owner boundary
+recorded in S16/program.md.
+
+---
+
+## 2026-07-18 — Session 24: recursive inversion at 1×8192 → REJECTED
+
+Experiment 026 isolated recursive GEMM triangular inversion at the winning
+`1×8192, nb=2048` configuration. The candidate passed all six families but
+regressed 5843.8→6126.0us (**0.954×**), closing the confounded S16a result:
+recursive inversion does not amortize at 8192. No full grid, Popcorn test, or
+leaderboard submission was run.
+
+---
+
+## 2026-07-18 — Session 23: FP8 trailing at 8×2048 → REJECTED
+
+Experiment 025 fused tile-local dynamic E4M3 scaling/casts into the existing
+trailing kernel and emitted a native FP8 dot with FP32 accumulation. It
+compiled, but all 18 timed calls took the ranked safety fallback and one
+retained dense output failed reconstruction (`relative_residual=0.023`). The
+measured 1854.6→3612.7us (**0.513×**) is invalid fallback-contaminated evidence.
+Four of six family cases also passed only through fallback. No full grid,
+Popcorn test, or leaderboard submission was run.
+
+---
+
+## 2026-07-18 — Session 22: dynamic FP8 panels at 1×16384 → REJECTED
+
+Experiment 024 transferred the ranked `1×32768` dynamic fused-amax E4M3 panel
+product to `1×16384`, preserving TF32 diagonal updates and recursive triangular
+inversion. The paired B200 probe passed 6/6 families but regressed
+15825.5→15874.2us (**0.997×**). Profiling showed about 633us in tiled amax and
+541us in fused scale/cast work, enough to erase the FP8 compute saving at this
+size. No full grid, Popcorn test, or leaderboard submission was run.
+
+---
+
+## 2026-07-18 — Session 21: reciprocal-only 60×1024 → REJECTED before ranking
+
+Experiment 023 decoupled the inverse-row reciprocal rewrite from FP16 trailing
+precision so `60×1024` retained TF32 while replacing four late full divides.
+Two independent paired probes passed 6/6 families each but measured **1.007×**
+and **0.994×**. The effect is below this route's run-to-run noise, so the
+candidate failed the stability/improvement gate. No full grid, Popcorn test,
+or leaderboard submission was run; root remains exact `#882958`.
+
+---
+
+## 2026-07-18 — Session 20: standalone rank-4 n=32 → mixed #882969, REJECTED
+
+Starting from exact ranked `#882958`, experiment 022 transferred the split32
+rank-4 scalar pivot chain to the standalone `4096×32` kernel. The paired target
+passed 6/6 families and improved 39.7→36.6us (**1.084×**); the full grid passed
+15/15 at 1128.5→1122.7us (**1.0052×**) with the target at **1.077×**.
+
+Popcorn test `#882968` passed **17/17**. Exactly one ranked submission,
+`#882969`, passed all stages at **1112.6302190816483us public /
+1093.6676344172347us secret**. This regressed public **1.5096%** while improving
+secret **1.4399%** versus `#882958`. Per the adoption rule, it was rejected and
+the exact `#882958` source remains at root. Candidate SHA-256:
+`8de4b8efe3d6a2dd89369e74db7a24d3f96cd6864044fabdc167cbb56a9bab15`.
+Evidence is in `experiments/022-rank4-n32/`.
+
+---
+
+## 2026-07-18 — Session 19: panel-inner subtiling transfer → ranked #882958 (NEW BEST 1096.084us)
+
+**ADOPTED.** Starting from exact ranked `#882927` (SHA-256
+`535813d6dcdb7589d43800dc49b2fc54de86a9a2aa4712112def52ec7ce80438`),
+experiment 021 transferred the verified 64×64 panel-inner specialization from
+`4×1024`/`8×2048` to the four remaining split32 shapes. The initial paired
+probe passed 24/24 families and measured `64×256` **1.054×**, `16×512`
+**1.045×**, `640×512` **1.123×**, and `60×1024` **1.055×**.
+
+The first 15-shape grid improved 1166.8→1149.3us (**1.0152×**), but noisy
+`60×1024` reversed to 0.977×, so the final source left that shape on its exact
+ranked route. The selected three transfers passed the final grid 15/15 at
+1141.9→1123.8us (**1.0160×**) and reproduced **1.047× / 1.078× / 1.128×**.
+
+Popcorn test `#882957` passed **17/17**. Exactly one ranked submission,
+`#882958`, passed all public and secret stages at
+**1096.0842452192236us public / 1109.6451814508845us secret**, improving
+`#882927` by **2.1540% / 1.4930%**. Exact adopted/ranked SHA-256:
+`3466e8f7a9ebb240924e642ef81acad054c31f5e17ceefa492c9d26f0ffe195d`.
+Evidence is in `experiments/021-panel-subtile-transfer/`.
 
 ---
 

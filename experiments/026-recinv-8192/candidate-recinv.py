@@ -1540,7 +1540,9 @@ _LARGE_FP8_FALLBACKS = 0
 _LARGE_FP8_ERROR = None
 
 _LARGE_CFG = {
-    8192: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=False, shadow=False),
+    # Experiment 026: isolate recursive triangular inversion at the winning
+    # 8192 block size. The earlier negative probe changed nb to 1024 too.
+    8192: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=True, shadow=False),
     16384: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=True, shadow=False),
     32768: dict(nb=4096, panel_mode="fp8", diag_mode="tf32", rec_inv=True, shadow=False),
 }

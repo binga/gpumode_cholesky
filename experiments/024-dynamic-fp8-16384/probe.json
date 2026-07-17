@@ -1,0 +1,353 @@
+{
+  "schema_version": 1,
+  "experiment": "020-panel-inner-subtile",
+  "mode": "paired-probe",
+  "baseline_sha256": "3466e8f7a9ebb240924e642ef81acad054c31f5e17ceefa492c9d26f0ffe195d",
+  "candidate_sha256": "e8c07c120af3273575f87891ff4bff6bcf45113c6e2aaeb45969e21200dff558",
+  "environment": {
+    "torch": "2.13.0+cu130",
+    "device": "NVIDIA B200",
+    "cuda": "13.0",
+    "driver": "580.95.05",
+    "triton": "3.7.1",
+    "ncu_available": true
+  },
+  "shapes": [
+    {
+      "shape": "1x16384",
+      "rotating_inputs": 1,
+      "baseline": {
+        "mean_us": 15825.49959818522,
+        "best_us": 15163.455963134766,
+        "median_us": 15180.447578430176
+      },
+      "candidate": {
+        "mean_us": 15874.182256062826,
+        "best_us": 15854.399681091309,
+        "median_us": 15872.159957885742
+      },
+      "speedup_mean": 0.9969332179073973,
+      "paired_speedup_mean": 0.9969058967656504,
+      "paired_rounds": [
+        {
+          "round": 0,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 24881.664276123047,
+          "candidate_us": 15885.024070739746,
+          "speedup": 1.5663598723753358
+        },
+        {
+          "round": 1,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15893.631935119629,
+          "baseline_us": 15190.303802490234,
+          "speedup": 0.955747802925065
+        },
+        {
+          "round": 2,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15184.703826904297,
+          "candidate_us": 15854.399681091309,
+          "speedup": 0.9577596208208551
+        },
+        {
+          "round": 3,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15873.248100280762,
+          "baseline_us": 15170.751571655273,
+          "speedup": 0.9557433661852067
+        },
+        {
+          "round": 4,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15182.751655578613,
+          "candidate_us": 15895.263671875,
+          "speedup": 0.9551745708026786
+        },
+        {
+          "round": 5,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15888.223648071289,
+          "baseline_us": 15163.455963134766,
+          "speedup": 0.9543833407062781
+        },
+        {
+          "round": 6,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15192.288398742676,
+          "candidate_us": 15872.159957885742,
+          "speedup": 0.9571657820393067
+        },
+        {
+          "round": 7,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15863.295555114746,
+          "baseline_us": 15174.240112304688,
+          "speedup": 0.9565629070948067
+        },
+        {
+          "round": 8,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15171.903610229492,
+          "candidate_us": 15863.007545471191,
+          "speedup": 0.9564329820016377
+        },
+        {
+          "round": 9,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15871.10424041748,
+          "baseline_us": 15180.447578430176,
+          "speedup": 0.9564833894652098
+        },
+        {
+          "round": 10,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15166.879653930664,
+          "candidate_us": 15863.007545471191,
+          "speedup": 0.956116273062023
+        },
+        {
+          "round": 11,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15879.96768951416,
+          "baseline_us": 15177.599906921387,
+          "speedup": 0.9557702007758769
+        },
+        {
+          "round": 12,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15187.16812133789,
+          "candidate_us": 15865.216255187988,
+          "speedup": 0.957261967127087
+        },
+        {
+          "round": 13,
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "candidate_us": 15867.199897766113,
+          "baseline_us": 15177.791595458984,
+          "speedup": 0.9565513570920482
+        },
+        {
+          "round": 14,
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "baseline_us": 15180.543899536133,
+          "candidate_us": 15877.984046936035,
+          "speedup": 0.9560750190113406
+        }
+      ],
+      "candidate_checks": [
+        {
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=9.04; batch=1; n=16384"
+        }
+      ],
+      "candidate_all_ok": true,
+      "counters_before": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null,
+        "_LARGE_FP8_HITS": 0,
+        "_LARGE_FP8_FALLBACKS": 0,
+        "_LARGE_FP8_ERROR": null
+      },
+      "counters_after": {
+        "_FUSED_CTA_HITS": 0,
+        "_FUSED_CTA_FALLBACKS": 0,
+        "_FUSED_CTA_ERROR": null,
+        "_GRAPH_SP_HITS": 0,
+        "_GRAPH_SP_FALLBACKS": 0,
+        "_GRAPH_SP_ERROR": null,
+        "_LARGE_FP8_HITS": 18,
+        "_LARGE_FP8_FALLBACKS": 0,
+        "_LARGE_FP8_ERROR": null
+      }
+    }
+  ],
+  "families": {
+    "1x16384": [
+      {
+        "family": "dense",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=9.01; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "spectrum",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.108; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "diagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000122; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "lowrank",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.000826; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "rowscale",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.024; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      },
+      {
+        "family": "tridiagonal",
+        "ok": true,
+        "msg": "scaled_reconstruction_residual=0.0132; batch=1; n=16384",
+        "hits_delta": 0,
+        "fallbacks_delta": 0
+      }
+    ]
+  },
+  "profiles": {
+    "1x16384": [
+      {
+        "kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1, 1> >(int, int, void*, int, vo",
+        "self_us": 5019.8872,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "void kernel_trsm_l_mul32<float, 8, false, false, false, false>(int, int, float const*, float const*,",
+        "self_us": 4419.442799999986,
+        "count_per_call": 56.0
+      },
+      {
+        "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_co",
+        "self_us": 1446.4773999999813,
+        "count_per_call": 157.0
+      },
+      {
+        "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x256x32_0_tnn_align4_2sm_bias_f32",
+        "self_us": 690.2634000000018,
+        "count_per_call": 7.0
+      },
+      {
+        "kernel": "_dual_tiled_amax_e4m3_32768",
+        "self_us": 633.3716000000019,
+        "count_per_call": 6.0
+      },
+      {
+        "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x256x32_0_nnn_align4_2sm_bias_f32",
+        "self_us": 557.3944000000027,
+        "count_per_call": 6.0
+      },
+      {
+        "kernel": "_dual_scale_cast_e4m3_32768",
+        "self_us": 540.783599999995,
+        "count_per_call": 6.0
+      },
+      {
+        "kernel": "nvjet_sm100_qqsss_128x256_128x6_2x2_2cta_h_bz_NNT",
+        "self_us": 303.23779999999533,
+        "count_per_call": 5.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, ",
+        "self_us": 233.47199999999074,
+        "count_per_call": 50.0
+      },
+      {
+        "kernel": "void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_align4>(cutlass_80_tensorop_s1688g",
+        "self_us": 163.01200000000608,
+        "count_per_call": 28.0
+      },
+      {
+        "kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<cha",
+        "self_us": 141.76399999999722,
+        "count_per_call": 6.0
+      },
+      {
+        "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda::detail::TensorInfo<float, in",
+        "self_us": 121.05280000000121,
+        "count_per_call": 8.0
+      },
+      {
+        "kernel": "cutlass3x_sm100_tensorop_s128x256x8tf32gemm_f32_f32_f32_f32_f32_128x256x32_0_nnn_align4_2sm_epi_tma_",
+        "self_us": 90.68760000000074,
+        "count_per_call": 1.0
+      },
+      {
+        "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::func_wrapper_t<float,",
+        "self_us": 89.29099999999616,
+        "count_per_call": 12.0
+      },
+      {
+        "kernel": "cutlass3x_sm100_tensorop_s128x64x8tf32gemm_f32_f32_f32_f32_f32_128x64x32_0_ttn_align4_2sm_epi_tma_bi",
+        "self_us": 74.83599999999979,
+        "count_per_call": 14.0
+      }
+    ]
+  },
+  "final_counters": {
+    "_FUSED_CTA_HITS": 0,
+    "_FUSED_CTA_FALLBACKS": 0,
+    "_FUSED_CTA_ERROR": null,
+    "_GRAPH_SP_HITS": 0,
+    "_GRAPH_SP_FALLBACKS": 0,
+    "_GRAPH_SP_ERROR": null,
+    "_LARGE_FP8_HITS": 29,
+    "_LARGE_FP8_FALLBACKS": 3,
+    "_LARGE_FP8_ERROR": null
+  },
+  "passed": true,
+  "geomean_target_speedup": 0.9969332179073973,
+  "compiled_artifacts": {}
+}

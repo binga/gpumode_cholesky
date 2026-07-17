@@ -1541,7 +1541,10 @@ _LARGE_FP8_ERROR = None
 
 _LARGE_CFG = {
     8192: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=False, shadow=False),
-    16384: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=True, shadow=False),
+    # Experiment 024: transfer the successful dynamic fused-amax E4M3 panel
+    # products from 32768 to 16384. Diagonal updates remain TF32 and recursive
+    # triangular inversion remains unchanged.
+    16384: dict(nb=2048, panel_mode="fp8", diag_mode="tf32", rec_inv=True, shadow=False),
     32768: dict(nb=4096, panel_mode="fp8", diag_mode="tf32", rec_inv=True, shadow=False),
 }
 

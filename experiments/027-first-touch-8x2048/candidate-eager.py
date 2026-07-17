@@ -836,7 +836,9 @@ if _HAVE_TRITON:
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
         (4, 1024): ("tf32x3", "tf32", 128, "graph", True),
         (60, 1024): ("tf32x3", "tf32", 128, "eager", False),
-        (8, 2048): ("tf32x3", "tf32", 128, "graph", True),
+        # Experiment 027: transfer first-touch eager execution from the two
+        # high-batch winners to 8x2048, removing graph copy-in/clone-out.
+        (8, 2048): ("tf32x3", "tf32", 128, "eager", True),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128

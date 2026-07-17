@@ -134,41 +134,78 @@ if _HAVE_TRITON:
         tl.store(l_ptrs, a)
 
     @triton.jit
-    def _chol32_rank2_kernel(
+    def _chol32_rank4_kernel(
         A_ptr,
         L_ptr,
         N: tl.constexpr,
     ):
-        """One warp factorizes one 32x32 SPD matrix with rank-2 steps: the
-        serial dependency chain is 16 iterations instead of 32."""
+        """One warp factorizes one 32x32 SPD matrix with rank-4 steps: the
+        serial dependency chain is eight iterations instead of sixteen."""
         pid = tl.program_id(0).to(tl.int64)
         r = tl.arange(0, N)
         c = tl.arange(0, N)
         a = tl.load(A_ptr + pid * N * N + r[:, None] * N + c[None, :])
-        for it in range(0, N // 2):
-            p = 2 * it
-            q = p + 1
-            colp = tl.sum(tl.where(c[None, :] == p, a, 0.0), axis=1)
-            colq = tl.sum(tl.where(c[None, :] == q, a, 0.0), axis=1)
-            dpp = tl.sum(tl.where(r == p, colp, 0.0), axis=0)
-            aqq = tl.sum(tl.where(r == q, colq, 0.0), axis=0)
-            inv1 = 1.0 / tl.sqrt(dpp)
-            lp = tl.where(r >= p, colp * inv1, 0.0)
-            l21 = tl.sum(tl.where(r == q, lp, 0.0), axis=0)
-            dqq = aqq - l21 * l21
-            inv2 = 1.0 / tl.sqrt(dqq)
-            lq = tl.where(r >= q, (colq - l21 * lp) * inv2, 0.0)
-            trail = (r[:, None] > q) & (c[None, :] > q)
+        for it in range(0, N // 4):
+            p0 = 4 * it
+            p1 = p0 + 1
+            p2 = p0 + 2
+            p3 = p0 + 3
+            c0 = tl.sum(tl.where(c[None, :] == p0, a, 0.0), axis=1)
+            c1 = tl.sum(tl.where(c[None, :] == p1, a, 0.0), axis=1)
+            c2 = tl.sum(tl.where(c[None, :] == p2, a, 0.0), axis=1)
+            c3 = tl.sum(tl.where(c[None, :] == p3, a, 0.0), axis=1)
+            m00 = tl.sum(tl.where(r == p0, c0, 0.0), axis=0)
+            m01 = tl.sum(tl.where(r == p1, c0, 0.0), axis=0)
+            m02 = tl.sum(tl.where(r == p2, c0, 0.0), axis=0)
+            m03 = tl.sum(tl.where(r == p3, c0, 0.0), axis=0)
+            m11 = tl.sum(tl.where(r == p1, c1, 0.0), axis=0)
+            m12 = tl.sum(tl.where(r == p2, c1, 0.0), axis=0)
+            m13 = tl.sum(tl.where(r == p3, c1, 0.0), axis=0)
+            m22 = tl.sum(tl.where(r == p2, c2, 0.0), axis=0)
+            m23 = tl.sum(tl.where(r == p3, c2, 0.0), axis=0)
+            m33 = tl.sum(tl.where(r == p3, c3, 0.0), axis=0)
+            inv0 = 1.0 / tl.sqrt(m00)
+            s01 = m01 * inv0
+            s02 = m02 * inv0
+            s03 = m03 * inv0
+            d1 = m11 - s01 * s01
+            inv1 = 1.0 / tl.sqrt(d1)
+            s12 = (m12 - s01 * s02) * inv1
+            s13 = (m13 - s01 * s03) * inv1
+            d2 = m22 - s02 * s02 - s12 * s12
+            inv2 = 1.0 / tl.sqrt(d2)
+            s23 = (m23 - s02 * s03 - s12 * s13) * inv2
+            d3 = m33 - s03 * s03 - s13 * s13 - s23 * s23
+            inv3 = 1.0 / tl.sqrt(d3)
+            l0 = tl.where(r >= p0, c0 * inv0, 0.0)
+            l1 = tl.where(r >= p1, (c1 - s01 * l0) * inv1, 0.0)
+            l2 = tl.where(r >= p2, (c2 - s02 * l0 - s12 * l1) * inv2, 0.0)
+            l3 = tl.where(
+                r >= p3, (c3 - s03 * l0 - s13 * l1 - s23 * l2) * inv3, 0.0
+            )
+            trail = (r[:, None] > p3) & (c[None, :] > p3)
             a = tl.where(
-                c[None, :] == p,
-                lp[:, None],
+                c[None, :] == p0,
+                l0[:, None],
                 tl.where(
-                    c[None, :] == q,
-                    lq[:, None],
+                    c[None, :] == p1,
+                    l1[:, None],
                     tl.where(
-                        trail,
-                        a - lp[:, None] * lp[None, :] - lq[:, None] * lq[None, :],
-                        a,
+                        c[None, :] == p2,
+                        l2[:, None],
+                        tl.where(
+                            c[None, :] == p3,
+                            l3[:, None],
+                            tl.where(
+                                trail,
+                                a
+                                - l0[:, None] * l0[None, :]
+                                - l1[:, None] * l1[None, :]
+                                - l2[:, None] * l2[None, :]
+                                - l3[:, None] * l3[None, :],
+                                a,
+                            ),
+                        ),
                     ),
                 ),
             )
@@ -179,7 +216,7 @@ if _HAVE_TRITON:
         batch, n, _ = data.shape
         data = data.contiguous()
         out = torch.empty_like(data)
-        _chol32_rank2_kernel[(batch,)](data, out, N=n, num_warps=1)
+        _chol32_rank4_kernel[(batch,)](data, out, N=n, num_warps=1)
         return out
 
     _NUM_WARPS = {32: 1}

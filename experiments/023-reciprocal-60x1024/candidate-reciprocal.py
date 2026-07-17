@@ -870,6 +870,11 @@ if _HAVE_TRITON:
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
         batch, n, _ = work.shape
+        # Experiment 023: decouple the inverse-row reciprocal rewrite from
+        # FP16 trailing precision. The 60x1024 route keeps its ranked TF32
+        # trailing kernel but reuses the already-computed reciprocal square
+        # roots instead of issuing four late full divides per rank-4 step.
+        reciprocal_solve = fp16_trailing or (batch == 60 and n == 1024)
         tile = _SPLIT32_TILE
         nb = _SPLIT32_NB
         ft = src is not None
@@ -885,7 +890,7 @@ if _HAVE_TRITON:
                     n=n,
                     k=k,
                     FIRST=ft and k == 0,
-                    RECIPROCAL_SOLVE=fp16_trailing,
+                    RECIPROCAL_SOLVE=reciprocal_solve,
                     num_warps=1,
                 )
                 remaining = n - k - 32

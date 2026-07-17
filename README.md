@@ -100,7 +100,34 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#882927`** (exp 020 — current best): `done`, public
+- **Ranked submission `#882958`** (exp 021 — current best): `done`, public
+  geomean **1096.0842452192236us** and secret **1109.6451814508845us**
+  (**−2.154% / −1.493%** vs exp 020). Extends the 64×64 panel-inner
+  specialization to `64×256`, `16×512`, and `640×512`, with paired final-grid
+  gains of **1.047× / 1.078× / 1.128×**. The noisy `60×1024` transfer was
+  excluded. Changed families passed 24/24, the selected full grid passed 15/15
+  at **1.0160×**, and Popcorn test `#882957` passed 17/17. See
+  `experiments/021-panel-subtile-transfer/`.
+- **Experiment 022 rank-4 `n=32`: not adopted.** Modal improved `4096×32`
+  **1.084×** and the full grid **1.0052×**; test `#882968` passed 17/17.
+  Ranked `#882969` was mixed at **1112.630us public / 1093.668us secret**:
+  public regressed 1.510% while secret improved 1.440%. Root remains `#882958`.
+- **Experiment 023 reciprocal-only `60×1024`: rejected before ranking.** Two
+  correct paired probes measured **1.007×** then **0.994×**, so the effect is
+  below route noise. No Popcorn quota was used.
+- **Experiment 024 dynamic FP8 at `1×16384`: rejected before ranking.** It
+  passed 6/6 families but measured **0.997×**; fused amax and quantization cost
+  about 1.17ms and erased the FP8 compute saving. No Popcorn quota was used.
+- **Experiment 025 FP8 trailing at `8×2048`: rejected before ranking.** Native
+  FP8 compiled, but timed calls fell back and one retained dense output failed
+  reconstruction. The apparent 0.513× timing is invalid fallback evidence.
+- **Experiment 026 recursive inversion at `1×8192`: rejected before ranking.**
+  The clean `nb=2048` isolation passed 6/6 but measured **0.954×**. No Popcorn
+  quota was used.
+- **Experiment 027 first-touch eager at `8×2048`: rejected before ranking.**
+  It passed 6/6 but measured **0.336×**; loss of graph replay dominates the
+  eliminated copies. No Popcorn quota was used.
+- **Ranked submission `#882927`** (exp 020): `done`, public
   geomean **1120.2139424233us** and secret **1126.4634299045994us**
   (**−0.210% / −0.181%** vs exp 019). Replaces the spilling 128×128 panel-inner
   output tile with a 64×64 specialization only at `4×1024` and `8×2048`.

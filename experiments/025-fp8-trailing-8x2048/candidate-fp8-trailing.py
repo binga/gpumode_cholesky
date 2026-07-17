@@ -777,6 +777,7 @@ if _HAVE_TRITON:
         NB: tl.constexpr,
         PREC: tl.constexpr,
         FP16_TRAILING: tl.constexpr,
+        FP8_TRAILING: tl.constexpr,
         TILE: tl.constexpr,
         FIRST: tl.constexpr,
     ):
@@ -801,7 +802,20 @@ if _HAVE_TRITON:
             mask=cols[:, None] < remaining,
             other=0.0,
         )
-        if FP16_TRAILING:
+        if FP8_TRAILING:
+            # Experiment 025: fuse tile-local dynamic E4M3 quantization into
+            # the trailing kernel. Reductions/casts stay in this CTA, so there
+            # are no extra quantization launches or global temporaries.
+            amax_i = tl.max(tl.max(tl.abs(li), axis=1), axis=0)
+            amax_j = tl.max(tl.max(tl.abs(lj), axis=1), axis=0)
+            scale_i = 448.0 / tl.maximum(amax_i, 1.0e-6)
+            scale_j = 448.0 / tl.maximum(amax_j, 1.0e-6)
+            prod = tl.dot(
+                (li * scale_i).to(tl.float8e4nv),
+                tl.trans((lj * scale_j).to(tl.float8e4nv)),
+                out_dtype=tl.float32,
+            ) * (1.0 / (scale_i * scale_j))
+        elif FP16_TRAILING:
             prod = tl.dot(
                 li.to(tl.float16),
                 tl.trans(lj.to(tl.float16)),
@@ -870,6 +884,7 @@ if _HAVE_TRITON:
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
         batch, n, _ = work.shape
+        fp8_trailing = batch == 8 and n == 2048
         tile = _SPLIT32_TILE
         nb = _SPLIT32_NB
         ft = src is not None
@@ -949,6 +964,7 @@ if _HAVE_TRITON:
                     NB=nb,
                     PREC=trailing_prec,
                     FP16_TRAILING=fp16_trailing,
+                    FP8_TRAILING=fp8_trailing,
                     TILE=trailing_tile,
                     FIRST=ft and j == 0,
                     num_warps=8,

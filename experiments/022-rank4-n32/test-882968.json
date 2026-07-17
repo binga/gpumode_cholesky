@@ -1,0 +1,12 @@
+{
+  "submission_id": 882968,
+  "leaderboard": "cholesky",
+  "file_name": "submission.py",
+  "mode": "test",
+  "runner": "B200",
+  "status": "succeeded",
+  "passed": true,
+  "tests_passed": 17,
+  "tests_total": 17,
+  "candidate_sha256": "8de4b8efe3d6a2dd89369e74db7a24d3f96cd6864044fabdc167cbb56a9bab15"
+}

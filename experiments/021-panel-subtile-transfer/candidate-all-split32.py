@@ -840,15 +840,16 @@ if _HAVE_TRITON:
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
-    # Experiment 021 final: retain the three stable transfer winners alongside
-    # experiment 020's two ranked routes. The 60x1024 transfer was positive in
-    # the isolated probe but regressed in the full grid, so it stays on the
-    # exact #882927 128x128 panel-inner specialization.
+    # Experiment 021 transfer probe: extend the experiment-020 64x64
+    # panel-inner specialization from its two ranked winners to every
+    # remaining split32 dispatch. Paired measurement will retain only
+    # shapes that beat the exact #882927 baseline.
     _PANEL_INNER_SUBTILE64_SHAPES = {
         (64, 256),
         (16, 512),
         (640, 512),
         (4, 1024),
+        (60, 1024),
         (8, 2048),
     }
 

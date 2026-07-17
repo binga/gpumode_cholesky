@@ -47,4 +47,11 @@ and auditable.
 | 016b | rank-2 one-warp n=32 kernel; graphed-4096×32 and small-n split32 rejected | 4096×32 paired 1.591× (62.8→39.5μs) | — (integrated in 017) | **adopted via 017** |
 | 017 | rank-4 pivot micro + first-touch eager mode (640×512/60×1024) + mirror-zero stores; CUDA/queue-API micro abandoned by owner directive (no scanner workarounds) | 1205.336μs public / 1197.791μs secret; paired 1.05–1.26×; single-module grid 1195.7μs (1.109×) | #882706 | superseded by 019 |
 | 019 | FP16 trailing inputs with FP32 accumulation on five split32 shapes + reciprocal inverse-row solve | 1122.570μs public / 1128.511μs secret; Modal grid 1.0093× | #882825 | superseded by 020 |
-| 020 | 64×64 panel-inner subtiling at 4×1024 and 8×2048; 255→114 registers and 408→0 stack bytes | 1120.214μs public / 1126.463μs secret; paired 1.089×/1.055×; Modal grid 1.00995× | #882927 | **adopted (current best)** |
+| 020 | 64×64 panel-inner subtiling at 4×1024 and 8×2048; 255→114 registers and 408→0 stack bytes | 1120.214μs public / 1126.463μs secret; paired 1.089×/1.055×; Modal grid 1.00995× | #882927 | superseded by 021 |
+| 021 | transfer 64×64 panel-inner subtiling to 64×256, 16×512, and 640×512; exclude noisy 60×1024 route | 1096.084μs public / 1109.645μs secret; paired grid 1.0160× | #882958 | **adopted (current best)** |
+| 022 | standalone rank-4 n=32 pivot chain | Modal target 1.084×, grid 1.0052×; leaderboard 1112.630μs public / 1093.668μs secret | #882969 | **rejected: public regressed, secret improved** |
+| 023 | decouple reciprocal inverse-row solve from FP16 at 60×1024 | paired 1.007× then 0.994×, both 6/6 families | — | **rejected: below measurement noise** |
+| 024 | transfer dynamic fused-amax E4M3 panel products to 1×16384 | 15825.5→15874.2μs (0.997×), 6/6 families | — | **rejected: quantization overhead** |
+| 025 | tile-local dynamic E4M3 trailing update at 8×2048 | 0.513× fallback-contaminated; retained dense failure | — | **rejected: incorrect/fallback-only** |
+| 026 | recursive GEMM triangular inversion at 1×8192 with nb=2048 fixed | 5843.8→6126.0μs (0.954×), 6/6 families | — | **rejected: slower** |
+| 027 | transfer first-touch eager execution to 8×2048 | 1906.7→5678.1μs (0.336×), 6/6 families | — | **rejected: graph replay essential** |

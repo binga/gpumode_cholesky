@@ -840,17 +840,7 @@ if _HAVE_TRITON:
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
-    # Experiment 021 final: retain the three stable transfer winners alongside
-    # experiment 020's two ranked routes. The 60x1024 transfer was positive in
-    # the isolated probe but regressed in the full grid, so it stays on the
-    # exact #882927 128x128 panel-inner specialization.
-    _PANEL_INNER_SUBTILE64_SHAPES = {
-        (64, 256),
-        (16, 512),
-        (640, 512),
-        (4, 1024),
-        (8, 2048),
-    }
+    _PANEL_INNER_SUBTILE64_SHAPES = {(4, 1024), (8, 2048)}
 
     def _split32_launch(
         work,
