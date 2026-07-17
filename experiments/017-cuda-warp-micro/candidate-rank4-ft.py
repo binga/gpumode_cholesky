@@ -1,17 +1,10 @@
 #!POPCORN leaderboard cholesky
 #!POPCORN gpu B200
 
-"""GPU MODE `cholesky` submission — experiments 016a+016b+017 integrated.
-
-On top of the exact exp-015 ranked winner (#881981): (016b) rank-2 one-warp
-n=32 kernel (1.591x); (017) rank-4 pivot micro in the split32 pipeline plus
-first-touch eager mode for 640x512/60x1024 (no copy-in/clone-out) and
-mirror-zero panel stores replacing the clear pass (paired 1.05-1.26x on the
-six split32 shapes); (016a) large single-matrix left-looking paths: 8192 off
-pure cuSOLVER onto TF32 (1.138x) and recursive GEMM triangular inversion at
-16384/32768 (1.055x/1.028x). Rejected with evidence this round:
-2x2048/2x4096 split32 (0.76-0.78x), FP8-shadow fixed-scale stack (<=1.0x),
-TILE=256 trailing.
+"""GPU MODE `cholesky` submission — experiment 017 candidate: rank-4 pivot
+steps in the 1-warp diagonal micro kernel (8 serial iterations per 32
+columns) and split32 dispatch extended to 2x2048 and 2x4096. Everything else
+is the exact exp-015 ranked winner (#881981).
 
 Prior module docstring — experiment 015 final candidate.
 
@@ -132,55 +125,6 @@ if _HAVE_TRITON:
             + cols[None, :] * stride_lj
         )
         tl.store(l_ptrs, a)
-
-    @triton.jit
-    def _chol32_rank2_kernel(
-        A_ptr,
-        L_ptr,
-        N: tl.constexpr,
-    ):
-        """One warp factorizes one 32x32 SPD matrix with rank-2 steps: the
-        serial dependency chain is 16 iterations instead of 32."""
-        pid = tl.program_id(0).to(tl.int64)
-        r = tl.arange(0, N)
-        c = tl.arange(0, N)
-        a = tl.load(A_ptr + pid * N * N + r[:, None] * N + c[None, :])
-        for it in range(0, N // 2):
-            p = 2 * it
-            q = p + 1
-            colp = tl.sum(tl.where(c[None, :] == p, a, 0.0), axis=1)
-            colq = tl.sum(tl.where(c[None, :] == q, a, 0.0), axis=1)
-            dpp = tl.sum(tl.where(r == p, colp, 0.0), axis=0)
-            aqq = tl.sum(tl.where(r == q, colq, 0.0), axis=0)
-            inv1 = 1.0 / tl.sqrt(dpp)
-            lp = tl.where(r >= p, colp * inv1, 0.0)
-            l21 = tl.sum(tl.where(r == q, lp, 0.0), axis=0)
-            dqq = aqq - l21 * l21
-            inv2 = 1.0 / tl.sqrt(dqq)
-            lq = tl.where(r >= q, (colq - l21 * lp) * inv2, 0.0)
-            trail = (r[:, None] > q) & (c[None, :] > q)
-            a = tl.where(
-                c[None, :] == p,
-                lp[:, None],
-                tl.where(
-                    c[None, :] == q,
-                    lq[:, None],
-                    tl.where(
-                        trail,
-                        a - lp[:, None] * lp[None, :] - lq[:, None] * lq[None, :],
-                        a,
-                    ),
-                ),
-            )
-        a = tl.where(c[None, :] <= r[:, None], a, 0.0)
-        tl.store(L_ptr + pid * N * N + r[:, None] * N + c[None, :], a)
-
-    def _triton_cholesky32_rank2(data: torch.Tensor) -> torch.Tensor:
-        batch, n, _ = data.shape
-        data = data.contiguous()
-        out = torch.empty_like(data)
-        _chol32_rank2_kernel[(batch,)](data, out, N=n, num_warps=1)
-        return out
 
     _NUM_WARPS = {32: 1}
 
@@ -1396,160 +1340,16 @@ def _blocked_cholesky_tf32(mat: torch.Tensor, nb: int) -> torch.Tensor:
         torch.backends.cuda.matmul.allow_tf32 = prev_tf32
     return torch.tril(a)
 
-# ---------------------------------------------------------------------------
-# Experiment 016a: generalized large single-matrix left-looking path.
-# ---------------------------------------------------------------------------
-import math as _math
-
-_LARGE_FP8_HITS = 0
-_LARGE_FP8_FALLBACKS = 0
-_LARGE_FP8_ERROR = None
-
-_LARGE_CFG = {
-    8192: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=False, shadow=False),
-    16384: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=True, shadow=False),
-    32768: dict(nb=4096, panel_mode="fp8", diag_mode="tf32", rec_inv=True, shadow=False),
-}
-
-
-def _tri_inv_recursive(lower: torch.Tensor, base: int = 512) -> torch.Tensor:
-    """Explicit inverse of a lower-triangular factor by recursive 2x2
-    blocking: inv([[A,0],[B,C]]) = [[Ai,0],[-Ci@B@Ai, Ci]]. The combines are
-    plain GEMMs (TF32 tensor cores under the caller's allow_tf32), replacing
-    the launch- and TRSM-bound solve_triangular against identity."""
-    n = lower.shape[0]
-    if n <= base:
-        identity = torch.eye(n, device=lower.device, dtype=lower.dtype)
-        return torch.linalg.solve_triangular(lower, identity, upper=False)
-    m = n // 2
-    inv11 = _tri_inv_recursive(lower[:m, :m], base)
-    inv22 = _tri_inv_recursive(lower[m:, m:], base)
-    out = torch.zeros_like(lower)
-    out[:m, :m] = inv11
-    out[m:, m:] = inv22
-    out[m:, :m] = -(inv22 @ (lower[m:, :m] @ inv11))
-    return out
-
-
-def _shadow_product(
-    shadow: torch.Tensor,
-    r0: int,
-    r1: int,
-    k: int,
-    t0: int,
-    t1: int,
-    decode: torch.Tensor,
-) -> torch.Tensor:
-    """shadow[r0:r1, :k] @ shadow[t0:t1, :k]^T from the persistent FP8 copy
-    of the factor: no per-panel amax, no re-quantization of the frontier."""
-    lhs = shadow[r0:r1, :k].contiguous()
-    rhs = shadow[t0:t1, :k].t().contiguous()
-    return _scaled_mm_fp8_32768(lhs, rhs, decode, decode)
-
-
-def _left_looking_large(
-    mat: torch.Tensor,
-    nb: int,
-    panel_mode: str,
-    diag_mode: str,
-    rec_inv: bool,
-    shadow: bool,
-) -> torch.Tensor:
-    n = mat.shape[0]
-    factor = torch.zeros_like(mat)
-    shadow_buf = None
-    decode = None
-    scale_val = None
-    if shadow:
-        diag_in = mat.diagonal()
-        dmax = float(diag_in.max().item())
-        dmin = float(diag_in.min().item())
-        # Fixed-scale quantization is only sound when the diagonal dynamic
-        # range is modest (|L_ij| <= sqrt(max_ii A_ii), small entries must
-        # not underflow). Ill-conditioned families take the shipped path.
-        if not (dmin > 0.0 and dmax > 0.0) or dmax / dmin > 1.0e4:
-            raise RuntimeError("large-path dynamic-range guard")
-        scale_val = 448.0 / _math.sqrt(dmax)
-        decode = torch.full(
-            (), 1.0 / scale_val, device=mat.device, dtype=torch.float32
-        )
-        shadow_buf = torch.empty(
-            n, n, device=mat.device, dtype=torch.float8_e4m3fn
-        )
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            kb = min(nb, n - k)
-            diagonal = mat[k : k + kb, k : k + kb].clone()
-            if k:
-                if diag_mode == "fp8":
-                    diagonal.sub_(
-                        _shadow_product(
-                            shadow_buf, k, k + kb, k, k, k + kb, decode
-                        )
-                    )
-                else:
-                    row = factor[k : k + kb, :k]
-                    diagonal.addmm_(
-                        row, row.transpose(-1, -2), beta=1.0, alpha=-1.0
-                    )
-            lkk = torch.linalg.cholesky_ex(diagonal, check_errors=False).L
-            factor[k : k + kb, k : k + kb] = lkk
-            j = k + kb
-            if j >= n:
-                break
-            panel = mat[j:, k : k + kb].clone()
-            if k:
-                if panel_mode == "fp8_shadow":
-                    panel.sub_(
-                        _shadow_product(shadow_buf, j, n, k, k, k + kb, decode)
-                    )
-                elif panel_mode == "fp8":
-                    panel.sub_(
-                        _fp8_product_32768(
-                            factor[j:, :k],
-                            factor[k : k + kb, :k].transpose(-1, -2),
-                        )
-                    )
-                else:
-                    panel.addmm_(
-                        factor[j:, :k],
-                        factor[k : k + kb, :k].transpose(-1, -2),
-                        beta=1.0,
-                        alpha=-1.0,
-                    )
-            if rec_inv:
-                inverse = _tri_inv_recursive(lkk)
-                factor[j:, k : k + kb] = panel @ inverse.transpose(-1, -2)
-            else:
-                factor[j:, k : k + kb] = torch.linalg.solve_triangular(
-                    lkk.transpose(-1, -2), panel, upper=True, left=False
-                )
-            if shadow:
-                block = factor[k:n, k : k + kb]
-                shadow_buf[k:n, k : k + kb].copy_(
-                    (block * scale_val).to(torch.float8_e4m3fn)
-                )
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    return factor
-
-
-# ---------------------------------------------------------------------------
-
-
 
 def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
-    global _LARGE_FP8_HITS, _LARGE_FP8_FALLBACKS, _LARGE_FP8_ERROR
     global _FUSED_CTA_HITS, _FUSED_CTA_FALLBACKS, _FUSED_CTA_ERROR
 
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
 
     if is_f32_cuda and _HAVE_TRITON and n == 32:
-        return _triton_cholesky32_rank2(data)
+        return _triton_cholesky32(data)
 
     # Experiment 015 round 4: two-level blocked tensor-core potrf with
     # per-shape graph replay for the mid shapes. On any numerical failure
@@ -1582,17 +1382,6 @@ def custom_kernel(data: input_t) -> output_t:
         if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
             return l
         return torch.linalg.cholesky_ex(data, check_errors=False).L
-
-    if is_f32_cuda and batch == 1 and n in _LARGE_CFG:
-        try:
-            l = _left_looking_large(data[0], **_LARGE_CFG[n])
-            if torch.isfinite(l.diagonal()).all().item():
-                _LARGE_FP8_HITS += 1
-                return l.unsqueeze(0)
-            _LARGE_FP8_FALLBACKS += 1
-        except Exception as exc:
-            _LARGE_FP8_ERROR = repr(exc)
-            _LARGE_FP8_FALLBACKS += 1
 
     if is_f32_cuda and batch == 1 and n == 16384:
         try:

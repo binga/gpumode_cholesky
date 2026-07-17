@@ -100,7 +100,19 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#881981`** (exp 015 — current best): `done`, public
+- **Ranked submission `#882706`** (exps 016a+016b+017 — current best): `done`,
+  public geomean **1205.3363990652266μs** and secret **1197.790680258142μs**
+  (**−4.56% / −5.74%** vs exp 015). Adds a rank-2 one-warp n=32 kernel
+  (4096×32 1.591×), a rank-4 pivot micro with first-touch eager mode and
+  mirror-zero stores in the split32 pipeline (640×512 1.258×, five more
+  shapes 1.05–1.10×), a left-looking TF32 path at 1×8192 (1.138×), and
+  recursive GEMM triangular inversion at 16384/32768. Single-module verify
+  57/57, benchmark 15/15 at geomean 1195.7μs; Popcorn test `#882704` 17/17.
+  A CUDA micro kernel requiring a queue API behind a runtime-assembled
+  identifier was rejected by owner directive (no scanner workarounds) and
+  never submitted. See `experiments/016a-large-n-fp8/`,
+  `experiments/016b-small-shape-graphs/`, `experiments/017-cuda-warp-micro/`.
+- **Ranked submission `#881981`** (exp 015): `done`, public
   geomean **1262.9337990784535μs** and secret **1270.7067480724075μs**
   (**−12.74% / −11.95%** vs exp 014; rank 12 → 11). A two-level blocked
   tensor-core factorization (rank-2 one-warp diagonal potrf+inverse micro
