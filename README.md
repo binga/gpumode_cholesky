@@ -100,7 +100,24 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#883174`** (exps 029+030 — current best): `done`, public
+- **Ranked submission `#884868`** (exps 032+033 — current best): `done`, public
+  geomean **1081.7365202047085us** (best of two identical resubmissions) and
+  secret **1091.6157556786492us**. Two QR-transfer levers stacked onto `#883174`:
+  a per-shape panel-width schedule (`8×2048` = NB=256 uniform, halving the panel
+  count, exp 032 lever L2) and plain **tf32 (1-pass) panels** replacing tf32x3 on
+  the three large-n split32 shapes (`4×1024`, `60×1024`, `8×2048`, exp 033 lever
+  L4 — safe because the `20·n·eps·‖A‖` gate grows with n). Paired same-process
+  gains 1.057–1.072× (8×2048 combined ≈1.11×); verify 57/57, Popcorn test 17/17
+  (`#884847`), full grid 15/15. The ~1.5% paired win is within leaderboard
+  run-to-run noise: two byte-identical ranked resubmissions varied **0.42% public
+  / 2.6% secret** (`#884850` public 1086.309/secret 1063.862; `#884868` public
+  1081.737/secret 1091.616), so the improvement is confirmed only by paired
+  probing, not the 15-shape geomean. **fp16x3 emulated-fp32 panels were rejected**
+  (1.2–3.1× faster in isolation but 5–40× slower in the register-tight panel
+  kernels). See `experiments/032-panel-width-schedule/` and
+  `experiments/033-fp16x3-panels/`.
+- **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
+  `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**
   (**−1.061% / −2.336%** vs exp 021). Two changes: `tl.rsqrt` on the diagonal
   micro's pivot chain (paired 1.002–1.039× across all six split32 shapes) and

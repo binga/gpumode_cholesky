@@ -1,0 +1,59 @@
+{
+  "mode": "schedprobe",
+  "passed": true,
+  "enrolled_geomean_speedup": 0.9824932815244725,
+  "num_enrolled": 1,
+  "shapes": [
+    {
+      "shape": "batch=8 n=2048 case=dense",
+      "batch": 8,
+      "n": 2048,
+      "enrolled": [
+        512,
+        512,
+        256,
+        256,
+        256,
+        256
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1832.4600060780845,
+      "baseline_us_pass1": 1838.0266726016998,
+      "baseline_us_pass2": 1826.8933395544689,
+      "baseline_drift": 0.0060756213015852045,
+      "candidate_us": 1865.1119967301686,
+      "candidate_best_us": 1859.3599796295166,
+      "speedup": 0.9824932815244725,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.8; batch=8; n=2048"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000977; batch=8; n=2048"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00283; batch=8; n=2048"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0584; batch=8; n=2048"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0268; batch=8; n=2048"
+        }
+      ],
+      "families_ok": true
+    }
+  ]
+}

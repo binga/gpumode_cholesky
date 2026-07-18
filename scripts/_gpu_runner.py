@@ -262,6 +262,17 @@ def _load_exp028_baseline_module():
     return module
 
 
+def _load_sched_baseline_module():
+    """Behavioral #883174 (empty _SPLIT32_NB_SCHEDULE scaffold) for the exp-032
+    paired panel-width probe."""
+    spec = importlib.util.spec_from_file_location(
+        "baseline_sched", "/root/baseline_sched.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _time_callable_rotating(fn, data_list, warmup, iters):
     for _ in range(warmup):
         outputs = [fn(data) for data in data_list]
@@ -779,6 +790,273 @@ def run_dualprobe(filter_ns=None):
         "passed": passed,
         "aggregate_speedup": aggregate_speedup,
         "backend_status": final_backend,
+        "shapes": results,
+    }
+
+
+# ---------------------------------------------------------------------------
+# schedprobe mode (exp 032, lever L2): paired same-process comparison of the
+# behavioral #883174 baseline (uniform _SPLIT32_NB=128) against a candidate that
+# enrolls per-shape panel-width schedules in `_SPLIT32_NB_SCHEDULE`. Times each
+# split32 shape with the official-style harness (rotating inputs to 256MiB, L2
+# clear, retained outputs, correctness re-check), brackets baseline drift with a
+# second baseline pass, and runs a five-family correctness sweep for every
+# enrolled shape. Only enrolled shapes count toward the aggregate; unenrolled
+# split32 shapes are a neutrality sanity check (must stay ~1.00x).
+# ---------------------------------------------------------------------------
+SCHED_SPECS = [
+    {"batch": 256, "n": 128, "cond": 2, "seed": 41128},
+    {"batch": 64, "n": 256, "cond": 2, "seed": 41256},
+    {"batch": 16, "n": 512, "cond": 2, "seed": 41512},
+    {"batch": 640, "n": 512, "cond": 2, "seed": 510512},
+    {"batch": 4, "n": 1024, "cond": 2, "seed": 42024},
+    {"batch": 60, "n": 1024, "cond": 2, "seed": 511024},
+    {"batch": 8, "n": 2048, "cond": 2, "seed": 512048},
+]
+
+# (family, cond) matching the reference/TEST_SPECS conventions.
+SCHED_FAMILIES = [
+    ("spectrum", 5),
+    ("diagonal", 5),
+    ("lowrank", 4),
+    ("rowscale", 4),
+    ("tridiagonal", 1),
+]
+
+
+# ---------------------------------------------------------------------------
+# dotprobe mode (exp 033, lever L4 kill-gate): does a manually-emulated
+# fp16x3 (three-fp16-MMA fp32) dot beat Triton's native tf32x3 on the B200 at
+# the panel tile shapes the split32 chain actually uses? fp16 and tf32 share a
+# 10-bit mantissa, so fp16x3 ~= tf32x3 in accuracy; the only question is raw
+# tensor-core throughput. If fp16x3 does NOT beat tf32x3 here, L4 is dead before
+# any kernel rewrite. Saturates the SMs with BIGM/128 independent output tiles in
+# a single launch, so this measures tensor-core throughput, not launch latency.
+# ---------------------------------------------------------------------------
+def run_dotprobe(filter_ns=None):
+    import statistics
+
+    import triton
+    import triton.language as tl
+
+    @triton.jit
+    def _dot_kernel(
+        a_ptr, b_ptr, c_ptr, M, K: tl.constexpr, N: tl.constexpr,
+        MODE: tl.constexpr, BM: tl.constexpr,
+    ):
+        pid = tl.program_id(0)
+        rm = pid * BM + tl.arange(0, BM)
+        rk = tl.arange(0, K)
+        rn = tl.arange(0, N)
+        a = tl.load(a_ptr + rm[:, None] * K + rk[None, :], mask=rm[:, None] < M, other=0.0)
+        b = tl.load(b_ptr + rk[:, None] * N + rn[None, :])
+        if MODE == "tf32":
+            acc = tl.dot(a, b, input_precision="tf32", out_dtype=tl.float32)
+        elif MODE == "tf32x3":
+            acc = tl.dot(a, b, input_precision="tf32x3", out_dtype=tl.float32)
+        elif MODE == "fp16":
+            acc = tl.dot(a.to(tl.float16), b.to(tl.float16), out_dtype=tl.float32)
+        else:  # fp16x3: three-fp16-MMA emulated fp32
+            a_hi = a.to(tl.float16)
+            a_lo = (a - a_hi.to(tl.float32)).to(tl.float16)
+            b_hi = b.to(tl.float16)
+            b_lo = (b - b_hi.to(tl.float32)).to(tl.float16)
+            acc = tl.dot(a_hi, b_hi, out_dtype=tl.float32)
+            acc += tl.dot(a_hi, b_lo, out_dtype=tl.float32)
+            acc += tl.dot(a_lo, b_hi, out_dtype=tl.float32)
+        tl.store(c_ptr + rm[:, None] * N + rn[None, :], acc, mask=rm[:, None] < M)
+
+    # (K, N) tile shapes the split32 panel/trailing dots use.
+    tile_shapes = [
+        (32, 128), (32, 256), (128, 128), (256, 128), (128, 256),
+    ]
+    BM = 128
+    BIGM = 128 * 148 * 4  # ~4x the SM count in 128-row tiles: saturate the GPU
+    modes = ["tf32", "tf32x3", "fp16x3", "fp16"]
+
+    def _time(fn, warmup=10, iters=50):
+        for _ in range(warmup):
+            fn()
+        torch.cuda.synchronize()
+        ts = []
+        for _ in range(iters):
+            _l2_flush()
+            torch.cuda.synchronize()
+            s = torch.cuda.Event(enable_timing=True)
+            e = torch.cuda.Event(enable_timing=True)
+            s.record(); fn(); e.record()
+            torch.cuda.synchronize()
+            ts.append(s.elapsed_time(e) * 1e3)
+        ts.sort()
+        return sum(ts) / len(ts)
+
+    results = []
+    for K, N in tile_shapes:
+        a = torch.randn(BIGM, K, device="cuda", dtype=torch.float32)
+        b = torch.randn(K, N, device="cuda", dtype=torch.float32)
+        c = torch.empty(BIGM, N, device="cuda", dtype=torch.float32)
+        grid = (triton.cdiv(BIGM, BM),)
+        ref = (a @ b)  # fp32 reference
+        row = {"K": K, "N": N, "us": {}, "max_relerr": {}}
+        for mode in modes:
+            fn = lambda m=mode: _dot_kernel[grid](a, b, c, BIGM, K, N, m, BM)
+            fn(); torch.cuda.synchronize()
+            relerr = ((c - ref).abs().max() / ref.abs().max()).item()
+            row["us"][mode] = _time(fn)
+            row["max_relerr"][mode] = relerr
+        base = row["us"]["tf32x3"]
+        row["fp16x3_vs_tf32x3"] = base / row["us"]["fp16x3"]
+        results.append(row)
+        print(
+            f"K={K:<4} N={N:<4} "
+            + "  ".join(f"{m}={row['us'][m]:.1f}us(relerr {row['max_relerr'][m]:.1e})" for m in modes)
+            + f"  ==> fp16x3_vs_tf32x3={row['fp16x3_vs_tf32x3']:.3f}x",
+            flush=True,
+        )
+        del a, b, c, ref
+        torch.cuda.empty_cache()
+
+    speedups = [r["fp16x3_vs_tf32x3"] for r in results]
+    return {
+        "mode": "dotprobe",
+        "passed": True,
+        "fp16x3_vs_tf32x3_geomean": statistics.geometric_mean(speedups),
+        "fp16x3_vs_tf32x3_min": min(speedups),
+        "fp16x3_vs_tf32x3_max": max(speedups),
+        "shapes": results,
+    }
+
+
+def run_schedprobe(filter_ns=None):
+    import math
+
+    import submission as cand
+
+    baseline = _load_sched_baseline_module()
+
+    def _cfg(mod, key):
+        """The full per-shape config that determines the emitted split32 path:
+        panel/trailing precision + tile + mode + fp16 flag, plus the panel-width
+        schedule. A shape is 'changed' iff this differs between candidate and
+        baseline -- covers both the L2 schedule table and the L4 panel_prec."""
+        shapes = getattr(mod, "_SPLIT32_SHAPES", {}) or {}
+        sched = getattr(mod, "_SPLIT32_NB_SCHEDULE", {}) or {}
+        return (shapes.get(key), sched.get(key))
+
+    specs = SCHED_SPECS
+    if filter_ns:
+        specs = [s for s in SCHED_SPECS if s["n"] in filter_ns]
+
+    results = []
+    for spec in specs:
+        key = (spec["batch"], spec["n"])
+        cand_cfg = _cfg(cand, key)
+        base_cfg = _cfg(baseline, key)
+        changed = cand_cfg != base_cfg
+        sched = cand_cfg[0] if changed else None  # non-None marks 'changed' below
+        bytes_per = spec["batch"] * spec["n"] ** 2 * 4
+        count = max(1, min(30, int(256e6 // bytes_per)))
+        args = dict(spec)
+        data_list = []
+        for _ in range(count):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+        pristine = [d.clone() for d in data_list]
+
+        cand_outs = [cand.custom_kernel(d.clone()) for d in data_list]
+        base_outs = [baseline.custom_kernel(d.clone()) for d in data_list]
+        torch.cuda.synchronize()
+        cand_ok = all(
+            check_implementation(d, o)[0]
+            for d, o in zip(pristine, cand_outs, strict=True)
+        )
+        base_ok = all(
+            check_implementation(d, o)[0]
+            for d, o in zip(pristine, base_outs, strict=True)
+        )
+
+        fam_rows = []
+        if changed:
+            for fam, condv in SCHED_FAMILIES:
+                fdata = generate_input(
+                    batch=spec["batch"],
+                    n=spec["n"],
+                    cond=condv,
+                    seed=spec["seed"] + 777,
+                    case=fam,
+                )
+                fpristine = fdata.clone()
+                fout = cand.custom_kernel(fdata)
+                torch.cuda.synchronize()
+                fok, fmsg = check_implementation(fpristine, fout)
+                fam_rows.append({"family": fam, "ok": bool(fok), "msg": fmsg})
+                del fdata, fpristine, fout
+
+        # Time baseline, candidate, baseline again to bracket run-to-run drift.
+        n = spec["n"]
+        iters = 20 if n <= 512 else (15 if n <= 1024 else 12)
+        warmup = 4
+        base_t1 = _time_callable_rotating(
+            baseline.custom_kernel, data_list, warmup, iters
+        )
+        cand_t = _time_callable_rotating(
+            cand.custom_kernel, data_list, warmup, iters
+        )
+        base_t2 = _time_callable_rotating(
+            baseline.custom_kernel, data_list, 2, iters
+        )
+        base_mean = (base_t1["mean_us"] + base_t2["mean_us"]) / 2.0
+        drift = abs(base_t1["mean_us"] - base_t2["mean_us"]) / base_mean
+        speedup = base_mean / cand_t["mean_us"]
+
+        fam_ok = all(r["ok"] for r in fam_rows) if fam_rows else None
+        row = {
+            "shape": _spec_label(spec),
+            "batch": spec["batch"],
+            "n": n,
+            "changed": changed,
+            "cand_cfg": [list(cand_cfg[0]) if cand_cfg[0] else None,
+                         list(cand_cfg[1]) if cand_cfg[1] else None],
+            "base_cfg": [list(base_cfg[0]) if base_cfg[0] else None,
+                         list(base_cfg[1]) if base_cfg[1] else None],
+            "rotating_inputs": count,
+            "baseline_us": base_mean,
+            "baseline_us_pass1": base_t1["mean_us"],
+            "baseline_us_pass2": base_t2["mean_us"],
+            "baseline_drift": drift,
+            "candidate_us": cand_t["mean_us"],
+            "candidate_best_us": cand_t["best_us"],
+            "speedup": speedup,
+            "candidate_ok": cand_ok,
+            "baseline_ok": base_ok,
+            "families": fam_rows,
+            "families_ok": fam_ok,
+        }
+        results.append(row)
+        print(
+            f"{row['shape']:<12} changed={changed} cfg={row['cand_cfg']} "
+            f"base={base_mean:.2f}us cand={cand_t['mean_us']:.2f}us "
+            f"speedup={speedup:.4f}x drift={drift * 100:.2f}% "
+            f"cand_ok={cand_ok} fam_ok={fam_ok}",
+            flush=True,
+        )
+        del data_list, pristine, cand_outs, base_outs
+        torch.cuda.empty_cache()
+
+    changed_rows = [r for r in results if r["changed"]]
+    agg = None
+    if changed_rows:
+        agg = math.prod(r["speedup"] for r in changed_rows) ** (
+            1.0 / len(changed_rows)
+        )
+    all_ok = all(
+        r["candidate_ok"] and (r["families_ok"] in (True, None)) for r in results
+    )
+    return {
+        "mode": "schedprobe",
+        "passed": bool(all_ok),
+        "changed_geomean_speedup": agg,
+        "num_changed": len(changed_rows),
         "shapes": results,
     }
 
@@ -1325,6 +1603,10 @@ def main():
         result = run_nocusolverprobe(filter_ns)
     elif mode == "dualprobe":
         result = run_dualprobe(filter_ns)
+    elif mode == "schedprobe":
+        result = run_schedprobe(filter_ns)
+    elif mode == "dotprobe":
+        result = run_dotprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

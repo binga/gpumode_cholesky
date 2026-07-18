@@ -840,89 +840,12 @@ if _HAVE_TRITON:
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
-        # exp 033 (lever L4): plain tf32 (1-pass) panels replace tf32x3 (3-pass)
-        # on the large-n split32 shapes. The reconstruction gate is 20*n*eps*|A|,
-        # which grows with n, so tf32's lower per-dot accuracy is safe here:
-        # paired 1.057-1.072x with the worst family residual 8.13/20 (>=2.4x
-        # headroom). At smaller n the same change either fails (256x128 dense) or
-        # eats the tolerance (64x256 rowscale 19/20), so those keep tf32x3.
-        (4, 1024): ("tf32", "tf32", 128, "graph", True),
-        (60, 1024): ("tf32", "tf32", 128, "eager", False),
-        (8, 2048): ("tf32", "tf32", 128, "graph", True),
+        (4, 1024): ("tf32x3", "tf32", 128, "graph", True),
+        (60, 1024): ("tf32x3", "tf32", 128, "eager", False),
+        (8, 2048): ("tf32x3", "tf32", 128, "graph", True),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
-
-    # Experiment 032 (lever L2): per-shape, non-uniform panel-width schedules.
-    #
-    # Until now every split32 shape factored with one uniform panel width of
-    # _SPLIT32_NB = 128, from the first panel to the last. The trailing block
-    # shrinks monotonically as the panel walks the diagonal, so a fixed width
-    # is necessarily mistuned at one end: late panels pay a 128-wide panel
-    # factor whose rank-128 trailing update no longer has enough trailing rows
-    # to amortize it.
-    #
-    # Each entry maps (batch, n) -> a tuple of panel widths that must sum to n.
-    # CONSTRAINT: every width must be a power of two >= 32, because
-    # _trailing_nb does `d = tl.arange(0, NB)` and Triton requires a
-    # power-of-two arange bound. This is why the schedules below are staircases
-    # like (128, 128, 128, 64, 32, 32) rather than gau.nernst's qr_v2
-    # (96, 96, 64, 32, 32, 192) -- expressing non-power-of-two widths would
-    # need a padded+masked load in _trailing_nb, which wastes MMA lanes and is
-    # a separate experiment.
-    #
-    # A shape absent from this map keeps the uniform _SPLIT32_NB schedule, so
-    # this table is strict opt-in: an absent shape emits the exact launch
-    # sequence of ranked #883174.
-    #
-    # Experiment 032 result: of the seven split32 shapes, panel width is only a
-    # live axis at 8x2048. Every candidate was measured paired same-process vs
-    # #883174 on a B200 (drift <0.9%):
-    #   - Tail taper (variant A, e.g. (128,)*15+(64,32,32)) regressed EVERY
-    #     shape (256x128 0.925x, 640x512 0.981x, 8x2048 0.998x): each extra
-    #     panel pays the ~16us serial-tile-loop launch floor (S27/S29) while its
-    #     tapered trailing corner processes almost no data.
-    #   - Wide uniform NB=256 (variant W) spilled _trailing_nb's [TILE x NB]
-    #     tile: catastrophic on the eager-mode shapes (60x1024 0.286x, 640x512
-    #     0.837x) and net-negative on the small graph shapes -- EXCEPT 8x2048,
-    #     the one shape with both the most panels (16->8, half the launches) and
-    #     enough per-panel tensor-core compute to hide the spill: 1.031x.
-    #   - NB=512 on 8x2048 (variants X/X2) overshot: the spill grows faster than
-    #     the launch saving (0.972x / 0.983x). NB=256 is the sweet spot.
-    # Net: enroll 8x2048 only; the other six keep uniform-128.
-    _SPLIT32_NB_SCHEDULE = {
-        (8, 2048): (256,) * 8,
-    }
-
-    def _nb_schedule(batch, n):
-        """Panel-width schedule for one shape. Falls back to the uniform
-        _SPLIT32_NB schedule used by ranked #883174."""
-        sched = _SPLIT32_NB_SCHEDULE.get((batch, n))
-        if sched is None:
-            nb = _SPLIT32_NB
-            full, rem = divmod(n, nb)
-            sched = (nb,) * full + ((rem,) if rem else ())
-        return sched
-
-    def _validate_nb_schedules():
-        """Free gate: every declared schedule must sum to n and use only
-        power-of-two widths >= 32. Runs at import so a malformed schedule
-        fails before any GPU time is spent."""
-        for (batch, n), sched in _SPLIT32_NB_SCHEDULE.items():
-            total = sum(sched)
-            if total != n:
-                raise ValueError(
-                    f"nb schedule for {(batch, n)} sums to {total}, expected {n}"
-                )
-            for nb in sched:
-                if nb < 32 or (nb & (nb - 1)) != 0:
-                    raise ValueError(
-                        f"nb schedule for {(batch, n)} has width {nb}; "
-                        "widths must be powers of two >= 32 "
-                        "(tl.arange bound in _trailing_nb)"
-                    )
-
-    _validate_nb_schedules()
     # Experiment 021 final: retain the three stable transfer winners alongside
     # experiment 020's two ranked routes. The 60x1024 transfer was positive in
     # the isolated probe but regressed in the full grid, so it stays on the
@@ -955,11 +878,11 @@ if _HAVE_TRITON:
         clear pass unnecessary in both modes."""
         batch, n, _ = work.shape
         tile = _SPLIT32_TILE
+        nb = _SPLIT32_NB
         ft = src is not None
         if not ft:
             src = work
-        j = 0
-        for nb in _nb_schedule(batch, n):
+        for j in range(0, n, nb):
             panel_end = min(j + nb, n)
             for k in range(j, panel_end, 32):
                 _micro_potrf_gj32[(batch,)](
@@ -1038,7 +961,6 @@ if _HAVE_TRITON:
                     num_warps=8,
                     num_stages=3,
                 )
-            j = panel_end
 
     _SPLIT32_GRAPHS = {}
     _SPLIT32_DINV = {}
@@ -1777,7 +1699,15 @@ def custom_kernel(data: input_t) -> output_t:
     if is_f32_cuda and _HAVE_TRITON and (batch, n) in _SPLIT32_SHAPES:
         try:
             l = _split32_factor(data)
-            if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
+            # exp 031: the full-diagonal isfinite reduction (batch*n elements,
+            # ~4 kernels + a DtoH sync) is fixed per-call overhead that is a
+            # top cost on every sub-400us shape. Any non-finite produced by a
+            # forward Cholesky provably propagates to the bottom-right diagonal
+            # entry l[...,-1,-1] (every column k<n-1 feeds row n-1, and NaN/Inf
+            # never returns to finite through +/-/x/sqrt/div), so checking that
+            # single element per matrix is exactly equivalent for the safety
+            # net while collapsing the reduction from batch*n to batch elements.
+            if torch.isfinite(l[..., -1, -1]).all().item():
                 _FUSED_CTA_HITS += 1
                 return l
             _FUSED_CTA_FALLBACKS += 1
@@ -1798,7 +1728,8 @@ def custom_kernel(data: input_t) -> output_t:
 
     if is_f32_cuda and _HAVE_TRITON and batch == 8 and n == 2048:
         l = _triton_cholesky_8x2048(data)
-        if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
+        # exp 031: last-diagonal finite check (see split32 site above).
+        if torch.isfinite(l[..., -1, -1]).all().item():
             return l
         return torch.linalg.cholesky_ex(data, check_errors=False).L
 

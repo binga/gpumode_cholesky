@@ -632,6 +632,27 @@ if _HAVE_TRITON:
         tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], x)
 
     @triton.jit
+    def _dot_prec(a, b, PREC: tl.constexpr):
+        """Panel dot at the requested precision. "tf32"/"tf32x3" use Triton's
+        native tensor-core passes. "fp16x3" is the three-fp16-MMA emulation of
+        an fp32 dot (exp 033, lever L4): fp16 shares tf32's 10-bit mantissa, so
+        splitting each operand into an fp16 hi term plus an fp16 residual and
+        summing the three cross products a_hi*b_hi + a_hi*b_lo + a_lo*b_hi gives
+        tf32x3-equivalent accuracy (measured max relerr ~1e-6) while fp16 MMA
+        runs ~1.3-3x faster than tf32x3 on the B200 (deepest K wins most). The
+        dropped a_lo*b_lo term is O(2^-20) and below the reconstruction gate."""
+        if PREC == "fp16x3":
+            a_hi = a.to(tl.float16)
+            a_lo = (a - a_hi.to(tl.float32)).to(tl.float16)
+            b_hi = b.to(tl.float16)
+            b_lo = (b - b_hi.to(tl.float32)).to(tl.float16)
+            acc = tl.dot(a_hi, b_hi, out_dtype=tl.float32)
+            acc += tl.dot(a_hi, b_lo, out_dtype=tl.float32)
+            acc += tl.dot(a_lo, b_hi, out_dtype=tl.float32)
+            return acc
+        return tl.dot(a, b, input_precision=PREC, out_dtype=tl.float32)
+
+    @triton.jit
     def _panel_apply32(
         out_ptr,
         inv_ptr,
@@ -658,9 +679,7 @@ if _HAVE_TRITON:
         else:
             p = tl.load(p_ptrs, mask=mask[:, None], other=0.0)
         dinv = tl.load(inv_ptr + b * 1024 + c[:, None] * 32 + c[None, :])
-        lik = tl.dot(
-            p, tl.trans(dinv), input_precision=PREC, out_dtype=tl.float32
-        )
+        lik = _dot_prec(p, tl.trans(dinv), PREC)
         tl.store(p_ptrs, lik, mask=mask[:, None])
         # Zero-fill the mirrored upper tile so no separate clear pass is
         # needed: block rows k..k+32, columns = this CTA's panel rows.
@@ -705,9 +724,7 @@ if _HAVE_TRITON:
             mask=wmask[:, None],
             other=0.0,
         )
-        prod = tl.dot(
-            li, tl.trans(lj), input_precision=PREC, out_dtype=tl.float32
-        )
+        prod = _dot_prec(li, tl.trans(lj), PREC)
         t_off = (k + 32 + rows)[:, None] * n + (k + 32 + cw)[None, :]
         t_ptrs = out_ptr + base + t_off
         valid = rmask[:, None] & wmask[None, :]
@@ -756,9 +773,7 @@ if _HAVE_TRITON:
             mask=wmask[:, None],
             other=0.0,
         )
-        prod = tl.dot(
-            li, tl.trans(lj), input_precision=PREC, out_dtype=tl.float32
-        )
+        prod = _dot_prec(li, tl.trans(lj), PREC)
         t_off = (k + 32 + rows)[:, None] * n + (k + 32 + cw)[None, :]
         t_ptrs = out_ptr + base + t_off
         valid = rmask[:, None] & wmask[None, :]
@@ -840,15 +855,9 @@ if _HAVE_TRITON:
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
-        # exp 033 (lever L4): plain tf32 (1-pass) panels replace tf32x3 (3-pass)
-        # on the large-n split32 shapes. The reconstruction gate is 20*n*eps*|A|,
-        # which grows with n, so tf32's lower per-dot accuracy is safe here:
-        # paired 1.057-1.072x with the worst family residual 8.13/20 (>=2.4x
-        # headroom). At smaller n the same change either fails (256x128 dense) or
-        # eats the tolerance (64x256 rowscale 19/20), so those keep tf32x3.
-        (4, 1024): ("tf32", "tf32", 128, "graph", True),
-        (60, 1024): ("tf32", "tf32", 128, "eager", False),
-        (8, 2048): ("tf32", "tf32", 128, "graph", True),
+        (4, 1024): ("tf32x3", "tf32", 128, "graph", True),
+        (60, 1024): ("tf32x3", "tf32", 128, "eager", False),
+        (8, 2048): ("tf32x3", "tf32", 128, "graph", True),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128

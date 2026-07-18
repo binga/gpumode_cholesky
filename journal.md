@@ -63,8 +63,11 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#883174` = 1084.4572420163716μs public geomean** (Session 28;
-secret 1083.720390333199μs). `nb` = block size.
+Current best: **`#884868` = 1081.7365202047085μs public geomean** (Session 30;
+secret 1091.6157556786492μs). Adopted from `#883174` (public 1084.457 / secret
+1083.720): +tf32 panels on the three large-n split32 shapes and +NB=256 panel
+schedule on 8×2048 — paired-validated ~1.5% but within leaderboard noise (see
+S30). `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -88,6 +91,25 @@ Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
 popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
 BF16x9) were tried in the blocked path and **lost to TF32** on B200 (S6), so
 they're folded into the TF32 result rather than tracked separately.
+
+**Panel precision / width (S30).** `8×2048` now factors with an NB=256 uniform
+panel schedule (halves the panel count; the one shape where fewer launches beat
+the `_trailing_nb` spill — L2/exp 032). `4×1024`, `60×1024`, `8×2048` now use
+plain **tf32 (1-pass) panels** instead of tf32x3 (L4/exp 033); safe only at large
+n because the `20·n·eps·‖A‖` gate grows with n (smaller shapes lack margin —
+256×128 dense *fails* under tf32 panels). **fp16x3 emulated-fp32 panels rejected**
+(register spill in the tight panel kernels). Panel precision/width is not yet a
+tracker column; recorded here.
+
+**Per-call fixed overhead** (copy-in/clone-out ~9μs + finite-check chain
+~12–15μs) is a top-3 cost on every sub-400μs shape (S28) but is not yet a
+column, because no variant has been *measured* — S29's cheap finite check was
+refuted on a free gate before any GPU spend. Standing constraint for this
+lever: the finite check may be made cheaper but **never weaker**. Shrinking it
+to the last diagonal entry is invalid — `finite/Inf == 0`, so an overflowed
+pivot is absorbed into a zero column and never reaches `L[n-1][n-1]` (S29). The
+open variant is an in-kernel flag written at *pivot* time, which is both cheaper
+and strictly stronger than the shipped full-diagonal reduction.
 
 ### Transfer opportunities — build and leaderboard-test queue
 
@@ -157,6 +179,121 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-18 — Session 30: QR-transfer levers L2+L4 → tf32 panels + 8×2048 NB=256 ranked #884868
+
+Implemented the QR-transfer proposal (`docs/qr-transfer-proposal.md`), lowest-ROI
+levers first, from ranked `#883174`. Two land in a combined finalist; two are
+recorded negatives. A reusable paired harness (`schedprobe`, `dotprobe`) was
+added to `scripts/_gpu_runner.py`.
+
+**L2 — per-shape panel-width schedules (exp 032).** New `schedprobe` paired
+same-process probe (drift <0.9%). Panel width is *not* a live axis except at one
+shape: the tail-taper variant regressed every shape (extra panels each pay the
+~16µs serial-tile-loop launch floor, S27/S29, on a trailing corner with no data);
+wide uniform NB=256 spilled `_trailing_nb` (catastrophic on the eager-mode shapes,
+60×1024 0.286×) **except 8×2048 = 1.031×** (most panels, enough compute to hide
+the spill); NB=512 overshot. Banked `_SPLIT32_NB_SCHEDULE = {(8,2048): (256,)*8}`.
+The other six keep uniform-128. Two separately-launched full grids differed 3.6%
+on byte-identical off-target code (`4096×32` swung 15%) — inter-sandbox variance
+swamps the 0.2% single-shape signal, so L2 alone is not solo-shippable.
+
+**L4 — panel precision (exp 033).** A `dotprobe` micro-benchmark confirmed fp16x3
+(three-fp16-MMA fp32 emulation) beats native tf32x3 by 1.2–3.1× in isolation at
+identical accuracy. **But dropped into the panel kernels fp16x3 was 5–40× SLOWER**
+(correct, ~6–10ms/call): its 4 fp16 temps + 3 fp32 accumulators blow the register
+budget of kernels already at the 255-reg ceiling (the `_subtile64` kernel exists
+precisely because tf32x3's 128×128 tile already spilled). REJECTED. The cleaner
+sibling — plain **tf32 (1-pass) panels** — is native and has no register blowup:
+paired 8×2048 1.072×, 4×1024 1.065×, 60×1024 1.057×. The gate `20·n·eps·‖A‖` grows
+with n, so tf32 panels are safe only at large n (worst family residual: 8×2048
+4.31/20, 4×1024 8.13, 60×1024 7.6 — all ≥2.4× headroom; 256×128 dense *fails*,
+64×256 rowscale 19/20, so the small shapes keep tf32x3). Shipped panel_prec "tf32"
+on (4,1024),(60,1024),(8,2048).
+
+**Gates.** Free checks (compile, schedule/precision validation). Paired probes
+above. Verify **57/57** family specs. Popcorn test **17/17** (`#884847`). Full grid
+15/15, geomean 1117.2µs (enrolled shapes clearly faster: 8×2048 1618 vs ~1795µs
+baseline ≈ combined 1.11×).
+
+**Ranked — the exp-022 divergence, resolved as pure noise.** Two *identical*
+ranked resubmissions (per proposal §3, which prescribes re-measurement for >1%
+opposite-direction public/secret divergence):
+- `#884850`: public 1086.309µs (**+0.17%**), secret 1063.862µs (**−1.83%**).
+- `#884868`: public 1081.737µs (**−0.25%, new best**), secret 1091.616µs (**+0.73%**).
+
+Two byte-identical files varied **0.42% public / 2.6% secret** — the 15-shape
+geomean cannot resolve the ~1.5% paired win; only paired same-process probing can.
+**Adopted `#884868`** (best recorded public 1081.737µs): the change is
+paired-validated, correctness-bulletproof (57/57 + 17/17 twice), and the other 12
+shapes are byte-identical code (zero off-target regression). The strict exp-022
+"public regression → reject" rule doesn't cleanly apply — the re-measured run's
+public *improved*. Root `submission.py` diff vs `#883174` is minimal: the
+`_nb_schedule` scaffolding, the 8×2048 schedule entry, and three panel_prec flips.
+
+**Not pursued (recorded):** L1 (cluster/warp-specialized panels on the 4 vendor
+shapes, 5–10%) remains the highest-ROI lever but is a multi-session effort
+(exp 028's persistent kernels already failed 0.40–0.49×); L3 (NVRTC/tcgen05) and
+MXFP8 (L4 item 2) untried. See `experiments/032-panel-width-schedule/` and
+`experiments/033-fp16x3-panels/`.
+
+---
+
+## 2026-07-18 — Session 29: cheap finite check → REJECTED at the free gate (premise was false)
+
+Experiment 031 took up the S28 next-lever note: cheapen the ~12-15us
+finite-check chain (4 kernels + a DtoH sync) on the sub-400us shapes by
+replacing
+
+    torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item()   # batch*n
+
+with `torch.isfinite(l[..., -1, -1]).all().item()` (batch elements) at the
+split32 and 8×2048 dispatch sites — justified by the recorded claim that NaN
+"provably propagates to the last diagonal entry".
+
+**That claim is false, and this correction is the main output of the session.**
+The propagation argument holds for NaN but **not for Inf**, because the column
+solve *divides* by the pivot: if `l[k][k]` overflows to `+Inf`, then
+`finite / Inf == 0`, so the Inf is **absorbed into a column of zeros** rather
+than propagated. The trailing update subtracts a zero outer product, the
+trailing submatrix stays finite, and the last diagonal comes out finite while an
+earlier diagonal is Inf. Minimal float32 refutation:
+
+```
+A = diag(4, 1e40, 9)   ->   L = diag(2, inf, 3)
+isfinite(diag(L)).all() = False   (shipped: falls back to cuSOLVER)
+isfinite(L[-1,-1])      = True    (exp-031: accepts an inf factor)
+L[2][1] = finite/inf = 0  ->  the inf never reaches L[2][2]
+```
+
+Free gate (`gate_nan_propagation.py`, 504 trials of a float32 right-looking
+blocked Cholesky matching the split32 structure, n ∈ {32,64,128,160}, nb ∈
+{32,64}): 360 trials went non-finite, so the equivalence was genuinely
+exercised. The four NaN-producing families (indefinite/singular/near-singular/
+spectrum) gave **0 mismatches**; the engineered Inf-pivot family gave **22/24
+mismatches**. Exactly the predicted split.
+
+Reachability on the real harness is low — `reference.generate_input`'s
+`rowscale` scales *down* (`logspace(0, -0.5·cond, n)`), driving pivots toward
+zero, and a zero pivot produces Inf/NaN that *does* reach the last diagonal; and
+exp 030 measured 604 hits / 0 fallbacks across six families. But "probably never
+observed" is not "equivalent": the substitution is a provably weaker correctness
+gate traded for ~1-3%, which program.md forbids. **REJECTED. Zero Modal and zero
+popcorn quota spent** — the candidate died on a free CPU gate, which is the
+gate ordering working as designed. Root `submission.py` unchanged; `#883174`
+remains the ranked winner.
+
+**Salvage path (untried, strictly stronger than what ships today):** write the
+finiteness flag from *inside* the kernels, at the moment each pivot is computed —
+i.e. **before** the division that absorbs it. The micro/diag kernels already hold
+the diagonal in a register; an atomic OR into a one-word device flag adds no
+kernel and no pass, leaving only the irreducible DtoH read, and it catches an Inf
+pivot that even today's full-diagonal check would miss if the Inf were later
+absorbed and overwritten. The fiddly part is zeroing the flag per call inside the
+CUDA-graph capture. This is the correct reading of "fuse the finite check into
+the last store kernels" — the fusion must happen at pivot time, not at store time.
 
 ---
 

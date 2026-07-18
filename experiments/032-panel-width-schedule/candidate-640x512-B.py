@@ -840,15 +840,9 @@ if _HAVE_TRITON:
         (64, 256): ("tf32x3", "tf32x3", 128, "graph", True),
         (16, 512): ("tf32x3", "tf32x3", 128, "graph", True),
         (640, 512): ("tf32x3", "tf32", 128, "eager", True),
-        # exp 033 (lever L4): plain tf32 (1-pass) panels replace tf32x3 (3-pass)
-        # on the large-n split32 shapes. The reconstruction gate is 20*n*eps*|A|,
-        # which grows with n, so tf32's lower per-dot accuracy is safe here:
-        # paired 1.057-1.072x with the worst family residual 8.13/20 (>=2.4x
-        # headroom). At smaller n the same change either fails (256x128 dense) or
-        # eats the tolerance (64x256 rowscale 19/20), so those keep tf32x3.
-        (4, 1024): ("tf32", "tf32", 128, "graph", True),
-        (60, 1024): ("tf32", "tf32", 128, "eager", False),
-        (8, 2048): ("tf32", "tf32", 128, "graph", True),
+        (4, 1024): ("tf32x3", "tf32", 128, "graph", True),
+        (60, 1024): ("tf32x3", "tf32", 128, "eager", False),
+        (8, 2048): ("tf32x3", "tf32", 128, "graph", True),
     }
     _SPLIT32_TILE = 128
     _SPLIT32_NB = 128
@@ -872,26 +866,10 @@ if _HAVE_TRITON:
     # a separate experiment.
     #
     # A shape absent from this map keeps the uniform _SPLIT32_NB schedule, so
-    # this table is strict opt-in: an absent shape emits the exact launch
-    # sequence of ranked #883174.
-    #
-    # Experiment 032 result: of the seven split32 shapes, panel width is only a
-    # live axis at 8x2048. Every candidate was measured paired same-process vs
-    # #883174 on a B200 (drift <0.9%):
-    #   - Tail taper (variant A, e.g. (128,)*15+(64,32,32)) regressed EVERY
-    #     shape (256x128 0.925x, 640x512 0.981x, 8x2048 0.998x): each extra
-    #     panel pays the ~16us serial-tile-loop launch floor (S27/S29) while its
-    #     tapered trailing corner processes almost no data.
-    #   - Wide uniform NB=256 (variant W) spilled _trailing_nb's [TILE x NB]
-    #     tile: catastrophic on the eager-mode shapes (60x1024 0.286x, 640x512
-    #     0.837x) and net-negative on the small graph shapes -- EXCEPT 8x2048,
-    #     the one shape with both the most panels (16->8, half the launches) and
-    #     enough per-panel tensor-core compute to hide the spill: 1.031x.
-    #   - NB=512 on 8x2048 (variants X/X2) overshot: the spill grows faster than
-    #     the launch saving (0.972x / 0.983x). NB=256 is the sweet spot.
-    # Net: enroll 8x2048 only; the other six keep uniform-128.
+    # this table is strict opt-in: with it empty, the emitted launch sequence
+    # is identical to ranked #883174 for every shape.
     _SPLIT32_NB_SCHEDULE = {
-        (8, 2048): (256,) * 8,
+        (640, 512): (256, 128, 64, 32, 32),
     }
 
     def _nb_schedule(batch, n):

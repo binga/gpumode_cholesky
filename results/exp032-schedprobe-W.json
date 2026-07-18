@@ -1,0 +1,317 @@
+{
+  "mode": "schedprobe",
+  "passed": true,
+  "enrolled_geomean_speedup": 0.7873243175002144,
+  "num_enrolled": 6,
+  "shapes": [
+    {
+      "shape": "batch=256 n=128 case=dense",
+      "batch": 256,
+      "n": 128,
+      "enrolled": null,
+      "rotating_inputs": 15,
+      "baseline_us": 145.30906716982525,
+      "baseline_us_pass1": 145.9454925855001,
+      "baseline_us_pass2": 144.6726417541504,
+      "baseline_drift": 0.008759610505668564,
+      "candidate_us": 144.6228257815043,
+      "candidate_best_us": 142.92267163594565,
+      "speedup": 1.004745042040305,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [],
+      "families_ok": null
+    },
+    {
+      "shape": "batch=64 n=256 case=dense",
+      "batch": 64,
+      "n": 256,
+      "enrolled": [
+        256
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 224.42896008491516,
+      "baseline_us_pass1": 224.52256043752033,
+      "baseline_us_pass2": 224.33535973230997,
+      "baseline_drift": 0.0008341200936792156,
+      "candidate_us": 232.50293493270874,
+      "candidate_best_us": 230.47040303548178,
+      "speedup": 0.9652736648243586,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00838; batch=64; n=256"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00391; batch=64; n=256"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0285; batch=64; n=256"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00802; batch=64; n=256"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00892; batch=64; n=256"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=16 n=512 case=dense",
+      "batch": 16,
+      "n": 512,
+      "enrolled": [
+        256,
+        256
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 389.19781366984046,
+      "baseline_us_pass1": 389.9726947148641,
+      "baseline_us_pass2": 388.4229326248169,
+      "baseline_drift": 0.003981939352212952,
+      "candidate_us": 390.8445882797241,
+      "candidate_best_us": 389.41014607747394,
+      "speedup": 0.995786625530286,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=1.97; batch=16; n=512"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00195; batch=16; n=512"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00488; batch=16; n=512"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0295; batch=16; n=512"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.105; batch=16; n=512"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=640 n=512 case=dense",
+      "batch": 640,
+      "n": 512,
+      "enrolled": [
+        256,
+        256
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1570.4584151506424,
+      "baseline_us_pass1": 1572.3952174186707,
+      "baseline_us_pass2": 1568.5216128826141,
+      "baseline_drift": 0.0024665438439418676,
+      "candidate_us": 1876.7999947071075,
+      "candidate_best_us": 1867.2959804534912,
+      "speedup": 0.8367745202363597,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00484; batch=640; n=512"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00195; batch=640; n=512"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00507; batch=640; n=512"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0316; batch=640; n=512"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.114; batch=640; n=512"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=4 n=1024 case=dense",
+      "batch": 4,
+      "n": 1024,
+      "enrolled": [
+        256,
+        256,
+        256,
+        256
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 726.6880734761556,
+      "baseline_us_pass1": 724.974225362142,
+      "baseline_us_pass2": 728.4019215901693,
+      "baseline_drift": 0.004716874203853044,
+      "candidate_us": 724.0106709798177,
+      "candidate_best_us": 722.2016016642252,
+      "speedup": 1.0036980152415633,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=1.38; batch=4; n=1024"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00123; batch=4; n=1024"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.117; batch=4; n=1024"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0416; batch=4; n=1024"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=60 n=1024 case=dense",
+      "batch": 60,
+      "n": 1024,
+      "enrolled": [
+        256,
+        256,
+        256,
+        256
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1800.5173285802205,
+      "baseline_us_pass1": 1801.685317357381,
+      "baseline_us_pass2": 1799.3493398030598,
+      "baseline_drift": 0.0012973924311871522,
+      "candidate_us": 6293.813323974609,
+      "candidate_best_us": 3682.4960708618164,
+      "speedup": 0.28607733275494973,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0033; batch=60; n=1024"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000488; batch=60; n=1024"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00357; batch=60; n=1024"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000887; batch=60; n=1024"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000763; batch=60; n=1024"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=8 n=2048 case=dense",
+      "batch": 8,
+      "n": 2048,
+      "enrolled": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1814.7453169027963,
+      "baseline_us_pass1": 1815.6373103459675,
+      "baseline_us_pass2": 1813.8533234596252,
+      "baseline_drift": 0.0009830508279734809,
+      "candidate_us": 1759.5653434594471,
+      "candidate_best_us": 1757.8879594802856,
+      "speedup": 1.0313600024281342,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.791; batch=8; n=2048"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000977; batch=8; n=2048"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00283; batch=8; n=2048"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.136; batch=8; n=2048"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0268; batch=8; n=2048"
+        }
+      ],
+      "families_ok": true
+    }
+  ]
+}

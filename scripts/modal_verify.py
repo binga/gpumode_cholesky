@@ -78,6 +78,16 @@ def _build_image(submission_path):
         "/root/baseline_exp028.py",
         copy=True,
     )
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "033-fp16x3-panels"
+            / "baseline-l4.py"
+        ),
+        "/root/baseline_sched.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
     )
 
@@ -99,6 +109,8 @@ def main() -> int:
             "largefrontierprobe",
             "nocusolverprobe",
             "dualprobe",
+            "schedprobe",
+            "dotprobe",
         ],
     )
     parser.add_argument(

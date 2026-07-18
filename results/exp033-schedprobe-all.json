@@ -1,0 +1,474 @@
+{
+  "mode": "schedprobe",
+  "passed": true,
+  "changed_geomean_speedup": 0.07827586610413033,
+  "num_changed": 7,
+  "shapes": [
+    {
+      "shape": "batch=256 n=128 case=dense",
+      "batch": 256,
+      "n": 128,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 146.17520054181415,
+      "baseline_us_pass1": 146.84543927510578,
+      "baseline_us_pass2": 145.50496180852252,
+      "baseline_drift": 0.009170348059141548,
+      "candidate_us": 6388.688125610352,
+      "candidate_best_us": 5933.7473551432295,
+      "speedup": 0.022880315593406607,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00801; batch=256; n=128"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00391; batch=256; n=128"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00862; batch=256; n=128"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0088; batch=256; n=128"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0064; batch=256; n=128"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=64 n=256 case=dense",
+      "batch": 64,
+      "n": 256,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 225.20901282628378,
+      "baseline_us_pass1": 224.81194655100506,
+      "baseline_us_pass2": 225.6060791015625,
+      "baseline_drift": 0.00352620235127976,
+      "candidate_us": 6736.016006469725,
+      "candidate_best_us": 6448.296610514323,
+      "speedup": 0.0334335625999074,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00607; batch=64; n=256"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00195; batch=64; n=256"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0063; batch=64; n=256"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00308; batch=64; n=256"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00312; batch=64; n=256"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=16 n=512 case=dense",
+      "batch": 16,
+      "n": 512,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32x3",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 388.7673592567443,
+      "baseline_us_pass1": 388.36661179860425,
+      "baseline_us_pass2": 389.1681067148844,
+      "baseline_drift": 0.0020616311971572605,
+      "candidate_us": 6484.4921875,
+      "candidate_best_us": 6227.837626139323,
+      "speedup": 0.059953400823916765,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00437; batch=16; n=512"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000977; batch=16; n=512"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00488; batch=16; n=512"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0015; batch=16; n=512"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00154; batch=16; n=512"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=640 n=512 case=dense",
+      "batch": 640,
+      "n": 512,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32",
+          128,
+          "eager",
+          true
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32",
+          128,
+          "eager",
+          true
+        ],
+        null
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1561.3743960857391,
+      "baseline_us_pass1": 1560.7327938079834,
+      "baseline_us_pass2": 1562.0159983634949,
+      "baseline_drift": 0.000821842960105137,
+      "candidate_us": 10359.14568901062,
+      "candidate_best_us": 9690.752029418945,
+      "speedup": 0.1507242433844815,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00484; batch=640; n=512"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000977; batch=640; n=512"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00507; batch=640; n=512"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00179; batch=640; n=512"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00158; batch=640; n=512"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=4 n=1024 case=dense",
+      "batch": 4,
+      "n": 1024,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32",
+          128,
+          "graph",
+          true
+        ],
+        null
+      ],
+      "rotating_inputs": 15,
+      "baseline_us": 724.2195871141221,
+      "baseline_us_pass1": 724.1910044352212,
+      "baseline_us_pass2": 724.2481697930231,
+      "baseline_drift": 7.893373614715003e-05,
+      "candidate_us": 7332.971835666232,
+      "candidate_best_us": 6568.9768473307295,
+      "speedup": 0.0987620849151023,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00115; batch=4; n=1024"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00146; batch=4; n=1024"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00123; batch=4; n=1024"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00142; batch=4; n=1024"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00214; batch=4; n=1024"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=60 n=1024 case=dense",
+      "batch": 60,
+      "n": 1024,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32",
+          128,
+          "eager",
+          false
+        ],
+        null
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32",
+          128,
+          "eager",
+          false
+        ],
+        null
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1503.4176111221313,
+      "baseline_us_pass1": 1504.906678199768,
+      "baseline_us_pass2": 1501.9285440444946,
+      "baseline_drift": 0.0019809094514002647,
+      "candidate_us": 9717.4591700236,
+      "candidate_best_us": 8981.663703918457,
+      "speedup": 0.1547130360742725,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0033; batch=60; n=1024"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000488; batch=60; n=1024"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00357; batch=60; n=1024"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000887; batch=60; n=1024"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000763; batch=60; n=1024"
+        }
+      ],
+      "families_ok": true
+    },
+    {
+      "shape": "batch=8 n=2048 case=dense",
+      "batch": 8,
+      "n": 2048,
+      "changed": true,
+      "cand_cfg": [
+        [
+          "fp16x3",
+          "tf32",
+          128,
+          "graph",
+          true
+        ],
+        [
+          256,
+          256,
+          256,
+          256,
+          256,
+          256,
+          256,
+          256
+        ]
+      ],
+      "base_cfg": [
+        [
+          "tf32x3",
+          "tf32",
+          128,
+          "graph",
+          true
+        ],
+        [
+          256,
+          256,
+          256,
+          256,
+          256,
+          256,
+          256,
+          256
+        ]
+      ],
+      "rotating_inputs": 1,
+      "baseline_us": 1757.426659266154,
+      "baseline_us_pass1": 1757.071981827418,
+      "baseline_us_pass2": 1757.78133670489,
+      "baseline_drift": 0.000403632705656194,
+      "candidate_us": 10309.57587560018,
+      "candidate_best_us": 9333.791732788086,
+      "speedup": 0.17046546632684287,
+      "candidate_ok": true,
+      "baseline_ok": true,
+      "families": [
+        {
+          "family": "spectrum",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=2.8; batch=8; n=2048"
+        },
+        {
+          "family": "diagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.000732; batch=8; n=2048"
+        },
+        {
+          "family": "lowrank",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.00283; batch=8; n=2048"
+        },
+        {
+          "family": "rowscale",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.535; batch=8; n=2048"
+        },
+        {
+          "family": "tridiagonal",
+          "ok": true,
+          "msg": "scaled_reconstruction_residual=0.0604; batch=8; n=2048"
+        }
+      ],
+      "families_ok": true
+    }
+  ]
+}
