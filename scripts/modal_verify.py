@@ -29,7 +29,11 @@ ROOT = Path(__file__).resolve().parent.parent
 # torch 2.12.0+cu130. pip `torch` currently resolves to the same cu130 wheel, so
 # nvcc 13.0 and torch's CUDA agree. The Blackwell (sm_100) kernels ship in that
 # wheel. `.entrypoint([])` clears the nvidia image's default entrypoint script.
-def _build_image(submission_path):
+def _build_image(submission_path, candidate_path=None):
+    # /root/candidate.py always exists so `pairedgrid` can load it; when no
+    # --candidate is given it is the same file as the submission, which is
+    # exactly the null-calibration configuration.
+    candidate_path = candidate_path or submission_path
     return (
     modal.Image.from_registry(
         "nvidia/cuda:13.0.0-devel-ubuntu24.04", add_python="3.11"
@@ -38,6 +42,7 @@ def _build_image(submission_path):
     .pip_install("torch", "numpy", "ninja")
     .add_local_dir(str(ROOT / "reference"), "/root/reference", copy=True)
     .add_local_file(str(submission_path), "/root/submission.py", copy=True)
+    .add_local_file(str(candidate_path), "/root/candidate.py", copy=True)
     .add_local_file(
         str(
             ROOT
@@ -122,7 +127,15 @@ def main() -> int:
             "schedprobe",
             "dotprobe",
             "mxprobe",
+            "pairedgrid",
         ],
+    )
+    parser.add_argument(
+        "--candidate",
+        default=None,
+        help="path to a second submission.py uploaded as /root/candidate.py "
+        "(pairedgrid mode; pass the same file as --submission for the null "
+        "calibration run)",
     )
     parser.add_argument(
         "--submission",
@@ -150,8 +163,11 @@ def main() -> int:
         if args.submission
         else ROOT / "submission.py"
     )
-    image = _build_image(submission_path)
+    candidate_path = Path(args.candidate).resolve() if args.candidate else None
+    image = _build_image(submission_path, candidate_path)
     print(f"submission -> {submission_path}", file=sys.stderr)
+    if candidate_path:
+        print(f"candidate  -> {candidate_path}", file=sys.stderr)
 
     app = modal.App.lookup("gpumode-cholesky-verify", create_if_missing=True)
     result_payload = None

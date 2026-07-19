@@ -8,6 +8,7 @@ driver to parse.
 
 import importlib.util
 import json
+import math as _math
 import os
 import sys
 import time
@@ -1827,9 +1828,12 @@ def run_mxprobe(filter_ns=None):
                 "large_error": getattr(cand, "_LARGE_FP8_ERROR", None),
             }
             fam_rows.append(row)
-            passed = (
-                passed and ok and row["mx_hits"] > 0 and row["fallbacks"] == 0
-            )
+            # `fallbacks == 0` was the wrong gate: `_left_looking_large`'s
+            # finiteness handoff fires on ill-conditioned families at 32768 in
+            # the BASELINE too, so it flagged clean candidates as failures (exp
+            # 034). Correctness is the checker; fallbacks are recorded as data
+            # and compared against the baseline by the pairedgrid gate.
+            passed = passed and ok and row["mx_hits"] > 0
             print(
                 f"family {row['spec']:<16} {row['case']:<12} ok={ok} "
                 f"mx_hits={row['mx_hits']} fallbacks={row['fallbacks']} {msg}",
@@ -1882,6 +1886,302 @@ def run_mxprobe(filter_ns=None):
     return result
 
 
+# ---------------------------------------------------------------------------
+# pairedgrid (experiment 035): paired same-process 15-shape grid.
+#
+# The full-grid `benchmark` mode times one submission per sandbox, so a
+# candidate-vs-baseline comparison crosses process and machine boundaries. Exp
+# 034 measured the cost of that: byte-identical `60x1024` produced
+# 1565.6/1389.4/1989.7us across three grid runs (43% spread on unchanged code),
+# which is far too coarse to promote a ~0.6% geomean change. This mode loads
+# BOTH sources in one process and interleaves them A-B-B-A per shape so that
+# linear drift cancels within each pair, then reports per-shape ratios with a
+# bootstrap CI instead of a ratio of independently-measured geomeans.
+# ---------------------------------------------------------------------------
+def _load_submission_module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _counter_deltas(before, after):
+    return {k: after.get(k, 0) - v for k, v in before.items() if after.get(k, 0) != v}
+
+
+def _counters(mod):
+    """Hit/fallback counters exposed by a submission module, by convention
+    `_<NAME>_HITS` / `_<NAME>_FALLBACKS`. Collected generically so baseline and
+    candidate can expose different sets."""
+    out = {}
+    for key, value in vars(mod).items():
+        if not isinstance(value, int) or isinstance(value, bool):
+            continue
+        if key.endswith("_HITS") or key.endswith("_FALLBACKS"):
+            out[key] = value
+    return out
+
+
+def _module_errors(mod):
+    return {
+        key: repr(value)
+        for key, value in vars(mod).items()
+        if key.endswith("_ERROR") and value is not None
+    }
+
+
+def _median(values):
+    ordered = sorted(values)
+    count = len(ordered)
+    mid = count // 2
+    if count % 2:
+        return ordered[mid]
+    return 0.5 * (ordered[mid - 1] + ordered[mid])
+
+
+def _mad(values):
+    """Median absolute deviation - a tail-robust spread, unlike stdev."""
+    med = _median(values)
+    return _median([abs(v - med) for v in values])
+
+
+def _bootstrap_ci(values, statistic, iters=4000, seed=20350719, alpha=0.05):
+    import random as _random
+
+    rng = _random.Random(seed)
+    count = len(values)
+    if count < 2:
+        point = statistic(values)
+        return point, point
+    reps = []
+    for _ in range(iters):
+        reps.append(statistic([values[rng.randrange(count)] for _ in range(count)]))
+    reps.sort()
+    lo_idx = int((alpha / 2.0) * iters)
+    hi_idx = min(iters - 1, int((1.0 - alpha / 2.0) * iters))
+    return reps[lo_idx], reps[hi_idx]
+
+
+def _geomean(values):
+    import math as _math
+
+    return _math.exp(sum(_math.log(v) for v in values) / len(values))
+
+
+def _pairedgrid_budget(n):
+    """(rotating_inputs, iters_per_block, repeats). Cheap shapes get more of
+    both; n>=16384 keeps one 4GB input to leave headroom for two modules'
+    workspaces."""
+    if n <= 128:
+        return 2, 20, 9
+    if n <= 512:
+        return 2, 15, 9
+    if n <= 2048:
+        return 2, 10, 7
+    if n <= 8192:
+        return 2, 5, 7
+    return 1, 3, 5
+
+
+def _timed_block(fn, data_list, iters):
+    """Median us/call over `iters` L2-flushed timed regions. Median (not mean)
+    so a single tail event does not shift the block."""
+    durations = []
+    for _ in range(iters):
+        _l2_flush()
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        for data in data_list:
+            fn(data)
+        end.record()
+        torch.cuda.synchronize()
+        durations.append(start.elapsed_time(end) * 1e3 / len(data_list))
+    return _median(durations)
+
+
+def _pairedgrid_shape(spec, base_mod, cand_mod):
+    n = spec["n"]
+    n_inputs, iters, repeats = _pairedgrid_budget(n)
+
+    args = dict(spec)
+    data_list = []
+    for _ in range(n_inputs):
+        data_list.append(generate_input(**args))
+        args["seed"] += 42
+
+    # --- correctness on both modules, before any timing --------------------
+    base_before, cand_before = _counters(base_mod), _counters(cand_mod)
+    pristine = data_list[0].clone()
+    base_out = base_mod.custom_kernel(data_list[0].clone())
+    cand_out = cand_mod.custom_kernel(data_list[0].clone())
+    torch.cuda.synchronize()
+    base_ok, base_msg = check_implementation(pristine, base_out)
+    cand_ok, cand_msg = check_implementation(pristine, cand_out)
+    base_delta = _counter_deltas(base_before, _counters(base_mod))
+    cand_delta = _counter_deltas(cand_before, _counters(cand_mod))
+    del pristine, base_out, cand_out
+
+    # The exp-034 gate demanded `fallbacks == 0`, which fires on
+    # `_left_looking_large`'s pre-existing finiteness handoff at 32768 - present
+    # in baseline and candidate alike - and reported `passed: false` on a clean
+    # result. Gate on checker pass + no fallback the baseline does not also take.
+    new_fallbacks = {}
+    for key, value in cand_delta.items():
+        if not key.endswith("_FALLBACKS"):
+            continue
+        base_value = base_delta.get(key, 0)
+        if value > base_value:
+            new_fallbacks[key] = [base_value, value]
+
+    # --- warm BOTH modules before any timed block --------------------------
+    # First-call cost (JIT compile, autotune, graph capture) differs by orders
+    # of magnitude and would otherwise land entirely on whichever runs first.
+    warmup = 3 if n <= 2048 else 2
+    for _ in range(warmup):
+        for data in data_list:
+            base_mod.custom_kernel(data)
+        for data in data_list:
+            cand_mod.custom_kernel(data)
+    torch.cuda.synchronize()
+
+    # --- A B B A interleaving; discard the first repeat ---------------------
+    ratios, base_us, cand_us, order_spread = [], [], [], []
+    for repeat in range(repeats + 1):
+        a1 = _timed_block(base_mod.custom_kernel, data_list, iters)
+        b1 = _timed_block(cand_mod.custom_kernel, data_list, iters)
+        b2 = _timed_block(cand_mod.custom_kernel, data_list, iters)
+        a2 = _timed_block(base_mod.custom_kernel, data_list, iters)
+        if repeat == 0:
+            continue
+        a_mean = 0.5 * (a1 + a2)
+        b_mean = 0.5 * (b1 + b2)
+        ratios.append(a_mean / b_mean)
+        base_us.append(a_mean)
+        cand_us.append(b_mean)
+        # A-vs-A within one block pair: the harness's own floor, independent of
+        # any candidate difference.
+        order_spread.append(abs(a1 - a2) / a_mean)
+
+    half = len(ratios) // 2
+    ratio_med = _median(ratios)
+    ci_lo, ci_hi = _bootstrap_ci(ratios, _median)
+    row = {
+        "n": n,
+        "batch": spec["batch"],
+        "spec": _spec_label(spec),
+        "ratio_median": ratio_med,
+        "ratio_ci95": [ci_lo, ci_hi],
+        "ratio_mad": _mad(ratios),
+        "ratios": [round(r, 5) for r in ratios],
+        "baseline_us": _median(base_us),
+        "candidate_us": _median(cand_us),
+        "order_spread_median": _median(order_spread),
+        "ratio_first_half": _median(ratios[:half]) if half else None,
+        "ratio_second_half": _median(ratios[half:]) if half else None,
+        "repeats": len(ratios),
+        "iters_per_block": iters,
+        "rotating_inputs": n_inputs,
+        "baseline_ok": bool(base_ok),
+        "candidate_ok": bool(cand_ok),
+        "baseline_msg": base_msg,
+        "candidate_msg": cand_msg,
+        "baseline_counters": base_delta,
+        "candidate_counters": cand_delta,
+        "new_fallbacks": new_fallbacks,
+    }
+    row["ok"] = bool(base_ok and cand_ok and not new_fallbacks)
+
+    del data_list
+    torch.cuda.empty_cache()
+    return row
+
+
+def run_pairedgrid(filter_ns=None):
+    specs = BENCH_SPECS
+    if filter_ns:
+        specs = [s for s in BENCH_SPECS if s["n"] in filter_ns]
+
+    base_mod = _load_submission_module("sub_base", "/root/submission.py")
+    cand_mod = _load_submission_module("sub_cand", "/root/candidate.py")
+    identical = (
+        open("/root/submission.py", "rb").read()
+        == open("/root/candidate.py", "rb").read()
+    )
+    print(
+        f"pairedgrid: baseline=/root/submission.py candidate=/root/candidate.py "
+        f"byte_identical={identical} shapes={len(specs)}",
+        flush=True,
+    )
+
+    rows = []
+    for spec in specs:
+        row = _pairedgrid_shape(spec, base_mod, cand_mod)
+        rows.append(row)
+        ci = row["ratio_ci95"]
+        print(
+            f"{row['spec']:<34} ratio={row['ratio_median']:.4f} "
+            f"CI=[{ci[0]:.4f},{ci[1]:.4f}] mad={row['ratio_mad'] * 100:.2f}% "
+            f"AvA={row['order_spread_median'] * 100:.2f}% "
+            f"base={row['baseline_us']:.1f}us cand={row['candidate_us']:.1f}us "
+            f"ok={row['ok']}",
+            flush=True,
+        )
+        if not row["ok"]:
+            print(
+                f"    baseline_ok={row['baseline_ok']} candidate_ok={row['candidate_ok']} "
+                f"new_fallbacks={row['new_fallbacks']}",
+                flush=True,
+            )
+
+    medians = [r["ratio_median"] for r in rows]
+    geo = _geomean(medians)
+    # Aggregate uncertainty must be PROPAGATED from each shape's own CI, not
+    # bootstrapped over shapes. The 15 shapes are the complete fixed scoring
+    # population, not a random sample; resampling them lets a draw omit the
+    # only shape that moved, which inflates the interval until it swallows a
+    # real win. (Exp 035: V2 measured 1.0061 with a resample CI of
+    # [0.9990,1.0186] -> "not significant", vs a propagated [1.0057,1.0066]
+    # -> significant. The 1x32768 shape's own CI was [1.0902,1.0910].)
+    # log(geomean) = mean(log r_i), so var = sum(var_i) / n^2.
+    log_ses = []
+    for r in rows:
+        lo, hi = r["ratio_ci95"]
+        log_ses.append((_math.log(hi) - _math.log(lo)) / (2.0 * 1.96))
+    geo_log_se = _math.sqrt(sum(s * s for s in log_ses)) / len(rows)
+    geo_lo = _math.exp(_math.log(geo) - 1.96 * geo_log_se)
+    geo_hi = _math.exp(_math.log(geo) + 1.96 * geo_log_se)
+    # The harness's own noise floor: worst per-shape deviation from parity, and
+    # the widest A-vs-A spread seen. On a byte-identical pair these ARE the
+    # resolution limit; any candidate delta smaller than this is unmeasurable.
+    worst_dev = max(abs(m - 1.0) for m in medians)
+    worst_ava = max(r["order_spread_median"] for r in rows)
+    result = {
+        "mode": "pairedgrid",
+        "byte_identical": identical,
+        "shapes": rows,
+        "geomean_ratio": geo,
+        "geomean_ci95": [geo_lo, geo_hi],
+        "geomean_ci_excludes_1": bool(geo_lo > 1.0 or geo_hi < 1.0),
+        "worst_shape_deviation": worst_dev,
+        "worst_order_spread": worst_ava,
+        "all_shapes_ok": all(r["ok"] for r in rows),
+        "passed": all(r["ok"] for r in rows),
+    }
+    print(
+        f"\ngeomean(ratio) = {geo:.4f} CI95=[{geo_lo:.4f},{geo_hi:.4f}] "
+        f"excludes_1.0={result['geomean_ci_excludes_1']}",
+        flush=True,
+    )
+    print(
+        f"noise floor: worst per-shape deviation {worst_dev * 100:.2f}%, "
+        f"worst A-vs-A spread {worst_ava * 100:.2f}%",
+        flush=True,
+    )
+    return result
+
+
 def main():
     # argv may contain the mode, an optional comma-separated shapes filter, and
     # an optional `emu` token (handled at import time). Ignore `emu` here.
@@ -1924,6 +2224,8 @@ def main():
         result = run_dotprobe(filter_ns)
     elif mode == "mxprobe":
         result = run_mxprobe(filter_ns)
+    elif mode == "pairedgrid":
+        result = run_pairedgrid(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

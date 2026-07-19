@@ -464,6 +464,159 @@ if _HAVE_TRITON:
         )
 
     @triton.jit
+    def _mx_quant_e4m3_kernel(
+        x_ptr,
+        q_ptr,
+        s_ptr,
+        stride_xm,
+        stride_xk,
+        columns,
+        BLOCK_M: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+    ):
+        """Experiment 034: single-pass MXFP8 quantization. Each program casts
+        a (BLOCK_M, BLOCK_K) fp32 tile to e4m3 values plus one shared e8m0
+        scale (biased-exponent byte) per 32-element K-block, per the OCP
+        microscaling spec: scale = 2^(floor(log2(amax)) - 8) with a saturating
+        element cast. Replaces the exp-014 per-tensor amax reduction + host
+        scale + scale/cast pass pair. The grid must tile the operand exactly.
+        """
+        pid_m = tl.program_id(0)
+        pid_k = tl.program_id(1)
+        rows = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        cols = pid_k * BLOCK_K + tl.arange(0, BLOCK_K)
+        x = tl.load(
+            x_ptr + rows[:, None] * stride_xm + cols[None, :] * stride_xk
+        )
+        grouped = tl.reshape(x, (BLOCK_M, BLOCK_K // 32, 32))
+        amax = tl.max(tl.abs(grouped), axis=2)
+        # floor(log2(amax)) from the fp32 exponent bits; e4m3 emax is 8, so
+        # the biased shared-exponent byte is exp_bits - 8 (amax == 0 -> 0).
+        exp_bits = (amax.to(tl.int32, bitcast=True) >> 23) & 0xFF
+        sbyte = tl.maximum(exp_bits - 8, 0)
+        inv_scale = tl.exp2((127 - sbyte).to(tl.float32))
+        q = grouped * inv_scale[:, :, None]
+        tl.store(
+            q_ptr + rows[:, None] * columns + cols[None, :],
+            tl.reshape(q, (BLOCK_M, BLOCK_K)).to(tl.float8e4nv),
+        )
+        scale_cols = pid_k * (BLOCK_K // 32) + tl.arange(0, BLOCK_K // 32)
+        tl.store(
+            s_ptr + rows[:, None] * (columns // 32) + scale_cols[None, :],
+            sbyte.to(tl.uint8),
+        )
+
+    @triton.jit
+    def _mx_quant_e4m3_blocked_kernel(
+        x_ptr,
+        q_ptr,
+        s_ptr,
+        stride_xm,
+        stride_xk,
+        columns,
+        BLOCK_M: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+    ):
+        """Experiment 034 V2: same single-pass MXFP8 quantization as
+        `_mx_quant_e4m3_kernel`, but the e8m0 scale bytes are stored directly
+        in the 128x4 *blocked* (swizzled) layout `torch._scaled_mm` requires
+        for MX operands, so no separate permute/contiguous pass is needed.
+
+        Within one (128 rows x 4 scale-col) tile the byte order is
+        `(row % 32) * 16 + (row // 32 % 4) * 4 + scale_col % 4`, tiles laid out
+        row-major over (rows/128, columns/128). With BLOCK_M=32 / BLOCK_K=128
+        each program owns exactly one (32 rows x 4 scale-col) quarter-tile, so
+        the row-block and intra-tile `a` index are program constants.
+        """
+        pid_m = tl.program_id(0)
+        pid_k = tl.program_id(1)
+        rows = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        cols = pid_k * BLOCK_K + tl.arange(0, BLOCK_K)
+        x = tl.load(
+            x_ptr + rows[:, None] * stride_xm + cols[None, :] * stride_xk
+        )
+        grouped = tl.reshape(x, (BLOCK_M, BLOCK_K // 32, 32))
+        amax = tl.max(tl.abs(grouped), axis=2)
+        exp_bits = (amax.to(tl.int32, bitcast=True) >> 23) & 0xFF
+        sbyte = tl.maximum(exp_bits - 8, 0)
+        inv_scale = tl.exp2((127 - sbyte).to(tl.float32))
+        q = grouped * inv_scale[:, :, None]
+        tl.store(
+            q_ptr + rows[:, None] * columns + cols[None, :],
+            tl.reshape(q, (BLOCK_M, BLOCK_K)).to(tl.float8e4nv),
+        )
+        tile = (pid_m // 4) * (columns // 128) + pid_k
+        b = tl.arange(0, BLOCK_M)
+        c_in = tl.arange(0, BLOCK_K // 32)
+        tl.store(
+            s_ptr
+            + tile * 512
+            + b[:, None] * 16
+            + (pid_m % 4) * 4
+            + c_in[None, :],
+            sbyte.to(tl.uint8),
+        )
+
+    @triton.jit
+    def _mxfp8_panel_update_kernel(
+        q_lhs_ptr,
+        s_lhs_ptr,
+        q_rhs_ptr,
+        s_rhs_ptr,
+        out_ptr,
+        M,
+        N,
+        K,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+    ):
+        """Experiment 034: out (M, N fp32, contiguous) -= lhs @ rhs^T where
+        lhs (M, K) and rhs (N, K) are contiguous MXFP8 operands (e4m3 values,
+        per-32 e8m0 scales). tl.dot_scaled lowers to the Blackwell
+        block-scaled tensor-core MMA (tcgen05.mma kind::mxf8f6f4) on sm_100,
+        applying both scale vectors inside the instruction. The subtraction
+        into the panel is fused in the epilogue, saving the separate product
+        materialization + sub_ passes. Exact tiling required."""
+        pid_m = tl.program_id(0)
+        pid_n = tl.program_id(1)
+        rows = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        cols = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+        offs_k = tl.arange(0, BLOCK_K)
+        offs_s = tl.arange(0, BLOCK_K // 32)
+        acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+        for k0 in range(0, K, BLOCK_K):
+            lhs = tl.load(
+                q_lhs_ptr + rows[:, None] * K + k0 + offs_k[None, :]
+            )
+            lhs_scale = tl.load(
+                s_lhs_ptr
+                + rows[:, None] * (K // 32)
+                + k0 // 32
+                + offs_s[None, :]
+            )
+            rhs = tl.load(
+                q_rhs_ptr + cols[:, None] * K + k0 + offs_k[None, :]
+            )
+            rhs_scale = tl.load(
+                s_rhs_ptr
+                + cols[:, None] * (K // 32)
+                + k0 // 32
+                + offs_s[None, :]
+            )
+            acc = tl.dot_scaled(
+                lhs,
+                lhs_scale,
+                "e4m3",
+                tl.trans(rhs),
+                rhs_scale,
+                "e4m3",
+                acc,
+            )
+        out_ptrs = out_ptr + rows[:, None] * N + cols[None, :]
+        tl.store(out_ptrs, tl.load(out_ptrs) - acc)
+
+    @triton.jit
     def _clear_upper_tiles(
         out_ptr,
         n: tl.constexpr,
@@ -1509,6 +1662,106 @@ def _fp8_product_32768(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
     )
 
 
+# ---------------------------------------------------------------------------
+# Experiment 034: MXFP8 block-scaled panel products (Blackwell tcgen05).
+# ---------------------------------------------------------------------------
+_MXFP8_HITS = 0
+_MXFP8_ERROR = None
+_MXFP8_PTX = None
+_MXFP8_BACKEND = "scaled_mm_mx"
+
+_MX_QUANT_BLOCK_M = 32
+_MX_QUANT_BLOCK_K = 128
+_MX_GEMM_BLOCK_M = 128
+_MX_GEMM_BLOCK_N = 128
+_MX_GEMM_BLOCK_K = 128
+_MX_GEMM_WARPS = 8
+_MX_GEMM_STAGES = 3
+
+
+def _mx_quant_e4m3(x: torch.Tensor):
+    """One fused pass: fp32 (rows, columns) view -> contiguous e4m3 values +
+    per-32-element e8m0 scale bytes. No global amax, no host round-trip."""
+    rows, columns = x.shape
+    q = torch.empty(rows, columns, dtype=torch.float8_e4m3fn, device=x.device)
+    s = torch.empty(rows, columns // 32, dtype=torch.uint8, device=x.device)
+    _mx_quant_e4m3_kernel[
+        (rows // _MX_QUANT_BLOCK_M, columns // _MX_QUANT_BLOCK_K)
+    ](
+        x,
+        q,
+        s,
+        x.stride(0),
+        x.stride(1),
+        columns,
+        BLOCK_M=_MX_QUANT_BLOCK_M,
+        BLOCK_K=_MX_QUANT_BLOCK_K,
+    )
+    return q, s
+
+
+def _mx_quant_e4m3_blocked(x: torch.Tensor):
+    """One fused pass: fp32 (rows, columns) view -> contiguous e4m3 values +
+    e8m0 scale bytes already in the 128x4 blocked layout `torch._scaled_mm`
+    wants. Requires rows % 128 == 0 and columns % 128 == 0."""
+    rows, columns = x.shape
+    q = torch.empty(rows, columns, dtype=torch.float8_e4m3fn, device=x.device)
+    s = torch.empty(
+        rows * (columns // 32), dtype=torch.uint8, device=x.device
+    )
+    _mx_quant_e4m3_blocked_kernel[
+        (rows // _MX_QUANT_BLOCK_M, columns // _MX_QUANT_BLOCK_K)
+    ](
+        x,
+        q,
+        s,
+        x.stride(0),
+        x.stride(1),
+        columns,
+        BLOCK_M=_MX_QUANT_BLOCK_M,
+        BLOCK_K=_MX_QUANT_BLOCK_K,
+    )
+    return q, s.view(torch.float8_e8m0fnu)
+
+
+def _mxfp8_panel_update(
+    out: torch.Tensor, lhs: torch.Tensor, rhs: torch.Tensor
+) -> None:
+    """out -= lhs @ rhs^T on MXFP8 block-scaled tensor cores (experiment 034
+    V2). Both operands are quantized in one fused pass each, emitting e8m0
+    scales straight into the blocked layout, then multiplied by cuBLAS's
+    tuned block-scaled MX GEMM via `torch._scaled_mm` (V1's hand-written
+    `tl.dot_scaled` kernel measured 0.65x this path). lhs (M, K) and rhs
+    (N, K) may be strided factor views; out must be contiguous (M, N). All
+    sizes in the 32768 left-looking schedule are multiples of nb=4096, so
+    exact tiling always holds; anything else raises and the caller's existing
+    fallback chain takes over."""
+    global _MXFP8_HITS
+    m_rows, k_cols = lhs.shape
+    n_rows = rhs.shape[0]
+    if (
+        m_rows % 128
+        or n_rows % 128
+        or k_cols % 128
+        or m_rows % _MX_QUANT_BLOCK_M
+        or n_rows % _MX_QUANT_BLOCK_M
+        or k_cols % _MX_QUANT_BLOCK_K
+    ):
+        raise RuntimeError("mxfp8 tiling mismatch")
+    q_lhs, s_lhs = _mx_quant_e4m3_blocked(lhs)
+    q_rhs, s_rhs = _mx_quant_e4m3_blocked(rhs)
+    out.sub_(
+        torch._scaled_mm(
+            q_lhs,
+            q_rhs.t(),
+            scale_a=s_lhs,
+            scale_b=s_rhs,
+            out_dtype=torch.float32,
+        )
+    )
+    _MXFP8_HITS += 1
+
+
 def _left_looking_cholesky_32768(mat: torch.Tensor) -> torch.Tensor:
     global _LEFT_32768_HITS
 
@@ -1627,7 +1880,11 @@ _LARGE_FP8_ERROR = None
 _LARGE_CFG = {
     8192: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=False, shadow=False),
     16384: dict(nb=2048, panel_mode="tf32", diag_mode="tf32", rec_inv=True, shadow=False),
-    32768: dict(nb=4096, panel_mode="fp8", diag_mode="tf32", rec_inv=True, shadow=False),
+    # exp 034: MXFP8 block-scaled panel products (single-pass per-32-block
+    # quantization + tcgen05 block-scaled MMA) replace the exp-014 per-tensor
+    # fp8 pipeline. Requires Triton; _left_looking_large raises without it and
+    # custom_kernel's existing fallback chain (exp-013 fp8 path) takes over.
+    32768: dict(nb=4096, panel_mode="mxfp8", diag_mode="tf32", rec_inv=True, shadow=False),
 }
 
 
@@ -1730,6 +1987,10 @@ def _left_looking_large(
                             factor[j:, :k],
                             factor[k : k + kb, :k].transpose(-1, -2),
                         )
+                    )
+                elif panel_mode == "mxfp8":
+                    _mxfp8_panel_update(
+                        panel, factor[j:, :k], factor[k : k + kb, :k]
                     )
                 else:
                     panel.addmm_(
