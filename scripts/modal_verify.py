@@ -88,6 +88,16 @@ def _build_image(submission_path):
         "/root/baseline_sched.py",
         copy=True,
     )
+    .add_local_file(
+        str(
+            ROOT
+            / "experiments"
+            / "034-mxfp8-32768"
+            / "baseline.py"
+        ),
+        "/root/baseline_exp034.py",
+        copy=True,
+    )
     .add_local_file(str(ROOT / "scripts" / "_gpu_runner.py"), "/root/_gpu_runner.py", copy=True)
     )
 
@@ -111,6 +121,7 @@ def main() -> int:
             "dualprobe",
             "schedprobe",
             "dotprobe",
+            "mxprobe",
         ],
     )
     parser.add_argument(

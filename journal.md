@@ -182,6 +182,78 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 
 ---
 
+## 2026-07-19 — Session 31: MXFP8 block-scaled panel products (exp 034) — 1.09× on 1×32768, NOT ranked
+
+Executed `docs/goal-exp034-mxfp8-32768.md`: replace the exp-014 per-tensor FP8
+pipeline in the `1×32768` left-looking path with **MXFP8** (E4M3 values +
+per-32-element E8M0 scales) so the scaling happens *inside* the Blackwell
+block-scaled MMA. Baseline throughout: `experiments/034-mxfp8-32768/baseline.py`,
+byte-identical to ranked `cda77c7` (`#884868`). Environment: torch 2.13.0+cu130,
+Triton 3.7.1, B200 sm_100.
+
+**V1 — Triton `tl.dot_scaled` — ✗ REJECTED (slower).** Hardware engagement was
+*confirmed*, not emulated: the PTX contains
+`tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X` plus the
+tcgen05 alloc/ld/st/commit family. Accuracy was excellent (six families pass,
+worst residual 5.24/20). But a hand-written Triton block-scaled GEMM does not
+approach cuBLAS: best of a 5-config tile sweep was **2505µs vs the baseline
+pipeline's 1611µs (0.645×)**, giving paired end-to-end **0.938×**. The lesson
+mirrors S7's BF16x9 result — *engaging* the newest tensor-core instruction is
+not the same as *beating* the vendor kernel that also uses it.
+
+**V2 — fused swizzled quant + `torch._scaled_mm` — ✓ FRONTIER (1.090× paired).**
+The probe's side-channel measurement of `torch._scaled_mm` with e8m0 scales
+(592µs for the same GEMM) redirected the design: keep the single-pass Triton
+quantizer, but have it write the e8m0 bytes **directly in the 128×4 blocked
+(swizzled) layout** cuBLAS expects, then dispatch `torch._scaled_mm`. This
+removes the exp-014 global amax reduction, its host round-trip, and one full
+memory pass, and hands the GEMM to the tuned vendor kernel. Backend proof by
+profiler kernel name:
+`nvjet_sm100_qqsss_128x128_128x8_2x4_2cta_h_bz_Avec32UE8M0_Bvec32UE8M0_TNT`
+(sm100 2-CTA, per-32 UE8M0 block scales on both operands).
+- Component: **1.893×** (851.0µs vs 1611.1µs).
+- Paired same-process end-to-end `1×32768`: **1.0902×** (42504µs vs 46337µs),
+  baseline drift 0.01%.
+- Correctness: **57/57 specs pass**. Residuals at 32768 — dense 5.24, spectrum
+  5.4e-4, lowrank 5.1e-4, rowscale 4.2e-5, diagonal 6.1e-5, tridiag 4.1e-3
+  (gate 20; self-imposed ship margin 8).
+
+**V3 — extend MXFP8 to `1×16384` — ✗ REJECTED (accuracy margin).** Paired
+1.079× but dense residual **10.1/20** — over the 8/20 margin the plan set for
+secret-seed variance, and baseline drift was 9.08%. 16384 stays on tf32, as the
+plan's risk section pre-committed.
+
+**Why V2 was not ranked: the grid gate cannot resolve the effect.** A 1.093× on
+one of fifteen equally-weighted shapes is worth `1.093^(1/15)` ≈ **+0.6%**
+geomean. Measured grid geomeans: baseline (stale, exp-033 session) 1166.1µs,
+baseline (re-measured today) 1118.9µs, candidate 1183.5µs. The same *byte-identical*
+`60×1024` path measured **1565.6 / 1389.4 / 1989.7µs** across three runs — a 43%
+spread on unchanged code (it is the launch-bound eager split32 route, sensitive to
+host jitter). Per-shape grid noise of ±5–40% swamps a 0.6% signal, so
+`benchmark`-mode geomean comparison is not a valid promotion gate for this class
+of change; only the paired same-process probe is. Recorded as FRONTIER, left
+unintegrated pending a paired all-shape harness.
+
+**Harness.** `mxprobe` mode added to `scripts/_gpu_runner.py` /
+`scripts/modal_verify.py`: version capture, PTX *or* profiler-kernel-name backend
+proof (selected by the candidate's `_MXFP8_BACKEND`), micro numerics, component
+bench vs the exp-014 pipeline with tile sweep, `_scaled_mm` MX availability
+probe, six-family checker, and paired end-to-end timing. Note its
+`fallbacks == 0` gate is too strict: on spectrum/lowrank/rowscale at 32768 the
+`_left_looking_large` finiteness guard hands off to the shipped path in
+*baseline and candidate alike*, so those families' residuals come from the
+fallback, not from MXFP8.
+
+**Open levers from this session.** (1) A paired all-shape grid (both submissions
+interleaved in one process) is needed before any sub-1% geomean change can be
+promoted — this blocks more than exp 034. (2) The quantizer clips elements whose
+block-amax mantissa exceeds 1.75 at 448; this is OCP/torchao-conformant, but a
+scale bump would trade one mantissa bit for no clipping and is untested — it is
+the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
+`1×8192` path (still cuSOLVER) is untried.
+
+---
+
 ## 2026-07-18 — Session 30: QR-transfer levers L2+L4 → tf32 panels + 8×2048 NB=256 ranked #884868
 
 Implemented the QR-transfer proposal (`docs/qr-transfer-proposal.md`), lowest-ROI

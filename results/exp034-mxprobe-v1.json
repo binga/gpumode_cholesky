@@ -1,0 +1,180 @@
+{
+  "mode": "mxprobe",
+  "torch": "2.13.0+cu130",
+  "triton": "3.7.1",
+  "device": "NVIDIA B200",
+  "capability": [
+    10,
+    0
+  ],
+  "has_dot_scaled": true,
+  "target_ns": [
+    32768
+  ],
+  "micro": {
+    "rel_err": 0.04191622510552406,
+    "finite": true,
+    "ok": true
+  },
+  "ptx_bytes": 39147,
+  "ptx_tcgen05_ops": [
+    "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32",
+    "tcgen05.commit.cta_group::1.mbarrier::arrive::one.shared::cluster.b64",
+    "tcgen05.dealloc.cta_group::1.sync.aligned.b32",
+    "tcgen05.ld.sync.aligned.32x32b.x64.b32",
+    "tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X",
+    "tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned",
+    "tcgen05.st.sync.aligned.32x32b.x2.b32",
+    "tcgen05.st.sync.aligned.32x32b.x64.b32",
+    "tcgen05.wait::ld.sync.aligned",
+    "tcgen05.wait::st.sync.aligned"
+  ],
+  "ptx_kind_mxf8f6f4": true,
+  "ptx_block_scale": true,
+  "backend_proof": true,
+  "component": {
+    "baseline_fp8_us": 1616.701889038086,
+    "mxfp8_best_us": 2505.0175984700522,
+    "mxfp8_best_cfg": [
+      128,
+      128,
+      128,
+      4,
+      4
+    ],
+    "component_speedup": 0.6453854416134609,
+    "sweep": [
+      {
+        "cfg": [
+          128,
+          128,
+          128,
+          8,
+          3
+        ],
+        "us": 4211.6587320963545
+      },
+      {
+        "cfg": [
+          128,
+          256,
+          128,
+          8,
+          3
+        ],
+        "us": 2955.950927734375
+      },
+      {
+        "cfg": [
+          256,
+          128,
+          128,
+          8,
+          3
+        ],
+        "us": 2864.740244547526
+      },
+      {
+        "cfg": [
+          128,
+          128,
+          256,
+          8,
+          3
+        ],
+        "us": 2805.1264444986978
+      },
+      {
+        "cfg": [
+          128,
+          128,
+          128,
+          4,
+          4
+        ],
+        "us": 2505.0175984700522
+      }
+    ]
+  },
+  "v2_scaled_mm_mx": {
+    "rel_err": 0.04437137395143509,
+    "gemm_only_us": 592.4757639567057,
+    "available": true
+  },
+  "families": [
+    {
+      "spec": "batch=1 n=32768 case=dense",
+      "case": "dense",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=5.24; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=32768 case=spectrum",
+      "case": "spectrum",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.000537; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=32768 case=lowrank",
+      "case": "lowrank",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.000507; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=32768 case=rowscale",
+      "case": "rowscale",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=4.2e-05; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=32768 case=diagonal",
+      "case": "diagonal",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=6.1e-05; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=32768 case=tridiagonal",
+      "case": "tridiagonal",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.00408; batch=1; n=32768",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    }
+  ],
+  "paired": [
+    {
+      "n": 32768,
+      "baseline_us": 47428.733825683594,
+      "baseline_us_pass1": 48350.27980804443,
+      "baseline_us_pass2": 46507.187843322754,
+      "baseline_drift": 0.03886023969131575,
+      "candidate_us": 50566.99228286743,
+      "candidate_best_us": 50539.84069824219,
+      "speedup": 0.9379385975810329,
+      "mx_hits_timing": 120
+    }
+  ],
+  "passed": false
+}

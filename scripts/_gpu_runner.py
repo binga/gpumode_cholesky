@@ -1567,6 +1567,321 @@ def run_emuprobe(filter_ns=None):
     return {"mode": "emuprobe", "emu_env": emu_env, "results": results}
 
 
+# ---------------------------------------------------------------------------
+# mxprobe (experiment 034): MXFP8 block-scaled panel products for 1x32768.
+# One sandbox run produces: Triton/torch versions, PTX backend proof
+# (tcgen05 block-scaled MMA or bust), a micro numeric sanity check, a
+# component micro-bench vs the exp-014 per-tensor fp8 pipeline (with a GEMM
+# config sweep and a torch._scaled_mm MX availability check), the six-family
+# checker gate at 32768, and a paired end-to-end timing vs the exact ranked
+# baseline (/root/baseline_exp034.py).
+# ---------------------------------------------------------------------------
+def _load_exp034_baseline_module():
+    spec = importlib.util.spec_from_file_location(
+        "baseline_exp034", "/root/baseline_exp034.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_mxprobe(filter_ns=None):
+    import triton as _triton
+    import submission as cand
+
+    ns = sorted(filter_ns) if filter_ns else [32768]
+    result = {
+        "mode": "mxprobe",
+        "torch": torch.__version__,
+        "triton": getattr(_triton, "__version__", "?"),
+        "device": torch.cuda.get_device_name(0),
+        "capability": list(torch.cuda.get_device_capability(0)),
+        "has_dot_scaled": hasattr(_triton.language, "dot_scaled"),
+        "target_ns": ns,
+    }
+    passed = True
+
+    # --- 1. micro numerics + backend proof on an exact-tile toy case -------
+    torch.manual_seed(1234)
+    lhs = torch.randn(512, 512, device="cuda")
+    rhs = torch.randn(256, 512, device="cuda")
+    out = torch.zeros(512, 256, device="cuda")
+    micro = {}
+    try:
+        cand._mxfp8_panel_update(out, lhs, rhs)
+        torch.cuda.synchronize()
+        exact = lhs @ rhs.T
+        micro["rel_err"] = float(
+            ((out + exact).norm() / exact.norm()).item()
+        )
+        micro["finite"] = bool(torch.isfinite(out).all().item())
+        micro["ok"] = micro["finite"] and micro["rel_err"] < 0.10
+        del exact
+    except Exception as exc:
+        micro = {"ok": False, "error": repr(exc)}
+    passed = passed and micro.get("ok", False)
+    result["micro"] = micro
+    del lhs, rhs, out
+
+    ptx = getattr(cand, "_MXFP8_PTX", None) or ""
+    tc_ops = sorted(
+        {
+            tok.rstrip(",;")
+            for line in ptx.splitlines()
+            if "tcgen05" in line
+            for tok in line.split()
+            if "tcgen05" in tok
+        }
+    )
+    result["ptx_bytes"] = len(ptx)
+    result["ptx_tcgen05_ops"] = tc_ops[:20]
+    result["ptx_kind_mxf8f6f4"] = "mxf8f6f4" in ptx
+    result["ptx_block_scale"] = "block_scale" in ptx
+    backend = getattr(cand, "_MXFP8_BACKEND", "triton_dot_scaled")
+    result["backend"] = backend
+    if backend == "scaled_mm_mx":
+        # V2 dispatches cuBLAS rather than a Triton kernel, so there is no PTX
+        # to inspect. Prove the block-scaled MX GEMM engaged by capturing the
+        # device kernel names the panel update actually launches.
+        names = []
+        try:
+            from torch.profiler import ProfilerActivity, profile
+
+            lhs_p = torch.randn(512, 512, device="cuda")
+            rhs_p = torch.randn(256, 512, device="cuda")
+            out_p = torch.zeros(512, 256, device="cuda")
+            cand._mxfp8_panel_update(out_p, lhs_p, rhs_p)
+            torch.cuda.synchronize()
+            with profile(activities=[ProfilerActivity.CUDA]) as prof:
+                cand._mxfp8_panel_update(out_p, lhs_p, rhs_p)
+                torch.cuda.synchronize()
+            names = sorted(
+                {
+                    e.name
+                    for e in prof.events()
+                    if getattr(e, "device_type", None) is not None
+                    and "cuda" in str(getattr(e, "device_type", "")).lower()
+                }
+            )
+            del lhs_p, rhs_p, out_p
+        except Exception as exc:
+            names = [f"profiler-error: {exc!r}"]
+        result["scaled_mm_kernels"] = names[:30]
+        blob = " ".join(names).lower()
+        result["backend_proof"] = any(
+            tok in blob
+            for tok in ("mxf8", "block_scale", "blockscaled", "blockwise", "mx_")
+        )
+    else:
+        result["backend_proof"] = bool(tc_ops) and result["ptx_kind_mxf8f6f4"]
+    if not result["backend_proof"]:
+        # Timing an emulated path would be invalid-as-MXFP8 evidence; keep
+        # running to gather diagnostics but fail the probe.
+        passed = False
+
+    def _time_op(fn, warmup=3, iters=15):
+        for _ in range(warmup):
+            fn()
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        for _ in range(iters):
+            fn()
+        end.record()
+        torch.cuda.synchronize()
+        return start.elapsed_time(end) * 1e3 / iters
+
+    # --- 2. component micro-bench vs exp-014 per-tensor fp8 + config sweep -
+    # Representative mid-loop panel product of the 32768/nb=4096 schedule:
+    # k=16384 -> lhs (12288, 16384), rhs (4096, 16384), panel (12288, 4096).
+    base = _load_exp034_baseline_module()
+    m_r, k_r, n_r = 12288, 16384, 4096
+    factor_lhs = torch.randn(m_r, k_r, device="cuda") * 0.05
+    factor_rhs = torch.randn(n_r, k_r, device="cuda") * 0.05
+    panel = torch.randn(m_r, n_r, device="cuda")
+
+    def _cand_call():
+        cand._mxfp8_panel_update(panel, factor_lhs, factor_rhs)
+
+    def _base_call():
+        panel.sub_(
+            base._fp8_product_32768(
+                factor_lhs, factor_rhs.transpose(-1, -2)
+            )
+        )
+
+    component = {}
+    try:
+        component["baseline_fp8_us"] = _time_op(_base_call)
+    except Exception as exc:
+        component["baseline_error"] = repr(exc)
+    sweep = []
+    default_cfg = (
+        cand._MX_GEMM_BLOCK_M,
+        cand._MX_GEMM_BLOCK_N,
+        cand._MX_GEMM_BLOCK_K,
+        cand._MX_GEMM_WARPS,
+        cand._MX_GEMM_STAGES,
+    )
+    # V2 dispatches cuBLAS, so the Triton tile globals do nothing: one entry.
+    sweep_cfgs = (
+        [default_cfg]
+        if backend == "scaled_mm_mx"
+        else [
+            default_cfg,
+            (128, 256, 128, 8, 3),
+            (256, 128, 128, 8, 3),
+            (128, 128, 256, 8, 3),
+            (128, 128, 128, 4, 4),
+        ]
+    )
+    for bm, bn, bk, w, s in sweep_cfgs:
+        if (bm, bn, bk, w, s) in [tuple(r["cfg"]) for r in sweep]:
+            continue
+        cand._MX_GEMM_BLOCK_M = bm
+        cand._MX_GEMM_BLOCK_N = bn
+        cand._MX_GEMM_BLOCK_K = bk
+        cand._MX_GEMM_WARPS = w
+        cand._MX_GEMM_STAGES = s
+        try:
+            us = _time_op(_cand_call)
+            sweep.append({"cfg": [bm, bn, bk, w, s], "us": us})
+            print(f"sweep cfg={bm},{bn},{bk},w{w},s{s} -> {us:.1f}us", flush=True)
+        except Exception as exc:
+            sweep.append({"cfg": [bm, bn, bk, w, s], "error": repr(exc)})
+            print(f"sweep cfg={bm},{bn},{bk},w{w},s{s} -> ERROR {exc!r}", flush=True)
+    timed = [r for r in sweep if "us" in r]
+    if timed:
+        best = min(timed, key=lambda r: r["us"])
+        component["mxfp8_best_us"] = best["us"]
+        component["mxfp8_best_cfg"] = best["cfg"]
+        bm, bn, bk, w, s = best["cfg"]
+        cand._MX_GEMM_BLOCK_M = bm
+        cand._MX_GEMM_BLOCK_N = bn
+        cand._MX_GEMM_BLOCK_K = bk
+        cand._MX_GEMM_WARPS = w
+        cand._MX_GEMM_STAGES = s
+        if "baseline_fp8_us" in component:
+            component["component_speedup"] = (
+                component["baseline_fp8_us"] / best["us"]
+            )
+    else:
+        passed = False
+    component["sweep"] = sweep
+    result["component"] = component
+
+    # --- V2 availability: torch._scaled_mm with MX (1x32) e8m0 scales ------
+    v2 = {}
+    try:
+        def _to_blocked(x):
+            rows, cols = x.shape
+            b = x.view(rows // 128, 128, cols // 4, 4).permute(0, 2, 1, 3)
+            b = b.reshape(-1, 4, 32, 4).transpose(1, 2)
+            return b.reshape(-1).contiguous()
+
+        q_l, s_l = cand._mx_quant_e4m3(factor_lhs)
+        q_r, s_r = cand._mx_quant_e4m3(factor_rhs)
+        sa = _to_blocked(s_l).view(torch.float8_e8m0fnu)
+        sb = _to_blocked(s_r).view(torch.float8_e8m0fnu)
+
+        def _v2_call():
+            return torch._scaled_mm(
+                q_l, q_r.t(), scale_a=sa, scale_b=sb,
+                out_dtype=torch.float32,
+            )
+
+        prod = _v2_call()
+        exact_r = factor_lhs @ factor_rhs.transpose(-1, -2)
+        v2["rel_err"] = float(
+            ((prod - exact_r).norm() / exact_r.norm()).item()
+        )
+        v2["gemm_only_us"] = _time_op(_v2_call)
+        v2["available"] = v2["rel_err"] < 0.10
+        del q_l, s_l, q_r, s_r, sa, sb, prod, exact_r
+    except Exception as exc:
+        v2 = {"available": False, "error": repr(exc)}
+    result["v2_scaled_mm_mx"] = v2
+    del factor_lhs, factor_rhs, panel
+    torch.cuda.empty_cache()
+
+    # --- 3. six-family checker gate at each target n -----------------------
+    fam_rows = []
+    for n in ns:
+        for spec in [s for s in TEST_SPECS if s["n"] == n and s["batch"] == 1]:
+            hits0 = cand._MXFP8_HITS
+            falls0 = cand._LARGE_FP8_FALLBACKS
+            data = generate_input(**spec)
+            pristine = data.clone()
+            out_t = cand.custom_kernel(data)
+            torch.cuda.synchronize()
+            ok, msg = check_implementation(pristine, out_t)
+            row = {
+                "spec": _spec_label(spec),
+                "case": spec.get("case", "dense"),
+                "ok": bool(ok),
+                "msg": msg,
+                "mx_hits": cand._MXFP8_HITS - hits0,
+                "fallbacks": cand._LARGE_FP8_FALLBACKS - falls0,
+                "mx_error": getattr(cand, "_MXFP8_ERROR", None),
+                "large_error": getattr(cand, "_LARGE_FP8_ERROR", None),
+            }
+            fam_rows.append(row)
+            passed = (
+                passed and ok and row["mx_hits"] > 0 and row["fallbacks"] == 0
+            )
+            print(
+                f"family {row['spec']:<16} {row['case']:<12} ok={ok} "
+                f"mx_hits={row['mx_hits']} fallbacks={row['fallbacks']} {msg}",
+                flush=True,
+            )
+            del data, pristine, out_t
+            torch.cuda.empty_cache()
+    result["families"] = fam_rows
+
+    # --- 4. paired end-to-end timing per target n (dense ranked spec) ------
+    paired = []
+    for n in ns:
+        spec = next(s for s in BENCH_SPECS if s["n"] == n)
+        args = dict(spec)
+        data_list = []
+        for _ in range(2):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+        hits0 = cand._MXFP8_HITS
+        base_t1 = _time_callable_rotating(base.custom_kernel, data_list, 2, 8)
+        cand_t = _time_callable_rotating(cand.custom_kernel, data_list, 2, 8)
+        base_t2 = _time_callable_rotating(base.custom_kernel, data_list, 1, 8)
+        base_mean = (base_t1["mean_us"] + base_t2["mean_us"]) / 2.0
+        drift = abs(base_t1["mean_us"] - base_t2["mean_us"]) / base_mean
+        row = {
+            "n": n,
+            "baseline_us": base_mean,
+            "baseline_us_pass1": base_t1["mean_us"],
+            "baseline_us_pass2": base_t2["mean_us"],
+            "baseline_drift": drift,
+            "candidate_us": cand_t["mean_us"],
+            "candidate_best_us": cand_t["best_us"],
+            "speedup": base_mean / cand_t["mean_us"],
+            "mx_hits_timing": cand._MXFP8_HITS - hits0,
+        }
+        paired.append(row)
+        print(
+            f"paired n={n} base={base_mean:.1f}us cand={cand_t['mean_us']:.1f}us "
+            f"speedup={row['speedup']:.4f}x drift={drift * 100:.2f}% "
+            f"mx_hits={row['mx_hits_timing']}",
+            flush=True,
+        )
+        if row["mx_hits_timing"] <= 0:
+            passed = False
+        del data_list
+        torch.cuda.empty_cache()
+    result["paired"] = paired
+
+    result["passed"] = bool(passed)
+    return result
+
+
 def main():
     # argv may contain the mode, an optional comma-separated shapes filter, and
     # an optional `emu` token (handled at import time). Ignore `emu` here.
@@ -1607,6 +1922,8 @@ def main():
         result = run_schedprobe(filter_ns)
     elif mode == "dotprobe":
         result = run_dotprobe(filter_ns)
+    elif mode == "mxprobe":
+        result = run_mxprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

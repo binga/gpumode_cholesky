@@ -1,0 +1,135 @@
+{
+  "mode": "mxprobe",
+  "torch": "2.13.0+cu130",
+  "triton": "3.7.1",
+  "device": "NVIDIA B200",
+  "capability": [
+    10,
+    0
+  ],
+  "has_dot_scaled": true,
+  "target_ns": [
+    16384
+  ],
+  "micro": {
+    "rel_err": 0.04191622510552406,
+    "finite": true,
+    "ok": true
+  },
+  "ptx_bytes": 0,
+  "ptx_tcgen05_ops": [],
+  "ptx_kind_mxf8f6f4": false,
+  "ptx_block_scale": false,
+  "backend": "scaled_mm_mx",
+  "scaled_mm_kernels": [
+    "_mx_quant_e4m3_blocked_kernel",
+    "nvjet_sm100_qqsss_128x128_128x8_2x4_2cta_h_bz_Avec32UE8M0_Bvec32UE8M0_TNT",
+    "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)"
+  ],
+  "backend_proof": true,
+  "component": {
+    "baseline_fp8_us": 1607.4048360188801,
+    "mxfp8_best_us": 835.9509150187174,
+    "mxfp8_best_cfg": [
+      128,
+      128,
+      128,
+      8,
+      3
+    ],
+    "component_speedup": 1.9228459555940427,
+    "sweep": [
+      {
+        "cfg": [
+          128,
+          128,
+          128,
+          8,
+          3
+        ],
+        "us": 835.9509150187174
+      }
+    ]
+  },
+  "v2_scaled_mm_mx": {
+    "rel_err": 0.04437505453824997,
+    "gemm_only_us": 576.6229629516602,
+    "available": true
+  },
+  "families": [
+    {
+      "spec": "batch=1 n=16384 case=dense",
+      "case": "dense",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=10.1; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=16384 case=spectrum",
+      "case": "spectrum",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.108; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=16384 case=lowrank",
+      "case": "lowrank",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.000796; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=16384 case=rowscale",
+      "case": "rowscale",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.0243; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 1,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=16384 case=diagonal",
+      "case": "diagonal",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.000122; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    },
+    {
+      "spec": "batch=1 n=16384 case=tridiagonal",
+      "case": "tridiagonal",
+      "ok": true,
+      "msg": "scaled_reconstruction_residual=0.00951; batch=1; n=16384",
+      "mx_hits": 6,
+      "fallbacks": 0,
+      "mx_error": null,
+      "large_error": null
+    }
+  ],
+  "paired": [
+    {
+      "n": 16384,
+      "baseline_us": 15931.361079216003,
+      "baseline_us_pass1": 16654.69205379486,
+      "baseline_us_pass2": 15208.030104637146,
+      "baseline_drift": 0.09080592310753818,
+      "candidate_us": 14770.690202713013,
+      "candidate_best_us": 14764.73617553711,
+      "speedup": 1.0785793257169394,
+      "mx_hits_timing": 120
+    }
+  ],
+  "passed": false
+}
