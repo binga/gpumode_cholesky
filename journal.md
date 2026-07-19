@@ -254,6 +254,51 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 
 ---
 
+## 2026-07-19 — Session 32: paired grid harness + MXFP8 V2 ranked #888352
+
+**Harness (exp 035).** `pairedgrid`: both submissions loaded as separate modules
+in ONE process, A-B-B-A interleaved, per-shape median ratio + bootstrap CI.
+Resolution ~0.1% per shape vs the 43% spread the unpaired grid produced on
+byte-identical code. This unblocks every sub-2% decision from here on.
+
+**Null calibration is not perfect — one shape is biased.** Baseline vs a
+byte-identical copy: 14/15 shapes within +/-0.4%, but `1024x64` reads 0.9878
+CI [0.9870,0.9891] — excludes 1.0 on IDENTICAL code, A-vs-A spread only 0.29%,
+so it is systematic, not noise. That shape carries `_GRAPH_SP_HITS` (the
+graph-replayed path): cross-module CUDA-graph interference. **Any pairedgrid
+verdict on `1024x64` is invalid until this is fixed.**
+
+**Aggregate CI statistic fixed.** Was bootstrapping over shapes, which treats
+the 15 shapes as a random sample. They are the complete fixed scoring
+population; a resample can omit the only shape that moved. V2 read
+[0.9990,1.0186] ("not significant") under resampling vs [1.00569,1.00658]
+(significant) when propagating each shape's own CI. Now propagates.
+
+**Shipped exp-034 V2 (MXFP8 block-scaled panel products on 1x32768).**
+Paired 1.0905 CI [1.0902,1.0910], 46139 -> 42312us. All 14 other shapes at
+parity. Paired geomean **1.00613 CI [1.00569,1.00658]**. verify 57/57, worst
+residual 5.24/20. popcorn test #888350 17/17.
+
+**Ranked #888352 — and the scores do NOT match the measurement.**
+- public 1052.594us vs #884868's 1081.737us = **-2.69%, NEW BEST**
+- secret 1140.758us vs #884868's 1091.616us = **+4.50% WORSE**
+- paired harness predicted -0.61%.
+
+Public over-credits by ~4x and secret shows a regression larger than the 2.6%
+identical-file spread recorded in S31. **Trust the +0.61%.** This is the
+strongest evidence yet that leaderboard deltas under ~3% carry no information:
+one submission, one code change, three mutually contradictory numbers. The
+board now shows a new best, but that is not evidence the change was worth
+2.69%, and a future secret-split ranking could read it as a loss.
+
+**Campaign framing (docs/campaign-2x-per-shape.md).** Geomean weights all 15
+shapes equally, so halving ANY shape is worth 4.52% — order by tractability,
+not by absolute latency. Headroom vs hardware floor: `4x1024` 158.9x,
+`2x2048` 107.9x, `16x512` 89.6x ... `1x16384` 4.6x, `1x32768` **1.8x**.
+`1x32768` is within 1.8x of its own roofline and CANNOT be doubled; it is
+frontier-complete. The 20-160x shapes are launch-bound (exp 029), so 2x there
+means halving launch count, not math. Next target: `4x1024`.
+
 ## 2026-07-18 — Session 30: QR-transfer levers L2+L4 → tf32 panels + 8×2048 NB=256 ranked #884868
 
 Implemented the QR-transfer proposal (`docs/qr-transfer-proposal.md`), lowest-ROI
