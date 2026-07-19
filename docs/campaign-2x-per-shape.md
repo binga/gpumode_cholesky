@@ -107,14 +107,17 @@ factorization for n<=256 where a matrix fits in one SM's smem.
    Synthetic one-warp floors leave only 1.38x headroom.
 3. ~~**2x2048**~~ — EXHAUSTED under six distinct correct architectures. Exp
    038's best hardware-cluster/TRSM path was 0.595x versus ranked.
-4. **4096x32** — one 38us rank-2 Triton kernel, 4.4us traffic floor, and a
-   direct one-warp CUDA kernel is not gated by the repeated-micro launch floor.
-5. **16x512 / 64x256 / 256x128** — re-diagnose per shape before assuming a
+4. ~~**4096x32**~~ — **2x ACHIEVED** by exp 039. Register-row/shared-pivot
+   rank-2 CUDA: 43.29 -> 19.09us = 2.269x; ranked as `#888636`.
+5. **1x4096** — next serial contract target; 90.8% is one 1393us vendor kernel,
+   with a 767.6us paired 2x threshold.
+6. **2x4096** — third serial contract target after 1x4096.
+7. **16x512 / 64x256 / 256x128** — re-diagnose per shape before assuming a
    lever; the `4x1024` lesson is that the campaign's headroom table says
    *whether* a shape is slow, never *why*.
-6. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
+8. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
    the mantissa-clip fix.
-7. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
+9. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
 
 **Method note.** Diagnose before building. Exp 036 spent 3 profiling runs to
 kill a 6-variant plan whose premise was wrong, and produced the campaign's

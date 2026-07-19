@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKLOAD_IDS = {
-    (2, 2048): "2x2048-fp32-dense",
+    (4096, 32): "4096x32-fp32-dense",
     (1, 4096): "1x4096-fp32-dense",
     (2, 4096): "2x4096-fp32-dense",
 }
@@ -42,7 +42,7 @@ def _run_paired(raw_path: Path) -> dict:
         "--candidate",
         "submission.py",
         "--shapes",
-        "2048,4096",
+        "32,4096",
         "--json",
         str(raw_path),
     ]

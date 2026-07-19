@@ -63,14 +63,14 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#888352` = 1052.5936128862302μs public geomean** (Session 32;
-secret 1140.7581388369256μs). The accepted signal is the paired same-process
-gain, 1.00613× aggregate, not the contradictory public/secret split. The source
-adds MXFP8 V2 at `1×32768` to the exp-032/033 frontier. `nb` = block size.
+Current best: **`#888636` = 992.5512746923738μs public geomean** (Session 36;
+secret 1003.3324708424547μs). Experiment 039 replaces only `n=32` with a
+cuSOLVER-free CUDA rank-2 warp kernel: `4096×32` improves 2.269× paired and the
+full paired grid improves 1.05554×. `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
-| 4096×32  | ✗ | ✗ | **✓** rank-2 (S16b); rank-4 S22 1.077× Modal but rejected after mixed LB | TBD | ✗ | ✗ | ✗ | ✗ | TBD |
+| 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
 | 256×128  | ✗ | ✗ | **✓** split32 route (S28, 1.108×) | ✗ (S3) | **✓** (S28) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S28; vendor-graph fallback S9/S15) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
@@ -252,6 +252,40 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 36: exp 039 `4096x32` CUDA warp kernel → 2.269x, ranked #888636
+
+The three-shape contract was explicitly revised after `2x2048` exhaustion to
+`4096x32`, `1x4096`, and `2x4096`. Its fresh byte-identical null baseline was
+stable (worst A-vs-A spread 0.24%): 43.18 / 1535.19 / 3212.60us.
+
+**Constituent budget.** `4096x32` was one 38.1us Triton rank-2 kernel, only 2us
+wall-minus-device, against a 4.4us compulsory input/output traffic floor. The
+target was Triton's predicated full-tile state transformation, not launch or
+data movement.
+
+Six architecture axes were measured. Register columns serialized the pivot
+(75.37us); four-warps cooperative update overpaid block barriers (91.77us);
+shuffle-only register rows were 54.32us. One shared-memory row per lane reached
+37.51us. The decisive V6 kept rows in registers and exchanged only the pivot
+column through padded shared memory: 22.55us / 1.915x. Its rank-2 refinement
+factors two pivots and fuses their trailing updates: **20.49us / 2.282x**.
+
+The integrated source reproduced **43.29 -> 19.09us = 2.269x** with
+`_CUDA32_HITS=1`. Changed-region checks passed 7/7 across all six families,
+worst residual 0.0782/20. The full paired grid passed 15/15: target 2.244x, all
+14 other shapes at parity, geomean **1.05554x CI [1.05481,1.05628]**. The
+machine audit records target latency -55.6% and no regression; its three-shape
+overall verdict remains incomplete/rejected until the two 4096 shapes reach 2x.
+
+Popcorn test `#888631` passed 17/17. Ranked `#888636` succeeded at
+**992.551us public / 1003.332us secret**, improving `#888352` by **5.704% /
+12.047%**. Exact ranked SHA-256: `e6672b39a324a4d6247d803fdf4bf62422b7afb66d1aac09063a55e5990770d1`.
+No auxiliary/concurrent queue API and no cuSOLVER call were introduced by the
+new path. Next serial contract target: `1x4096`.
+
+Evidence: `experiments/039-cuda-n32/`, `audit/baseline-rev2.json`, and
+`audit/exp039-result.json`.
 
 ## 2026-07-20 — Session 35: exp 038 `2x2048` hardware clusters → EXHAUSTED
 

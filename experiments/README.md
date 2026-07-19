@@ -66,3 +66,4 @@ and auditable.
 | 036 | constituent diagnosis of 4×1024 and seven-shape `_micro_potrf_gj32` floor | 62.2% of 4×1024 is one 13.3us/call kernel; 236 regs, zero spills; deleting it still misses 2× | — | **4×1024 exhausted-diagnosed** |
 | 037 | assembly and synthetic-floor test of proposed CUDA micro rewrite | shipped 14.379us; empty/LDST/arithmetic floors 10.083–10.456us; only 1.38× headroom | — | **rejected: 2× premise refuted** |
 | 038 | hardware-cluster Cholesky for 2×2048: whole persistent, cluster superpanel + custom inverse/TRSM, widths 128/64 | four new correct active paths 0.063–0.595×; best 2303.9us vs 1371.8us | — | **exhausted under six-variant bound** |
+| 039 | cuSOLVER-free CUDA warp Cholesky for 4096×32; register rows, shared pivot columns, rank-2 fused updates | paired 43.29→19.09us = **2.269×**; full grid 1.05554×; 992.551us public / 1003.332us secret | #888636 | **adopted; first campaign shape reaches 2×** |

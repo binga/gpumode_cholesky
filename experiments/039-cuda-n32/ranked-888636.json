@@ -1,0 +1,15 @@
+{
+  "submission_id": 888636,
+  "leaderboard": "cholesky",
+  "file_name": "submission.py",
+  "status": "succeeded",
+  "public": {
+    "passed": true,
+    "score_us": 992.5512746923738
+  },
+  "secret": {
+    "passed": true,
+    "score_us": 1003.3324708424547
+  },
+  "candidate_sha256": "e6672b39a324a4d6247d803fdf4bf62422b7afb66d1aac09063a55e5990770d1"
+}

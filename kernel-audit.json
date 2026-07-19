@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "gpumode-cholesky-three-shape-2x",
+  "name": "gpumode-cholesky-three-shape-2x-revision-2",
   "adapter": {
     "argv": [
       "python3",
@@ -15,7 +15,7 @@
     "timeout_seconds": 1800
   },
   "workloads": [
-    {"id": "2x2048-fp32-dense", "weight": 0.3333333333333333},
+    {"id": "4096x32-fp32-dense", "weight": 0.3333333333333333},
     {"id": "1x4096-fp32-dense", "weight": 0.3333333333333333},
     {"id": "2x4096-fp32-dense", "weight": 0.3333333333333333}
   ],

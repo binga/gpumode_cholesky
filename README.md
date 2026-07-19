@@ -116,7 +116,7 @@ popcorn submissions                                # view your entries
   (1.2–3.1× faster in isolation but 5–40× slower in the register-tight panel
   kernels). See `experiments/032-panel-width-schedule/` and
   `experiments/033-fp16x3-panels/`.
-- **Ranked submission `#888352`** (exp 035 — current best): `done`, public
+- **Ranked submission `#888352`** (exp 035 — superseded by exp 039): `done`, public
   geomean **1052.5936128862302us** and secret **1140.7581388369256us**.
   Integrates Experiment 034's MXFP8 V2 panel products at `1×32768`; the
   same-process paired grid measured a 1.0905x target gain and **1.00613x**
@@ -125,6 +125,16 @@ popcorn submissions                                # view your entries
   so paired evidence remains the acceptance signal. Experiments 036--038 then
   decomposed the mid-shape latency floor and bounded the proposed micro/cluster
   rewrites without changing the ranked source or spending another ranked slot.
+- **Ranked submission `#888636`** (exp 039 — current best): `done`, public
+  geomean **992.5512746923738us** and secret **1003.3324708424547us**.
+  A cuSOLVER-free CUDA warp kernel replaces only the `n=32` fast path: rows
+  stay in registers, pivot columns cross lanes through padded shared memory,
+  and rank-2 pivot processing fuses two trailing updates. Same-process B200:
+  **4096×32 43.29→19.09us = 2.269×**; six families pass with worst residual
+  0.0782/20. The full paired grid passed 15/15, held every other shape at
+  parity, and improved geomean 1.05554×. Popcorn test `#888631` passed 17/17;
+  the ranked result improves `#888352` by **5.704% public / 12.047% secret**.
+  See `experiments/039-cuda-n32/`.
 - **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
   `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**
