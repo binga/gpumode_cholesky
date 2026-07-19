@@ -130,6 +130,7 @@ def main() -> int:
             "pairedgrid",
             "shapediag",
             "microprobe",
+            "asmprobe",
         ],
     )
     parser.add_argument(

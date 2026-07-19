@@ -921,6 +921,277 @@ def run_microprobe(filter_ns=None):
     return result
 
 
+def run_asmprobe(filter_ns=None):
+    """Experiment 037 GATE: does the `tl.where` cascade in `_micro_potrf_gj32`
+    survive compilation, or does the compiler fold it?
+
+    The exp-036 hypothesis was that Triton rebuilds the full 32x32 tile through
+    a 5-deep nested `tl.where` every iteration (~10k predicated ops/iteration),
+    setting the ~12.7us fixed floor. That is only true if the selects are
+    RUNTIME selects. `for it in range(0, 8)` has constant bounds, so if Triton
+    unrolls it, `p0 = 4*it` becomes a compile-time constant, every
+    `c == p0` predicate is statically known per element, and the whole cascade
+    folds into register renaming at zero cost.
+
+    This dumps PTX + SASS for the shipped kernel and counts the instruction
+    mix. If selp/predicated-select counts are low relative to FFMA, the
+    hypothesis is REFUTED and a CUDA rewrite targeting the cascade is
+    pointless.
+    """
+    import collections
+    import re
+    import subprocess
+    import tempfile
+
+    import submission as sub
+
+    micro = sub.custom_kernel.__globals__.get("_micro_potrf_gj32")
+    result = {
+        "mode": "asmprobe",
+        "device": torch.cuda.get_device_name(0),
+        "found_kernel": micro is not None,
+    }
+    if micro is None:
+        result["passed"] = False
+        result["note"] = "kernel not reachable from module globals"
+        return result
+
+    batch, n = 4, 1024
+    work = torch.zeros(batch, n, n, device="cuda", dtype=torch.float32)
+    eye = torch.eye(n, device="cuda", dtype=torch.float32)
+    work.copy_((eye * 4.0).expand(batch, n, n).contiguous())
+    dinv = torch.empty(batch, 32, 32, device="cuda", dtype=torch.float32)
+    handle = micro[(batch,)](
+        work, dinv, work, n=n, k=0,
+        FIRST=False, RECIPROCAL_SOLVE=True, num_warps=1,
+    )
+    torch.cuda.synchronize()
+
+    asm = getattr(handle, "asm", {}) or {}
+    result["asm_keys"] = sorted(asm.keys())
+    result["n_regs"] = getattr(handle, "n_regs", None)
+    result["n_spills"] = getattr(handle, "n_spills", None)
+
+    ptx = asm.get("ptx", "")
+    result["ptx_lines"] = len(ptx.splitlines())
+    ptx_ops = collections.Counter()
+    labels = set()
+    branch_targets = []
+    for line in ptx.splitlines():
+        line = line.strip()
+        if not line or line.startswith(("//", ".", "{", "}")):
+            continue
+        if line.endswith(":"):
+            labels.add(line[:-1])
+            continue
+        # Predicated instructions start with @%p / @!%p -- strip the guard so
+        # they are COUNTED, not skipped (skipping them hides every loop
+        # backedge, which is exactly the structure question here).
+        if line.startswith("@"):
+            parts = line.split(None, 1)
+            if len(parts) < 2:
+                continue
+            line = parts[1]
+        tok = line.split()
+        if not tok:
+            continue
+        op = tok[0].split(".")[0]
+        ptx_ops[op] += 1
+        if op == "bra":
+            branch_targets.append(line)
+    result["ptx_labels"] = len(labels)
+    result["ptx_branch_lines"] = branch_targets[:8]
+    result["ptx_total_insts"] = sum(ptx_ops.values())
+    result["ptx_top"] = ptx_ops.most_common(18)
+    # selp = predicated select; setp = predicate compute. These are what a
+    # surviving runtime `tl.where` cascade would emit.
+    result["ptx_selp"] = ptx_ops.get("selp", 0)
+    result["ptx_setp"] = ptx_ops.get("setp", 0)
+    result["ptx_fma"] = ptx_ops.get("fma", 0)
+    result["ptx_branches"] = ptx_ops.get("bra", 0)
+    # Cross-lane / shared-memory traffic: the alternative bottleneck. With one
+    # warp there is no occupancy to hide any of this latency.
+    result["ptx_shfl"] = ptx_ops.get("shfl", 0)
+    result["ptx_bar"] = ptx_ops.get("bar", 0)
+    result["ptx_rsqrt"] = ptx_ops.get("rsqrt", 0)
+    result["ptx_ldmatrix"] = ptx_ops.get("ldmatrix", 0)
+    result["ptx_stmatrix"] = ptx_ops.get("stmatrix", 0)
+    # 8 rank-4 steps x 4 rsqrt = 32 expected if the loop is fully unrolled;
+    # 4 means the PTX holds ONE loop body and the trip count is dynamic.
+    result["loop_unrolled"] = result["ptx_rsqrt"] >= 32
+
+    # SASS via nvdisasm on the cubin (the devel image has it).
+    sass_ops = collections.Counter()
+    sass_total = 0
+    cubin = asm.get("cubin")
+    if cubin:
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".cubin", delete=False) as fh:
+                fh.write(cubin)
+                path = fh.name
+            out = subprocess.run(
+                ["nvdisasm", "-c", path], capture_output=True, text=True, timeout=120
+            )
+            sass = out.stdout
+            result["sass_lines"] = len(sass.splitlines())
+            for line in sass.splitlines():
+                m = re.search(r"\*/\s+(@!?P\d+\s+)?([A-Z][A-Z0-9_.]*)", line)
+                if m:
+                    sass_ops[m.group(2).split(".")[0]] += 1
+                    sass_total += 1
+            result["sass_total_insts"] = sass_total
+            result["sass_top"] = sass_ops.most_common(18)
+            result["sass_sel"] = sass_ops.get("SEL", 0) + sass_ops.get("FSEL", 0)
+            result["sass_isetp"] = sass_ops.get("ISETP", 0)
+            result["sass_ffma"] = sass_ops.get("FFMA", 0)
+            result["sass_branches"] = sass_ops.get("BRA", 0) + sass_ops.get("BSSY", 0)
+            result["sass_shfl"] = sass_ops.get("SHFL", 0)
+            result["sass_bar"] = sass_ops.get("BAR", 0) + sass_ops.get("BARRIER", 0)
+            result["sass_lds"] = sass_ops.get("LDS", 0) + sass_ops.get("STS", 0)
+            result["sass_mufu"] = sass_ops.get("MUFU", 0)
+            # Latency-weighted critical-path proxy. Rough Blackwell issue-to-
+            # use latencies; only the RATIO between classes matters here.
+            result["latency_proxy_cycles"] = (
+                sass_ops.get("SHFL", 0) * 30
+                + (sass_ops.get("LDS", 0) + sass_ops.get("STS", 0)) * 30
+                + (sass_ops.get("BAR", 0) + sass_ops.get("BARRIER", 0)) * 25
+                + sass_ops.get("MUFU", 0) * 15
+                + (sass_ops.get("FFMA", 0) + sass_ops.get("FADD", 0)
+                   + sass_ops.get("FSEL", 0)) * 4
+            )
+        except Exception as exc:
+            result["sass_error"] = repr(exc)
+    else:
+        result["sass_error"] = "no cubin in asm dict"
+
+    # Verdict. 8 iterations; a surviving cascade means thousands of selects.
+    sel = result.get("sass_sel", 0) or result["ptx_selp"]
+    ffma = result.get("sass_ffma", 0) or result["ptx_fma"]
+    result["select_to_fma_ratio"] = round(sel / max(ffma, 1), 4)
+    result["cascade_survives"] = bool(sel > 500)
+    print(f"regs={result['n_regs']} spills={result['n_spills']}", flush=True)
+    print(
+        f"PTX: {result['ptx_total_insts']} insts  selp={result['ptx_selp']} "
+        f"setp={result['ptx_setp']} fma={result['ptx_fma']} bra={result['ptx_branches']}",
+        flush=True,
+    )
+    print(f"PTX top: {result['ptx_top']}", flush=True)
+    if sass_total:
+        print(
+            f"SASS: {sass_total} insts  SEL={result['sass_sel']} "
+            f"ISETP={result['sass_isetp']} FFMA={result['sass_ffma']} "
+            f"BRA={result['sass_branches']}",
+            flush=True,
+        )
+        print(f"SASS top: {result['sass_top']}", flush=True)
+    else:
+        print(f"SASS unavailable: {result.get('sass_error')}", flush=True)
+    print(
+        f"\nVERDICT: select/FMA = {result['select_to_fma_ratio']}  "
+        f"cascade_survives={result['cascade_survives']}",
+        flush=True,
+    )
+
+    # ---- irreducible-floor probe -------------------------------------------
+    # How much of the ~13.3us is unavoidable for ANY kernel of this shape?
+    # `floor` does the same global traffic (load 32x32, store 32x32 + 32x32)
+    # and the same 32-deep serial rsqrt dependency chain, but ZERO cross-lane
+    # reductions. Anything a CUDA rewrite achieves is bounded below by this.
+    import triton
+    import triton.language as tl
+
+    @triton.jit
+    def _floor_kernel(out_ptr, inv_ptr, src_ptr, n: tl.constexpr, k):
+        b = tl.program_id(0).to(tl.int64)
+        r = tl.arange(0, 32)
+        c = tl.arange(0, 32)
+        off = (k + r)[:, None] * n + (k + c)[None, :]
+        a = tl.load(src_ptr + b * n * n + off)
+        # 32-deep serial scalar chain (same depth as the real factorization),
+        # entirely lane-local -- no shuffles, no shared memory, no barriers.
+        acc = tl.sum(tl.sum(a, axis=1), axis=0) * 0.0 + 4.0
+        for _ in range(0, 32):
+            acc = tl.rsqrt(acc) + 4.0
+        tl.store(out_ptr + b * n * n + off, a * acc)
+        tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], a)
+
+    # Disambiguate the floor: is the ~13us the kernel's WORK, or pure
+    # per-launch cost in a 32-deep dependent chain? `empty` does nothing at
+    # all; `ldst` does only the global traffic. If `empty` also costs ~13us,
+    # the target is the launch structure, not any kernel body.
+    @triton.jit
+    def _empty_kernel(out_ptr, inv_ptr, src_ptr, n: tl.constexpr, k):
+        # Touch one scalar so the body is non-empty (a bare `pass` fails to
+        # capture `tl` in the JIT scope) but does no global traffic.
+        b = tl.program_id(0)
+        if b < 0:
+            tl.store(out_ptr, 0.0)
+
+    @triton.jit
+    def _ldst_kernel(out_ptr, inv_ptr, src_ptr, n: tl.constexpr, k):
+        b = tl.program_id(0).to(tl.int64)
+        r = tl.arange(0, 32)
+        c = tl.arange(0, 32)
+        off = (k + r)[:, None] * n + (k + c)[None, :]
+        a = tl.load(src_ptr + b * n * n + off)
+        tl.store(out_ptr + b * n * n + off, a)
+        tl.store(inv_ptr + b * 1024 + r[:, None] * 32 + c[None, :], a)
+
+    timings = {}
+    for label, fn in (
+        ("shipped", None),
+        ("floor", _floor_kernel),
+        ("ldst", _ldst_kernel),
+        ("empty", _empty_kernel),
+    ):
+        try:
+            if fn is None:
+                def one(kk):
+                    return micro[(batch,)](
+                        work, dinv, work, n=n, k=kk,
+                        FIRST=False, RECIPROCAL_SOLVE=True, num_warps=1,
+                    )
+            else:
+                def one(kk):
+                    return fn[(batch,)](work, dinv, work, n=n, k=kk, num_warps=1)
+            for _ in range(3):
+                for kk in range(0, n, 32):
+                    one(kk)
+            torch.cuda.synchronize()
+            ev0 = torch.cuda.Event(enable_timing=True)
+            ev1 = torch.cuda.Event(enable_timing=True)
+            iters = 10
+            ev0.record()
+            for _ in range(iters):
+                for kk in range(0, n, 32):
+                    one(kk)
+            ev1.record()
+            torch.cuda.synchronize()
+            per_call = ev0.elapsed_time(ev1) * 1000.0 / iters / 32.0
+            timings[label] = round(per_call, 3)
+            print(f"{label}: {per_call:.3f}us/call", flush=True)
+        except Exception as exc:
+            timings[label] = repr(exc)
+            print(f"{label}: ERROR {exc!r}", flush=True)
+    result["floor_us"] = timings
+    if isinstance(timings.get("floor"), float) and isinstance(
+        timings.get("shipped"), float
+    ):
+        result["headroom_over_floor"] = round(
+            timings["shipped"] / max(timings["floor"], 1e-9), 2
+        )
+        print(
+            f"\nshipped/floor = {result['headroom_over_floor']}x "
+            f"({timings['shipped']}us vs {timings['floor']}us)",
+            flush=True,
+        )
+
+    result["passed"] = True
+    del work, dinv, eye
+    torch.cuda.empty_cache()
+    return result
+
+
 def run_dotprobe(filter_ns=None):
     import statistics
 
@@ -2403,6 +2674,8 @@ def main():
         result = run_dotprobe(filter_ns)
     elif mode == "mxprobe":
         result = run_mxprobe(filter_ns)
+    elif mode == "asmprobe":
+        result = run_asmprobe(filter_ns)
     elif mode == "microprobe":
         result = run_microprobe(filter_ns)
     elif mode == "shapediag":

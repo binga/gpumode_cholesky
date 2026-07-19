@@ -63,11 +63,10 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#884868` = 1081.7365202047085μs public geomean** (Session 30;
-secret 1091.6157556786492μs). Adopted from `#883174` (public 1084.457 / secret
-1083.720): +tf32 panels on the three large-n split32 shapes and +NB=256 panel
-schedule on 8×2048 — paired-validated ~1.5% but within leaderboard noise (see
-S30). `nb` = block size.
+Current best: **`#888352` = 1052.5936128862302μs public geomean** (Session 32;
+secret 1140.7581388369256μs). The accepted signal is the paired same-process
+gain, 1.00613× aggregate, not the contradictory public/secret split. The source
+adds MXFP8 V2 at `1×32768` to the exp-032/033 frontier. `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -79,7 +78,7 @@ S30). `nb` = block size.
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S21, panel-inner 64×64, 1.128× vs S20) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64, 1.089× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×; S21 subtile excluded: 1.055× isolated/0.977× grid) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
+| 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
 | 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
@@ -253,6 +252,47 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 35: exp 038 `2x2048` hardware clusters → EXHAUSTED
+
+Constituent diagnosis on the exact ranked source measured 1366us wall / 1355us
+device, with **1236.5us (90.5%) in one vendor factorization kernel**, about
+90us in output/housekeeping, and only 11us wall-minus-device. Analytic FP32
+traffic and arithmetic floors are 8.7us and 71.6us. Nsight Compute was attempted
+on Modal but failed to initialize with `LibraryNotLoaded`; no unavailable counter
+was inferred or fabricated.
+
+Four new correct, active two-CTA hardware-cluster candidates were measured:
+
+| variant | architecture | candidate | paired speedup |
+|---|---|---:|---:|
+| V1 | whole persistent rank-16 WMMA factorization | 21744.9us | 0.063x |
+| V2 | cluster-128 superpanel + custom inverse | 3248.2us | 0.423x |
+| V3 | cluster-128 superpanel + cuBLAS TRSM | **2303.9us** | **0.595x** |
+| V4 | cluster-64 superpanel + cuBLAS TRSM | 2345.4us | 0.584x |
+
+V2 profiling put 2541.9us (90.6% of device time) in the 16 cluster diagonal
+calls. TRSM removed about 0.94ms of custom-inverse cost, but the best path still
+lost 1.68x. Together with exp 015's split32 route and exp 028's persistent
+spin-barrier route, six distinct serious architectures have now failed at
+0.063--0.651x. The machine-verifiable audit verdict is `rejected` with a 68.5%
+target regression. **`2x2048` is boundedly EXHAUSTED.** No six-family/full-grid
+or Popcorn gate was spent because no candidate beat baseline; ranked
+`submission.py` remains byte-identical to `#888352`.
+
+Evidence: `experiments/038-cluster-cholesky-2x2048/`, `audit/exp038-result.json`.
+
+## 2026-07-20 — Session 34: exp 037 micro assembly floor → rewrite premise refuted
+
+The exp-036 CUDA-rewrite recommendation was tested before implementation. The
+shipped Triton micro uses 236 registers and zero spills; PTX contains 474
+selects, 148 shuffles, 32 barriers, and four reciprocal square roots. Despite
+that apparent instruction opportunity, a Modal B200 floor probe measured
+14.379us shipped versus 10.456us synthetic arithmetic, 10.083us load/store,
+and 10.409us empty. The maximum observed headroom is only **1.38x**, not 2x.
+
+Verdict: premise refuted, no candidate integrated, no leaderboard slot spent.
+Evidence: `experiments/037-micro-asm-floor/`.
 
 ## 2026-07-19 — Session 33: exp 036 `4x1024` 2x attempt → DIAGNOSED, nothing shipped
 

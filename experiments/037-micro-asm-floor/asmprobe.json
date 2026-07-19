@@ -1,0 +1,200 @@
+{
+  "mode": "asmprobe",
+  "device": "NVIDIA B200",
+  "found_kernel": true,
+  "asm_keys": [
+    "cubin",
+    "llir",
+    "ptx",
+    "source",
+    "ttgir",
+    "ttir"
+  ],
+  "n_regs": 236,
+  "n_spills": 0,
+  "ptx_lines": 3454,
+  "ptx_labels": 368,
+  "ptx_branch_lines": [
+    "bra \t$L__BB0_1;"
+  ],
+  "ptx_total_insts": 1937,
+  "ptx_top": [
+    [
+      "selp",
+      474
+    ],
+    [
+      "add",
+      409
+    ],
+    [
+      "mov",
+      281
+    ],
+    [
+      "fma",
+      226
+    ],
+    [
+      "setp",
+      153
+    ],
+    [
+      "shfl",
+      148
+    ],
+    [
+      "ld",
+      51
+    ],
+    [
+      "mul",
+      35
+    ],
+    [
+      "neg",
+      34
+    ],
+    [
+      "bar",
+      32
+    ],
+    [
+      "st",
+      28
+    ],
+    [
+      "shl",
+      16
+    ],
+    [
+      "mad",
+      11
+    ],
+    [
+      "or",
+      9
+    ],
+    [
+      "stmatrix",
+      8
+    ],
+    [
+      "and",
+      4
+    ],
+    [
+      "rsqrt",
+      4
+    ],
+    [
+      "ldmatrix",
+      4
+    ]
+  ],
+  "ptx_selp": 474,
+  "ptx_setp": 153,
+  "ptx_fma": 226,
+  "ptx_branches": 1,
+  "ptx_shfl": 148,
+  "ptx_bar": 32,
+  "ptx_rsqrt": 4,
+  "ptx_ldmatrix": 4,
+  "ptx_stmatrix": 8,
+  "loop_unrolled": false,
+  "sass_lines": 1833,
+  "sass_total_insts": 1808,
+  "sass_top": [
+    [
+      "FSEL",
+      399
+    ],
+    [
+      "FADD",
+      342
+    ],
+    [
+      "ISETP",
+      156
+    ],
+    [
+      "FFMA",
+      152
+    ],
+    [
+      "SHFL",
+      148
+    ],
+    [
+      "IMAD",
+      106
+    ],
+    [
+      "LOP3",
+      90
+    ],
+    [
+      "FFMA2",
+      74
+    ],
+    [
+      "SEL",
+      47
+    ],
+    [
+      "LDS",
+      40
+    ],
+    [
+      "NOP",
+      34
+    ],
+    [
+      "VIADD",
+      30
+    ],
+    [
+      "LEA",
+      24
+    ],
+    [
+      "FMUL",
+      22
+    ],
+    [
+      "MOV",
+      21
+    ],
+    [
+      "STG",
+      16
+    ],
+    [
+      "FADD2",
+      12
+    ],
+    [
+      "FMUL2",
+      12
+    ]
+  ],
+  "sass_sel": 446,
+  "sass_isetp": 156,
+  "sass_ffma": 152,
+  "sass_branches": 2,
+  "sass_shfl": 148,
+  "sass_bar": 9,
+  "sass_lds": 52,
+  "sass_mufu": 4,
+  "latency_proxy_cycles": 9857,
+  "select_to_fma_ratio": 2.9342,
+  "cascade_survives": false,
+  "floor_us": {
+    "shipped": 14.379,
+    "floor": 10.456,
+    "ldst": 10.083,
+    "empty": 10.409
+  },
+  "headroom_over_floor": 1.38,
+  "passed": true
+}

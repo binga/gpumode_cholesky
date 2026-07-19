@@ -73,11 +73,12 @@ implies **~12.7us fixed + 0.10us/step**, so rank-8 returns <5%.
 rewrite moves seven shapes. Triton rebuilds the full 32x32 tile through a
 5-deep nested `tl.where` cascade every iteration, plus a second for the
 inverse (~10k predicated ops per iteration, one warp, zero latency hiding).
-A CUDA rewrite can update only the shrinking trailing sub-block and schedule
-`__shfl_xor_sync` reductions explicitly. Prior art for the `load_inline`
-scaffolding: `experiments/003-cuda-n64-n128/submission.py` (it is NOT in the
-current shipped source). Note exp 017 already cut this kernel 16.5 -> 13.9us
-once via a rank-4 pivot micro, so the easy Triton-level wins are gone.
+A CUDA rewrite could update only the shrinking trailing sub-block and schedule
+`__shfl_xor_sync` reductions explicitly. Experiment 037 tested that premise:
+the shipped 14.379us kernel sits above 10.083--10.456us empty/load-store/
+synthetic floors, leaving only **1.38x** measurable headroom. Thus a rewrite
+may help incrementally but cannot supply the required 2x. Exp 017 had already
+cut this kernel 16.5 -> 13.9us via a rank-4 pivot micro.
 
 ### Untouched: the cuSOLVER trio
 
@@ -102,22 +103,24 @@ factorization for n<=256 where a matrix fits in one SM's smem.
 ## Attack order (revised 2026-07-20 after exp 036)
 
 1. ~~**4x1024**~~ — EXHAUSTED-diagnosed. 2x unreachable; see Fact 4.
-2. **`_micro_potrf_gj32` CUDA rewrite** — the actual target. Seven shapes,
-   2395us grid-wide, latency-bound at ~13.5us/call. Highest leverage on the
-   board by a wide margin.
-3. **The cuSOLVER trio** (`2x2048`, `1x4096`, `2x4096`) — 87-91% one vendor
-   kernel, 3.0x demonstrated headroom, but gated on step 2.
-4. **16x512 / 64x256 / 256x128** — re-diagnose per shape before assuming a
+2. ~~**`_micro_potrf_gj32` CUDA rewrite**~~ — EXHAUSTED-diagnosed by exp 037.
+   Synthetic one-warp floors leave only 1.38x headroom.
+3. ~~**2x2048**~~ — EXHAUSTED under six distinct correct architectures. Exp
+   038's best hardware-cluster/TRSM path was 0.595x versus ranked.
+4. **4096x32** — one 38us rank-2 Triton kernel, 4.4us traffic floor, and a
+   direct one-warp CUDA kernel is not gated by the repeated-micro launch floor.
+5. **16x512 / 64x256 / 256x128** — re-diagnose per shape before assuming a
    lever; the `4x1024` lesson is that the campaign's headroom table says
    *whether* a shape is slow, never *why*.
-5. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
+6. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
    the mantissa-clip fix.
-6. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
+7. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
 
 **Method note.** Diagnose before building. Exp 036 spent 3 profiling runs to
 kill a 6-variant plan whose premise was wrong, and produced the campaign's
 best finding by doing so.
 
-Blocked on: the paired grid harness (exp 035). Nothing below ~2% is
-measurable until the null calibration passes, and most single-shape 2x wins
-are worth only 4.5% geomean each — well inside current grid noise.
+Measurement note: the paired grid harness from exp 035 is now the campaign's
+acceptance signal. Its one known null-calibration exception is `1024x64`, whose
+cross-module graph interference must be fixed before a sub-percent verdict on
+that shape.

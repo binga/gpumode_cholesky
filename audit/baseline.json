@@ -1,0 +1,64 @@
+{
+  "artifacts": {
+    "pairedgrid_json": "/Users/phani/projects/gpumode_cholesky/audit/baseline.pairedgrid.json"
+  },
+  "audit": {
+    "contract_sha256": "eead9294ad87d862e85c1a307a5f70741ab58d78aa095539e9a56b371017b91e",
+    "mode": "quick",
+    "protected_sha256": {
+      "audit/baseline-submission.py": "0c5baa2aa82fbc1272228e4a60a1b5ee16c7cf7536ef157c14b74cdcc50e9c6a",
+      "kernel-audit.json": "6db6a2466158b7d263e6512359a9fe8ce22111cdca664db9daa8fb30da5c782d",
+      "reference": "fdfe77e0d13c3f7db31294ff1d856f8a1bcf83645dd4fb4acab122d5241d3eb0",
+      "scripts/audit_adapter.py": "725eeac3163e6d3f122c772c0a8264629dc21df9beb85ef4f73dfdd14d2a4a8a"
+    }
+  },
+  "candidate_id": "0c5baa2aa82fbc1272228e4a60a1b5ee16c7cf7536ef157c14b74cdcc50e9c6a",
+  "correctness": {
+    "checks": [
+      {
+        "name": "2x2048-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.000663; batch=2; n=2048"
+      },
+      {
+        "name": "1x4096-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.000324; batch=1; n=4096"
+      },
+      {
+        "name": "2x4096-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.000327; batch=2; n=4096"
+      }
+    ],
+    "passed": true
+  },
+  "environment": {
+    "cuda": "13.0",
+    "driver": "Modal managed",
+    "framework": "torch 2.13.0+cu130",
+    "gpu": "NVIDIA B200"
+  },
+  "run_id": "baseline.pairedgrid",
+  "schema_version": 1,
+  "workloads": [
+    {
+      "cv": 0.0001844015266958543,
+      "id": "2x2048-fp32-dense",
+      "latency_us": 1367.1239912509918,
+      "metrics": {}
+    },
+    {
+      "cv": 0.0001354391024938062,
+      "id": "1x4096-fp32-dense",
+      "latency_us": 1534.8239541053772,
+      "metrics": {}
+    },
+    {
+      "cv": 0.00032612581048141465,
+      "id": "2x4096-fp32-dense",
+      "latency_us": 3215.008020401001,
+      "metrics": {}
+    }
+  ]
+}

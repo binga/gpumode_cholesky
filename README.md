@@ -100,7 +100,7 @@ popcorn submissions                                # view your entries
   **1652.199→1574.882μs**, and Popcorn test `#878891` passed 17/17. The ranked
   result improves exp 009 by **2.758% public** and **3.534% secret**. See
   `experiments/012-large-left-looking-frontiers/`.
-- **Ranked submission `#884868`** (exps 032+033 — current best): `done`, public
+- **Ranked submission `#884868`** (exps 032+033 — superseded by exp 035): `done`, public
   geomean **1081.7365202047085us** (best of two identical resubmissions) and
   secret **1091.6157556786492us**. Two QR-transfer levers stacked onto `#883174`:
   a per-shape panel-width schedule (`8×2048` = NB=256 uniform, halving the panel
@@ -116,6 +116,15 @@ popcorn submissions                                # view your entries
   (1.2–3.1× faster in isolation but 5–40× slower in the register-tight panel
   kernels). See `experiments/032-panel-width-schedule/` and
   `experiments/033-fp16x3-panels/`.
+- **Ranked submission `#888352`** (exp 035 — current best): `done`, public
+  geomean **1052.5936128862302us** and secret **1140.7581388369256us**.
+  Integrates Experiment 034's MXFP8 V2 panel products at `1×32768`; the
+  same-process paired grid measured a 1.0905x target gain and **1.00613x**
+  aggregate gain, with 57/57 verification cases and Popcorn test 17/17. The
+  public board overstates that measured gain while the secret split regresses,
+  so paired evidence remains the acceptance signal. Experiments 036--038 then
+  decomposed the mid-shape latency floor and bounded the proposed micro/cluster
+  rewrites without changing the ranked source or spending another ranked slot.
 - **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
   `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**

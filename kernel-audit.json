@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "name": "gpumode-cholesky-three-shape-2x",
+  "adapter": {
+    "argv": [
+      "python3",
+      "scripts/audit_adapter.py",
+      "--contract",
+      "{contract}",
+      "--mode",
+      "{mode}",
+      "--output",
+      "{output}"
+    ],
+    "timeout_seconds": 1800
+  },
+  "workloads": [
+    {"id": "2x2048-fp32-dense", "weight": 0.3333333333333333},
+    {"id": "1x4096-fp32-dense", "weight": 0.3333333333333333},
+    {"id": "2x4096-fp32-dense", "weight": 0.3333333333333333}
+  ],
+  "measurement": {
+    "maximum_cv": 0.03
+  },
+  "acceptance": {
+    "minimum_improvement_fraction": 0.5,
+    "maximum_case_regression_fraction": 0.03,
+    "require_same_environment": true
+  },
+  "classification": {
+    "short_kernel_us": 10.0,
+    "host_gpu_active_max": 0.7,
+    "host_cuda_api_fraction_min": 0.2,
+    "host_short_kernel_fraction_min": 0.5,
+    "dependency_gpu_active_max": 0.7,
+    "dependency_max_concurrency": 1,
+    "dependency_min_launches": 10,
+    "memory_throughput_min": 0.75,
+    "memory_stall_min": 0.3,
+    "compute_throughput_min": 0.75,
+    "tensor_utilization_min": 0.75,
+    "barrier_stall_min": 0.2,
+    "occupancy_low_max": 0.3,
+    "synchronization_fraction_min": 0.1,
+    "memcpy_fraction_min": 0.1
+  },
+  "integrity": {
+    "protected_paths": [
+      "kernel-audit.json",
+      "scripts/audit_adapter.py",
+      "audit/baseline-submission.py",
+      "reference"
+    ],
+    "expected_sha256": {}
+  }
+}

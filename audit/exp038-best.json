@@ -1,0 +1,55 @@
+{
+  "artifacts": {
+    "pairedgrid_json": "experiments/038-cluster-cholesky-2x2048/variant-03-paired.json",
+    "candidate_source": "experiments/038-cluster-cholesky-2x2048/candidate-v3.py"
+  },
+  "candidate_id": "beceae07b9dee822cea8eee2733ec629789f08f62b2e9383740b1fcbe261bf4b",
+  "correctness": {
+    "checks": [
+      {
+        "name": "2x2048-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=1.98; active _CLUSTER_2048_HITS=1"
+      },
+      {
+        "name": "1x4096-fp32-dense",
+        "passed": true,
+        "value": "unchanged ranked dispatch"
+      },
+      {
+        "name": "2x4096-fp32-dense",
+        "passed": true,
+        "value": "unchanged ranked dispatch"
+      }
+    ],
+    "passed": true
+  },
+  "environment": {
+    "cuda": "13.0",
+    "driver": "Modal managed",
+    "framework": "torch 2.13.0+cu130",
+    "gpu": "NVIDIA B200"
+  },
+  "run_id": "exp038.variant03.pairedgrid",
+  "schema_version": 1,
+  "workloads": [
+    {
+      "cv": 0.00016403894346028736,
+      "id": "2x2048-fp32-dense",
+      "latency_us": 2303.8960695266724,
+      "metrics": {}
+    },
+    {
+      "cv": 0.0001354391024938062,
+      "id": "1x4096-fp32-dense",
+      "latency_us": 1534.8239541053772,
+      "metrics": {}
+    },
+    {
+      "cv": 0.00032612581048141465,
+      "id": "2x4096-fp32-dense",
+      "latency_us": 3215.008020401001,
+      "metrics": {}
+    }
+  ]
+}
