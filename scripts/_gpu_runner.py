@@ -834,6 +834,93 @@ SCHED_FAMILIES = [
 # any kernel rewrite. Saturates the SMs with BIGM/128 independent output tiles in
 # a single launch, so this measures tensor-core throughput, not launch latency.
 # ---------------------------------------------------------------------------
+def run_microprobe(filter_ns=None):
+    """Experiment 036: is `_micro_potrf_gj32` fixed-cost bound (register
+    spill / occupancy) rather than serial-step bound?
+
+    Exp 029 concluded "step latency is the floor" but never varied num_warps.
+    The shapediag profile implies cost ~= 12.7us fixed + 0.10us/step, so a
+    large per-launch fixed term dominates. This compiles the SHIPPED kernel at
+    several num_warps, reports register/spill/shared stats from the compiled
+    handle, and times a realistic serial chain of 32 dependent launches at
+    batch=4 -- the exact structure the 4x1024 path runs.
+    """
+    import triton  # noqa: F401
+
+    import submission as sub
+
+    mod = sub.custom_kernel.__globals__
+    micro = None
+    for name in ("_micro_potrf_gj32",):
+        micro = mod.get(name)
+    result = {
+        "mode": "microprobe",
+        "device": torch.cuda.get_device_name(0),
+        "found_kernel": micro is not None,
+        "variants": [],
+    }
+    if micro is None:
+        # The kernel lives in a closure, not module globals; reach it through
+        # the split32 launcher's own globals.
+        result["note"] = "kernel not in module globals"
+        result["passed"] = False
+        return result
+
+    batch, n = 4, 1024
+    for warps in (1, 2, 4, 8):
+        try:
+            work = torch.zeros(batch, n, n, device="cuda", dtype=torch.float32)
+            eye = torch.eye(n, device="cuda", dtype=torch.float32)
+            work.copy_((eye * 4.0).expand(batch, n, n).contiguous())
+            dinv = torch.empty(batch, 32, 32, device="cuda", dtype=torch.float32)
+
+            def one(k):
+                return micro[(batch,)](
+                    work, dinv, work, n=n, k=k,
+                    FIRST=False, RECIPROCAL_SOLVE=True, num_warps=warps,
+                )
+
+            handle = one(0)
+            torch.cuda.synchronize()
+            stats = {
+                "num_warps": warps,
+                "n_regs": getattr(handle, "n_regs", None),
+                "n_spills": getattr(handle, "n_spills", None),
+                "shared": getattr(handle, "metadata", None)
+                and getattr(handle.metadata, "shared", None),
+            }
+            # realistic serial chain: 32 dependent launches
+            for _ in range(3):
+                for k in range(0, n, 32):
+                    one(k)
+            torch.cuda.synchronize()
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            iters = 10
+            start.record()
+            for _ in range(iters):
+                for k in range(0, n, 32):
+                    one(k)
+            end.record()
+            torch.cuda.synchronize()
+            chain_us = start.elapsed_time(end) * 1000.0 / iters
+            stats["chain32_us"] = round(chain_us, 1)
+            stats["per_call_us"] = round(chain_us / 32.0, 3)
+            result["variants"].append(stats)
+            print(
+                f"num_warps={warps}: regs={stats['n_regs']} spills={stats['n_spills']} "
+                f"chain32={stats['chain32_us']}us per_call={stats['per_call_us']}us",
+                flush=True,
+            )
+            del work, dinv, eye
+            torch.cuda.empty_cache()
+        except Exception as exc:
+            result["variants"].append({"num_warps": warps, "error": repr(exc)})
+            print(f"num_warps={warps}: ERROR {exc!r}", flush=True)
+    result["passed"] = any("chain32_us" in v for v in result["variants"])
+    return result
+
+
 def run_dotprobe(filter_ns=None):
     import statistics
 
@@ -2098,6 +2185,98 @@ def _pairedgrid_shape(spec, base_mod, cand_mod):
     return row
 
 
+def run_shapediag(filter_ns=None):
+    """Experiment 036 diagnosis: where does one shape's wall clock go?
+
+    Profiles the shipped path for each requested shape and reports the CUDA
+    kernel breakdown (per-kernel total time, call count, share of device
+    time), plus total device time vs measured wall time. The gap between
+    them is idle/launch/dependency stall -- the number that decides whether
+    a shape is launch-bound or compute-bound.
+    """
+    from torch.profiler import ProfilerActivity, profile
+
+    import submission as sub
+
+    specs = BENCH_SPECS
+    if filter_ns:
+        specs = [s for s in specs if s["n"] in filter_ns]
+    out = {"mode": "shapediag", "device": torch.cuda.get_device_name(0), "shapes": []}
+    for spec in specs:
+        data = generate_input(**{k: v for k, v in spec.items() if k != "case"},
+                              case=spec.get("case", "dense"))
+        for _ in range(5):
+            sub.custom_kernel(data)
+        torch.cuda.synchronize()
+
+        # wall time
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        iters = 20
+        start.record()
+        for _ in range(iters):
+            sub.custom_kernel(data)
+        end.record()
+        torch.cuda.synchronize()
+        wall_us = start.elapsed_time(end) * 1000.0 / iters
+
+        with profile(activities=[ProfilerActivity.CUDA]) as prof:
+            for _ in range(3):
+                sub.custom_kernel(data)
+            torch.cuda.synchronize()
+        agg = {}
+        for e in prof.key_averages():
+            dev = float(getattr(e, "self_device_time_total", 0.0) or 0.0)
+            if dev <= 0.0:
+                continue
+            name = e.key
+            slot = agg.setdefault(name, {"us": 0.0, "calls": 0})
+            slot["us"] += dev / 3.0
+            slot["calls"] += int(e.count) // 3
+        total_dev = sum(v["us"] for v in agg.values())
+        kernels = sorted(agg.items(), key=lambda kv: -kv[1]["us"])
+        rows = [
+            {
+                "kernel": k[:70],
+                "us": round(v["us"], 2),
+                "calls": v["calls"],
+                "us_per_call": round(v["us"] / max(v["calls"], 1), 3),
+                "pct_device": round(100.0 * v["us"] / max(total_dev, 1e-9), 1),
+            }
+            for k, v in kernels[:18]
+        ]
+        total_calls = sum(v["calls"] for v in agg.values())
+        entry = {
+            "spec": f"batch={spec['batch']} n={spec['n']}",
+            "batch": spec["batch"],
+            "n": spec["n"],
+            "wall_us": round(wall_us, 1),
+            "device_us": round(total_dev, 1),
+            "idle_us": round(wall_us - total_dev, 1),
+            "idle_pct": round(100.0 * (wall_us - total_dev) / max(wall_us, 1e-9), 1),
+            "kernel_launches": total_calls,
+            "us_per_launch_wall": round(wall_us / max(total_calls, 1), 3),
+            "kernels": rows,
+        }
+        out["shapes"].append(entry)
+        print(
+            f"{entry['spec']}: wall={entry['wall_us']}us device={entry['device_us']}us "
+            f"idle={entry['idle_us']}us ({entry['idle_pct']}%) "
+            f"launches={total_calls} wall/launch={entry['us_per_launch_wall']}us",
+            flush=True,
+        )
+        for r in rows:
+            print(
+                f"    {r['pct_device']:>5}% {r['us']:>9.2f}us {r['calls']:>4} calls "
+                f"{r['us_per_call']:>8.3f}us/call  {r['kernel']}",
+                flush=True,
+            )
+        del data
+        torch.cuda.empty_cache()
+    out["passed"] = True
+    return out
+
+
 def run_pairedgrid(filter_ns=None):
     specs = BENCH_SPECS
     if filter_ns:
@@ -2224,6 +2403,10 @@ def main():
         result = run_dotprobe(filter_ns)
     elif mode == "mxprobe":
         result = run_mxprobe(filter_ns)
+    elif mode == "microprobe":
+        result = run_microprobe(filter_ns)
+    elif mode == "shapediag":
+        result = run_shapediag(filter_ns)
     elif mode == "pairedgrid":
         result = run_pairedgrid(filter_ns)
     else:

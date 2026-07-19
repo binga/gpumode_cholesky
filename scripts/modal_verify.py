@@ -128,6 +128,8 @@ def main() -> int:
             "dotprobe",
             "mxprobe",
             "pairedgrid",
+            "shapediag",
+            "microprobe",
         ],
     )
     parser.add_argument(

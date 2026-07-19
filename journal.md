@@ -254,6 +254,56 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 
 ---
 
+## 2026-07-19 — Session 33: exp 036 `4x1024` 2x attempt → DIAGNOSED, nothing shipped
+
+**The campaign's launch-bound thesis was wrong for this shape.** New `shapediag`
+probe: `4x1024` is wall=715us / device=682us / **idle 33.6us (4.7%)**. The CUDA
+graph already removed launch overhead; exp 029's ~16us launch floor does not
+apply here. 62.2% of the wall clock is ONE kernel, `_micro_potrf_gj32`
+(424us over 32 calls, 13.26us/call).
+
+**`_micro_potrf_gj32` is batch-independent: ~13.5us/call from batch=4 to
+batch=640.** A kernel that does not speed up with 160x more parallel work is
+latency-bound. It dominates SIX shapes (4x1024 62.2%, 16x512 57.3%, 64x256
+54.8%, 8x2048 51.6%, 256x128 47.3%, 60x1024 35.5%) and is 21.4% of 640x512 —
+**2395us of device time grid-wide**. This is the highest-leverage target on the
+board, not any individual shape.
+
+**New `microprobe`: the cause is exposed single-warp latency, not spilling.**
+num_warps 1/2/4/8 -> 14.39 / 20.53 / 22.58 / 32.85 us per call, regs
+236/137/102/80, spills 0/0/0/2. Zero spill at the shipped setting and more
+warps is monotonically worse (cross-warp reductions cost more than the register
+relief). At batch=4 that is 4 CTAs x 1 warp on 148 SMs: no occupancy to hide
+any instruction latency. Also closes the larger-block lever by arithmetic — a
+64x64 block needs 128 regs/thread for `a` alone at num_warps=1.
+
+**No variant built.** Every axis is now measured: rank-4 (shipped), rsqrt
+(shipped +2.8%), inverse-free 0.82-0.84x, left-looking fusion 0.96x, separated
+inverse 0.87x, persistent kernel 0.40-0.49x, and now num_warps 1.43-2.28x
+SLOWER plus larger-block closed. Step count is near-exhausted too: 32-step
+~16us vs today's 8-step 13.5us implies ~12.7us fixed + 0.10us/step, so rank-8
+returns <5%. Even deleting the kernel entirely leaves 4x1024 at 259us = 2.67x,
+so nothing short of a rewrite reaches 2x. Classified **EXHAUSTED-diagnosed**.
+
+**Second finding — three shapes have never had custom work.** `2x2048`,
+`1x4096`, `2x4096` spend 87-91% of device time in one cuSOLVER kernel
+(`getrf_wo_pivot_params_`): 618us/matrix at n=2048, 1393us/matrix at n=4096.
+The custom split32 chain does n=2048 at 206us/matrix — 3.0x faster per matrix.
+But split32 does not reach 2x there either, because the micro floor follows it:
+n=4096 needs 128 micro calls = 1702us of a 3209us budget before any real math.
+Consistent with S16 measuring those routes at 0.764x/0.784x.
+
+**Recommended next experiment: rewrite `_micro_potrf_gj32` in CUDA.** The
+`_CUDA_MOD` load path exists and is unused (`custom_cuda_loaded=False`). Triton
+rebuilds the full 32x32 tile through a 5-deep nested `tl.where` cascade each
+iteration, plus a second cascade for the inverse — ~10k predicated ops per
+iteration on one warp with zero latency hiding. CUDA can update only the
+shrinking trailing sub-block and schedule `__shfl_xor_sync` reductions
+explicitly. One kernel, seven shapes, 2395us of grid-wide device time.
+
+Evidence in `experiments/036-4x1024-2x/`. Tooling: `shapediag` + `microprobe`
+modes. Ranked submission unchanged (#888352).
+
 ## 2026-07-19 — Session 32: paired grid harness + MXFP8 V2 ranked #888352
 
 **Harness (exp 035).** `pairedgrid`: both submissions loaded as separate modules
