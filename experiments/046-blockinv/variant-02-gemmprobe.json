@@ -1,0 +1,115 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "640x512 nb=64",
+      "us": 1183.3,
+      "panel_tf32x3_us": 467.9,
+      "panel_TFs": 60.2,
+      "trsm_fp32_us": 2191.5,
+      "trail_us": 715.5,
+      "trail_TFs": 65.7,
+      "best_design_us": 1183.3,
+      "shipped_us": 1104.9,
+      "ok": true
+    },
+    {
+      "name": "640x512 nb=128",
+      "us": 621.1,
+      "panel_tf32x3_us": 334.9,
+      "panel_TFs": 144.3,
+      "trsm_fp32_us": 2031.9,
+      "trail_us": 286.3,
+      "trail_TFs": 131.3,
+      "best_design_us": 621.1,
+      "shipped_us": 1104.9,
+      "ok": true
+    },
+    {
+      "name": "640x512 nb=256",
+      "us": 336.2,
+      "panel_tf32x3_us": 250.3,
+      "panel_TFs": 257.4,
+      "trsm_fp32_us": 1489.0,
+      "trail_us": 85.9,
+      "trail_TFs": 249.9,
+      "best_design_us": 336.2,
+      "shipped_us": 1104.9,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=64",
+      "us": 1268.7,
+      "panel_tf32x3_us": 615.4,
+      "panel_TFs": 18.4,
+      "trsm_fp32_us": 1161.0,
+      "trail_us": 653.3,
+      "trail_TFs": 59.7,
+      "best_design_us": 1268.7,
+      "shipped_us": 772.4,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=128",
+      "us": 613.1,
+      "panel_tf32x3_us": 339.4,
+      "panel_TFs": 62.3,
+      "trsm_fp32_us": 1175.2,
+      "trail_us": 273.7,
+      "trail_TFs": 128.7,
+      "best_design_us": 613.1,
+      "shipped_us": 772.4,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=256",
+      "us": 274.3,
+      "panel_tf32x3_us": 164.1,
+      "panel_TFs": 220.8,
+      "trsm_fp32_us": 1105.4,
+      "trail_us": 110.2,
+      "trail_TFs": 255.8,
+      "best_design_us": 274.3,
+      "shipped_us": 772.4,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=64",
+      "us": 1803.2,
+      "panel_tf32x3_us": 1080.3,
+      "panel_TFs": 5.8,
+      "trsm_fp32_us": 3754.1,
+      "trail_us": 723.0,
+      "trail_TFs": 60.4,
+      "best_design_us": 1803.2,
+      "shipped_us": 694.3,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=128",
+      "us": 980.9,
+      "panel_tf32x3_us": 643.6,
+      "panel_TFs": 18.8,
+      "trsm_fp32_us": 4374.8,
+      "trail_us": 337.3,
+      "trail_TFs": 123.4,
+      "best_design_us": 980.9,
+      "shipped_us": 694.3,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=256",
+      "us": 472.6,
+      "panel_tf32x3_us": 313.1,
+      "panel_TFs": 72.0,
+      "trsm_fp32_us": 4483.8,
+      "trail_us": 159.6,
+      "trail_TFs": 235.5,
+      "best_design_us": 472.6,
+      "shipped_us": 694.3,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

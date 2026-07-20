@@ -1140,27 +1140,6 @@ _BMM_SCHUR_SHAPES = set()
 _BMM_SCHUR_HITS = 0
 
 
-# Experiment 046: shapes whose split32 trailing Schur update goes to cuBLAS.
-# Measured on B200: Triton's `_trailing_nb` reaches 53-66 TFLOP/s while the
-# same product through a strided in-place `baddbmm_` reaches 235-256. Only the
-# trailing update moves. Exp 045 measured the panel inner update at 26 TFLOP/s
-# through cuBLAS (K=32, N<=96 cannot fill a tensor-core tile), and exp 046
-# showed that a block-inverse design which would fatten it is 0.69x overall,
-# because the diagonal blocks it leaves behind carry 30% of the flops at
-# ~30 TFLOP/s. The first-touch block keeps the Triton kernel: cuBLAS cannot
-# read `src` and write `work` in one pass, and `baddbmm(src, ..., out=work)`
-# materialises the accumulator first (measured 180us at 640x512).
-# 60x1024 is excluded: measured 0.9320x with an unstable 0.63% MAD and a 0.9%
-# order spread (ratios 0.89-1.02), against 1.0257x at 640x512 and 1.0386x at
-# 8x2048. At batch 60 the strided in-place accumulate does not hold the
-# throughput the isolated GEMM probe predicted.
-_BMM_TRAILING_SHAPES = {
-    (640, 512),
-    (8, 2048),
-}
-_BMM_TRAILING_HITS = 0
-
-
 # Shapes whose split32 schedule uses the CUDA diagonal micro-factorization.
 # Only the eager-mode split32 shapes are enrolled. The kernel uses a plain
 # <<<grid, block>>> launch with no queue argument, which is correct in eager
@@ -2205,12 +2184,8 @@ if _HAVE_TRITON:
         mode for the bandwidth-bound shapes). The mirrored zero-fill in the
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
-        global _MICRO32_HITS, _BMM_SCHUR_HITS, _BMM_TRAILING_HITS
+        global _MICRO32_HITS, _BMM_SCHUR_HITS
         batch, n, _ = work.shape
-        bmm_trailing = (batch, n) in _BMM_TRAILING_SHAPES
-        previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-        if bmm_trailing:
-            torch.backends.cuda.matmul.allow_tf32 = True
         cuda_micro = _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
         bmm_schur = (batch, n) in _BMM_SCHUR_SHAPES
         tile = _SPLIT32_TILE
@@ -2300,13 +2275,7 @@ if _HAVE_TRITON:
                             num_warps=4,
                         )
             rem_out = n - panel_end
-            if rem_out > 0 and bmm_trailing and not (ft and j == 0):
-                _BMM_TRAILING_HITS += 1
-                block = work[:, panel_end:, j:panel_end]
-                work[:, panel_end:, panel_end:].baddbmm_(
-                    block, block.transpose(1, 2), beta=1.0, alpha=-1.0
-                )
-            elif rem_out > 0 and bmm_schur:
+            if rem_out > 0 and bmm_schur:
                 _BMM_SCHUR_HITS += 1
                 block = work[:, panel_end:, j:panel_end]
                 target = work[:, panel_end:, panel_end:]
@@ -2337,8 +2306,6 @@ if _HAVE_TRITON:
                     num_stages=3,
                 )
             j = panel_end
-        if bmm_trailing:
-            torch.backends.cuda.matmul.allow_tf32 = previous_tf32
 
     _SPLIT32_GRAPHS = {}
     _SPLIT32_DINV = {}
@@ -3297,3 +3264,93 @@ def custom_kernel(data: input_t) -> output_t:
 
     # Default: batched cuSOLVER. Correct for every input family.
     return torch.linalg.cholesky_ex(data, check_errors=False).L
+
+
+# ---------------------------------------------------------------------------
+# Experiment 046 probe v2: cuBLAS throughput on block-inverse GEMM shapes.
+# v1's trailing timings were invalid (alpha=0.0 lets cuBLAS skip the product,
+# reporting 6496 TFLOP/s). Fixed with a tiny non-zero alpha. Also measures a
+# batched triangular solve, which would be exact and remove both the tf32x3
+# three-pass panel and the explicit-inverse conditioning risk.
+# ---------------------------------------------------------------------------
+
+
+def _bench(fn, iters=20):
+    for _ in range(3):
+        fn()
+    torch.cuda.synchronize()
+    st = torch.cuda.Event(enable_timing=True)
+    en = torch.cuda.Event(enable_timing=True)
+    st.record()
+    for _ in range(iters):
+        fn()
+    en.record()
+    torch.cuda.synchronize()
+    return st.elapsed_time(en) * 1000.0 / iters
+
+
+def mid_probe():
+    rows = []
+    previous = torch.backends.cuda.matmul.allow_tf32
+    shipped = {
+        (640, 512): 1104.9,   # panel_apply + panel_inner + trailing (Triton)
+        (60, 1024): 772.4,
+        (8, 2048): 694.3,
+    }
+    try:
+        for batch, n in ((640, 512), (60, 1024), (8, 2048)):
+            work = torch.randn(batch, n, n, device="cuda", dtype=torch.float32)
+            work = work @ work.transpose(1, 2) / n
+            work += torch.eye(n, device="cuda") * n
+            for nb in (64, 128, 256):
+                if n % nb:
+                    continue
+                panel_tf32 = panel_trsm = trail = 0.0
+                pflops = tflops = 0.0
+                for j in range(0, n, nb):
+                    m = n - j - nb
+                    if m <= 0:
+                        continue
+                    a = work[:, j + nb:, j:j + nb].contiguous()
+                    tri = work[:, j:j + nb, j:j + nb].contiguous().tril()
+                    tri += torch.eye(nb, device="cuda") * nb
+
+                    torch.backends.cuda.matmul.allow_tf32 = True
+                    xt = tri.transpose(1, 2).contiguous()
+                    panel_tf32 += _bench(lambda: torch.bmm(a, xt))
+                    pflops += batch * m * nb * nb * 2
+
+                    torch.backends.cuda.matmul.allow_tf32 = False
+                    panel_trsm += _bench(
+                        lambda: torch.linalg.solve_triangular(
+                            tri, a, upper=False, left=False
+                        )
+                    )
+
+                    torch.backends.cuda.matmul.allow_tf32 = True
+                    target = work[:, j + nb:, j + nb:]
+                    at = a.transpose(1, 2)
+                    trail += _bench(
+                        lambda: target.baddbmm_(
+                            a, at, beta=1.0, alpha=-1e-8
+                        )
+                    )
+                    tflops += batch * m * m * nb * 2
+                rows.append({
+                    "name": f"{batch}x{n} nb={nb}",
+                    "us": round(3.0 * panel_tf32 + trail, 1),
+                    "panel_tf32x3_us": round(3.0 * panel_tf32, 1),
+                    "panel_TFs": round(pflops / (panel_tf32 * 1e-6) / 1e12, 1),
+                    "trsm_fp32_us": round(panel_trsm, 1),
+                    "trail_us": round(trail, 1),
+                    "trail_TFs": round(tflops / (trail * 1e-6) / 1e12, 1),
+                    "best_design_us": round(
+                        min(3.0 * panel_tf32, panel_trsm) + trail, 1),
+                    "shipped_us": shipped[(batch, n)],
+                    "ok": True,
+                })
+            del work
+            torch.cuda.empty_cache()
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return rows

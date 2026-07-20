@@ -1150,12 +1150,9 @@ _BMM_SCHUR_HITS = 0
 # ~30 TFLOP/s. The first-touch block keeps the Triton kernel: cuBLAS cannot
 # read `src` and write `work` in one pass, and `baddbmm(src, ..., out=work)`
 # materialises the accumulator first (measured 180us at 640x512).
-# 60x1024 is excluded: measured 0.9320x with an unstable 0.63% MAD and a 0.9%
-# order spread (ratios 0.89-1.02), against 1.0257x at 640x512 and 1.0386x at
-# 8x2048. At batch 60 the strided in-place accumulate does not hold the
-# throughput the isolated GEMM probe predicted.
 _BMM_TRAILING_SHAPES = {
     (640, 512),
+    (60, 1024),
     (8, 2048),
 }
 _BMM_TRAILING_HITS = 0

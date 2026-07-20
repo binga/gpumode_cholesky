@@ -1,0 +1,106 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "640x512 nb=64",
+      "us": 495.8,
+      "panel_1pass_us": 155.6,
+      "panel_TFs": 60.4,
+      "trail_us": 29.0,
+      "trail_TFs": 1622.6,
+      "shipped_us": 1104.9,
+      "gemm_saving_us": 609.1,
+      "ok": true
+    },
+    {
+      "name": "640x512 nb=128",
+      "us": 347.0,
+      "panel_1pass_us": 112.1,
+      "panel_TFs": 143.7,
+      "trail_us": 10.7,
+      "trail_TFs": 3515.1,
+      "shipped_us": 1104.9,
+      "gemm_saving_us": 757.9,
+      "ok": true
+    },
+    {
+      "name": "640x512 nb=256",
+      "us": 253.0,
+      "panel_1pass_us": 83.2,
+      "panel_TFs": 258.0,
+      "trail_us": 3.3,
+      "trail_TFs": 6496.5,
+      "shipped_us": 1104.9,
+      "gemm_saving_us": 851.9,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=64",
+      "us": 568.6,
+      "panel_1pass_us": 172.9,
+      "panel_TFs": 21.8,
+      "trail_us": 50.0,
+      "trail_TFs": 780.0,
+      "shipped_us": 772.4,
+      "gemm_saving_us": 203.8,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=128",
+      "us": 320.6,
+      "panel_1pass_us": 98.9,
+      "panel_TFs": 71.2,
+      "trail_us": 23.8,
+      "trail_TFs": 1478.3,
+      "shipped_us": 772.4,
+      "gemm_saving_us": 451.8,
+      "ok": true
+    },
+    {
+      "name": "60x1024 nb=256",
+      "us": 169.4,
+      "panel_1pass_us": 53.1,
+      "panel_TFs": 227.5,
+      "trail_us": 10.1,
+      "trail_TFs": 2793.5,
+      "shipped_us": 772.4,
+      "gemm_saving_us": 603.0,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=64",
+      "us": 1127.1,
+      "panel_1pass_us": 341.2,
+      "panel_TFs": 6.1,
+      "trail_us": 103.5,
+      "trail_TFs": 422.0,
+      "shipped_us": 694.3,
+      "gemm_saving_us": -432.8,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=128",
+      "us": 658.1,
+      "panel_1pass_us": 202.9,
+      "panel_TFs": 19.8,
+      "trail_us": 49.5,
+      "trail_TFs": 840.2,
+      "shipped_us": 694.3,
+      "gemm_saving_us": 36.2,
+      "ok": true
+    },
+    {
+      "name": "8x2048 nb=256",
+      "us": 325.8,
+      "panel_1pass_us": 100.9,
+      "panel_TFs": 74.5,
+      "trail_us": 23.1,
+      "trail_TFs": 1628.0,
+      "shipped_us": 694.3,
+      "gemm_saving_us": 368.5,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

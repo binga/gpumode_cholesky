@@ -69,7 +69,8 @@ Current adopted source: **`#890037` = 825.4657219594694μs public /
 non-overlapping exp 043 + exp 044 integration improved the paired grid 1.0130x,
 but official test `#890068` hit the six-minute compile limit; it was not ranked,
 and the root source remains exact `#890037`.
-Current adopted source: **`#890089` = 810.246μs public (Session 41, exp 045
+Current adopted source: **`#890659` = 806.037μs public (Session 42, exp 046)**.
+Previously: **`#890089` = 810.246μs public (Session 41, exp 045
 = exp 044 carried onto the 64x256 winner `#890037`)**. Previously: **`#889994`
 = 852.746μs public / 847.396μs secret (Session 40)**. Previously: **`#888996` = 916.5768129471865μs public /
 863.8500740634134μs secret** (Session 39). `#888867` remains the best public
@@ -189,6 +190,44 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-21 — Session 42: exp 046 block-inverse rejected — ranked #890659
+
+Third pass at `640x512` / `60x1024` / `8x2048`. Rather than build another
+candidate on an estimate, a probe first measured the GEMM shapes a
+block-inverse design would produce. At nb=256 cuBLAS reaches **257 TFLOP/s** on
+the panel and **250** on the trailing product (against Triton's 53-66), making
+the level-0 GEMM budget 336us where the shipped Triton kernels cost 1104.9us.
+Batched triangular solve was measured as an exact alternative and is hopeless
+(1489-4484us), so the explicit inverse is the only panel route.
+
+The 768.7us saving is an illusion. Flop accounting: level-0 carries 8.59e10
+flops at 256 TFLOP/s (336us), but the two 256x256 diagonal blocks left behind
+carry 4.29e10 flops that are skinny at every sub-level and run at ~30 TFLOP/s
+-> **1432us**. Design total ~2028us against 1394.6us shipped = **0.69x**. This
+is the fifth independent confirmation of the same rule: the flops handed to
+cuBLAS are the ones already running acceptably, and the skinny remainder
+dominates the clock.
+
+Shipped instead is a trailing-only swap: `_trailing_nb` -> in-place `baddbmm_`
+on a strided view, Triton retained for the first-touch block (cuBLAS cannot
+read `src` and write `work` in one pass; `baddbmm(src, ..., out=work)`
+materialises the accumulator, 180us at 640x512). `640x512` **1.0328x**,
+`8x2048` **1.0400x**; `60x1024` regressed to 0.9320x with an unstable 0.63%
+MAD and was excluded. Full grid **1.004902x CI [1.004323, 1.005481]**, 15/15,
+residuals byte-identical, test 17/17. Ranked `#890659` = **806.037us public**,
+improving `#890089` (810.246) by **0.52%** — the paired grid predicted 0.49%.
+Exact ranked SHA-256:
+`59558b501fb32d403667fd85a338ece7bb196f352a93685f7934bab8526d5e52`.
+
+2x remains unreachable on these shapes: 2.86e10 useful flops at `640x512`
+would be 112us at 256 TFLOP/s, but ~30% of the work is inherently skinny
+panel/diagonal arithmetic an order of magnitude slower, and raising panel
+efficiency via tf32 is barred by the n=512 residual cliff (2.59 -> 17.7 / 20).
+
+Evidence: `experiments/046-blockinv/`.
 
 ---
 
