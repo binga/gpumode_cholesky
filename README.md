@@ -173,6 +173,25 @@ popcorn submissions                                # view your entries
   but official test `#890068` hit the six-minute compile limit, so it was not
   ranked and the root source remains exact `#890037`. See
   `experiments/043-cuda-n256/`.
+- **Ranked submission `#890798`** (exp 047 — fused resident panel, current
+  best): `done`, public geomean **801.9771791503684us** and secret
+  **847.8361641640636us**, improving `#890659` (806.037us) by **0.504%
+  public**. `_panel_fused128` loads a `TILE_R x 128` block-column tile once and
+  runs all four 32-wide panel sub-steps against the resident diagonal inverses
+  instead of re-reading the tile on each of the seven launches that make up a
+  128-wide block; `_diag_block_step` merges the restricted in-block apply and
+  inner into one CTA-per-matrix launch at `60x1024`. Full grid 15/15 at
+  **1.012106x CI [1.011423, 1.012789]** with `640x512` **1.0985x** and
+  `60x1024` **1.0924x**; six families clean on both changed shapes with every
+  residual identical to the baseline's; Popcorn test `#890791` 17/17. The
+  panel kernels were at HBM peak (7.6 TB/s) and removing the redundant traffic
+  worked, but the fused kernel is arithmetic-bound at **28 TFLOP/s** on
+  `N=32, K=32` tf32x3 dots, so the win is 1.95x on that constituent rather than
+  the 10-15x the traffic ratio projected. `8x2048` rejected at 0.9070x: the
+  fused panel needs uniform 128-wide panels and its shipped schedule is NB=256.
+  **2x is not reached on any of the three target shapes.** Exact SHA-256:
+  `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`. See
+  `experiments/047-fused-panel/`.
 - **Ranked submission `#888867`** (exp 041 V3 — best public score): `done`, public
   geomean **899.124686138768us** and secret **905.4166394915869us**. The first
   cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at

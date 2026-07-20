@@ -1,0 +1,65 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "correctness 640x512 dense",
+      "us": 0.0,
+      "max_abs_err": 0.00030517578125,
+      "max_abs_a": 513.3023071289062,
+      "rel": 5.945342092011303e-07,
+      "strict_upper_max": 0.0,
+      "min_diag": 22.64385223388672,
+      "fused_hits": 3,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=32 warps=4",
+      "us": 834.418,
+      "tbps_total": 1.66,
+      "tbps_tile": 0.6,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=64 warps=4",
+      "us": 501.675,
+      "tbps_total": 2.13,
+      "tbps_tile": 1.0,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=64 warps=8",
+      "us": 492.301,
+      "tbps_total": 2.17,
+      "tbps_tile": 1.02,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=128 warps=8",
+      "us": 374.373,
+      "tbps_total": 2.44,
+      "tbps_tile": 1.34,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=128 warps=4",
+      "us": 445.296,
+      "tbps_total": 2.05,
+      "tbps_tile": 1.13,
+      "ok": true
+    },
+    {
+      "name": "fused TILE_R=256 warps=8",
+      "us": 533.83,
+      "tbps_total": 1.61,
+      "tbps_tile": 0.94,
+      "ok": true
+    },
+    {
+      "name": "shipped apply+inner, same 3 panels",
+      "us": 727.845,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

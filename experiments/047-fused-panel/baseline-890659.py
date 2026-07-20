@@ -1174,38 +1174,6 @@ _MICRO32_SHAPES = {
 }
 
 
-# Experiment 047: shapes whose below-diagonal panel solve is done by one
-# resident-tile kernel per 128-wide block instead of the seven launches
-# (4x micro + 4x apply + 3x inner) the shipped schedule emits. Maps the shape
-# to (TILE_R, num_warps) for `_panel_fused128`.
-#
-# Motivation is a traffic bound, not a throughput estimate: at 640x512
-# `_panel_inner32_subtile64` moves 275 MB per call in 36.0us = 7.6 TB/s, which
-# is B200 HBM peak, so it cannot be made faster as written. It moves that much
-# because the block-column tile is re-read from global on every launch of the
-# block. Loading the tile once and storing it once takes total panel traffic
-# from ~3.5 GB to ~503 MB at nb=128.
-# (TILE_R, num_warps, merge_diag_step). `merge_diag_step` collapses the
-# per-sub-step `_panel_apply32` + `_panel_inner32_subtile64` pair inside the
-# diagonal block into one `_diag_block_step` launch; it trades two cheap
-# launches for one register-heavy CTA-per-matrix launch and is only a win
-# where the launch count dominates.
-# Measured paired vs ranked #890659 (variant-05/06):
-#   640x512  merge=False 1.0566x   merge=True 0.9973x
-#   60x1024  merge=False 0.9147x   merge=True 1.2044x
-#   8x2048   0.9070x -- excluded. Its shipped schedule is NB=256 (exp 032,
-#     1.031x) and the fused panel requires uniform 128-wide panels, so
-#     enrolling it doubles the panel and trailing launch count.
-# At batch 640 the merged step's 128x128 register tiles cost more than the
-# launches they remove; at batch 60 there is no occupancy to lose and the
-# eight-panel schedule emits twice as many of them.
-_FUSED_PANEL_SHAPES = {
-    (640, 512): (128, 8, False),
-    (60, 1024): (128, 8, True),
-}
-_FUSED_PANEL_HITS = 0
-
-
 # ---------------------------------------------------------------------------
 # Triton kernel for n == 32 (adopted experiment 002).
 # ---------------------------------------------------------------------------
@@ -2053,165 +2021,6 @@ if _HAVE_TRITON:
         tl.store(t_ptrs, t - prod, mask=valid)
 
     @triton.jit
-    def _diag_block_step(
-        out_ptr,
-        dinv_ptr,
-        src_ptr,
-        n: tl.constexpr,
-        k,
-        nrows,
-        TILE: tl.constexpr,
-        PREC: tl.constexpr,
-        FIRST: tl.constexpr,
-    ):
-        """One CTA per matrix: apply + inner update for the rows of the
-        128-wide diagonal block that lie below the 32x32 pivot at `k`.
-
-        With `_panel_fused128` taking every row below the block, `nrows` is at
-        most 96, so the two launches the shipped schedule spends here
-        (`_panel_apply32` + `_panel_inner32_subtile64`) move almost no data and
-        are pure fixed cost -- measured 8.7us and 13.0us per call at 640x512.
-        Doing both in one kernel halves that. The inner update is L @ L^T of
-        the very tile the apply just produced, so it needs no second global
-        read either."""
-        b = tl.program_id(0).to(tl.int64)
-        base = b * n * n
-        r = tl.arange(0, TILE)
-        c = tl.arange(0, 32)
-        rmask = r < nrows
-        off = (k + 32 + r)[:, None] * n + (k + c)[None, :]
-        p = out_ptr + base + off
-        if FIRST:
-            a = tl.load(src_ptr + base + off, mask=rmask[:, None], other=0.0)
-        else:
-            a = tl.load(p, mask=rmask[:, None], other=0.0)
-        dinv = tl.load(dinv_ptr + b * 1024 + c[:, None] * 32 + c[None, :])
-        lik = tl.dot(
-            a, tl.trans(dinv), input_precision=PREC, out_dtype=tl.float32
-        )
-        tl.store(p, lik, mask=rmask[:, None])
-        m = out_ptr + base + (k + c)[:, None] * n + (k + 32 + r)[None, :]
-        tl.store(
-            m, tl.zeros((32, TILE), dtype=tl.float32), mask=rmask[None, :]
-        )
-        t_off = (k + 32 + r)[:, None] * n + (k + 32 + r)[None, :]
-        tp = out_ptr + base + t_off
-        valid = rmask[:, None] & rmask[None, :]
-        if FIRST:
-            t = tl.load(src_ptr + base + t_off, mask=valid, other=0.0)
-        else:
-            t = tl.load(tp, mask=valid, other=0.0)
-        prod = tl.dot(
-            lik, tl.trans(lik), input_precision=PREC, out_dtype=tl.float32
-        )
-        tl.store(tp, t - prod, mask=valid)
-
-    @triton.jit
-    def _fdot(a, ptr, TRANSLOAD: tl.constexpr, PREC: tl.constexpr):
-        """a @ B^T where `ptr` addresses B (TRANSLOAD=0, via `tl.trans`) or
-        already addresses B^T with swapped index expressions (TRANSLOAD=1).
-        `tl.trans` on a freshly loaded tile costs a shared-memory round trip;
-        the operand is 32x32 and L1-resident either way, so the transposed
-        addressing is free."""
-        if TRANSLOAD:
-            return tl.dot(
-                a, tl.load(ptr), input_precision=PREC, out_dtype=tl.float32
-            )
-        return tl.dot(
-            a,
-            tl.trans(tl.load(ptr)),
-            input_precision=PREC,
-            out_dtype=tl.float32,
-        )
-
-    @triton.jit
-    def _panel_fused128(
-        out_ptr,
-        dinv_ptr,
-        src_ptr,
-        n: tl.constexpr,
-        j,
-        nrows,
-        dinv_stride,
-        TILE_R: tl.constexpr,
-        PREC: tl.constexpr,
-        FIRST: tl.constexpr,
-        TRANSLOAD: tl.constexpr,
-        MIRROR: tl.constexpr,
-    ):
-        """Fused 128-wide panel solve for every row below the diagonal block.
-
-        One CTA owns a TILE_R x 128 tile of the block column, loads it once,
-        runs all four 32-wide sub-steps against the diagonal inverses already
-        published in `dinv`, and stores once. The shipped schedule re-reads
-        the same tile from global on every one of the seven launches that make
-        up one 128-wide block (4x micro + 4x apply + 3x inner); at 640x512
-        that is ~3.5 GB of panel traffic against a one-load/one-store minimum
-        of ~503 MB.
-
-        No cross-CTA synchronisation is needed: the diagonal block is fully
-        factored before this kernel launches and row tiles are independent of
-        each other.
-        """
-        rt = tl.program_id(0)
-        b = tl.program_id(1).to(tl.int64)
-        base = b * n * n
-        rr = rt * TILE_R + tl.arange(0, TILE_R)
-        rmask = rr < nrows
-        c = tl.arange(0, 32)
-        off = (j + 128 + rr)[:, None] * n + (j + c)[None, :]
-        p0 = out_ptr + base + off
-        if FIRST:
-            q0 = src_ptr + base + off
-            t0 = tl.load(q0, mask=rmask[:, None], other=0.0)
-            t1 = tl.load(q0 + 32, mask=rmask[:, None], other=0.0)
-            t2 = tl.load(q0 + 64, mask=rmask[:, None], other=0.0)
-            t3 = tl.load(q0 + 96, mask=rmask[:, None], other=0.0)
-        else:
-            t0 = tl.load(p0, mask=rmask[:, None], other=0.0)
-            t1 = tl.load(p0 + 32, mask=rmask[:, None], other=0.0)
-            t2 = tl.load(p0 + 64, mask=rmask[:, None], other=0.0)
-            t3 = tl.load(p0 + 96, mask=rmask[:, None], other=0.0)
-        # Both addressings visit the same 32x32 tiles; TRANSLOAD only swaps
-        # which axis is the fast one, so the (u, s) block offsets are shared.
-        if TRANSLOAD:
-            dbase = dinv_ptr + b * 1024 + c[None, :] * 32 + c[:, None]
-            dblk = out_ptr + base + (j + c)[None, :] * n + (j + c)[:, None]
-        else:
-            dbase = dinv_ptr + b * 1024 + c[:, None] * 32 + c[None, :]
-            dblk = out_ptr + base + (j + c)[:, None] * n + (j + c)[None, :]
-        # Sub-step 0: solve against dinv_0, then push into columns 32..128.
-        t0 = _fdot(t0, dbase, TRANSLOAD, PREC)
-        t1 -= _fdot(t0, dblk + 32 * n, TRANSLOAD, PREC)
-        t2 -= _fdot(t0, dblk + 64 * n, TRANSLOAD, PREC)
-        t3 -= _fdot(t0, dblk + 96 * n, TRANSLOAD, PREC)
-        # Sub-step 1.
-        t1 = _fdot(t1, dbase + dinv_stride, TRANSLOAD, PREC)
-        t2 -= _fdot(t1, dblk + 64 * n + 32, TRANSLOAD, PREC)
-        t3 -= _fdot(t1, dblk + 96 * n + 32, TRANSLOAD, PREC)
-        # Sub-step 2.
-        t2 = _fdot(t2, dbase + 2 * dinv_stride, TRANSLOAD, PREC)
-        t3 -= _fdot(t2, dblk + 96 * n + 64, TRANSLOAD, PREC)
-        # Sub-step 3.
-        t3 = _fdot(t3, dbase + 3 * dinv_stride, TRANSLOAD, PREC)
-        tl.store(p0, t0, mask=rmask[:, None])
-        tl.store(p0 + 32, t1, mask=rmask[:, None])
-        tl.store(p0 + 64, t2, mask=rmask[:, None])
-        tl.store(p0 + 96, t3, mask=rmask[:, None])
-        if MIRROR:
-            # Zero the mirrored upper tile, exactly as `_panel_apply32` does,
-            # so the eager first-touch path needs no separate clear pass.
-            z = tl.zeros((32, TILE_R), dtype=tl.float32)
-            m0 = (
-                out_ptr + base + (j + c)[:, None] * n
-                + (j + 128 + rr)[None, :]
-            )
-            tl.store(m0, z, mask=rmask[None, :])
-            tl.store(m0 + 32 * n, z, mask=rmask[None, :])
-            tl.store(m0 + 64 * n, z, mask=rmask[None, :])
-            tl.store(m0 + 96 * n, z, mask=rmask[None, :])
-
-    @triton.jit
     def _trailing_nb(
         out_ptr,
         src_ptr,
@@ -2339,14 +2148,7 @@ if _HAVE_TRITON:
 
     def _nb_schedule(batch, n):
         """Panel-width schedule for one shape. Falls back to the uniform
-        _SPLIT32_NB schedule used by ranked #883174.
-
-        Experiment 047: a fused shape must use uniform 128-wide panels. The
-        fused panel solves one 128-wide block column against the diagonal
-        block above it; a wider panel would need an extra rank-128 Schur
-        update between its two halves, which is exactly nb=128 again."""
-        if (batch, n) in _FUSED_PANEL_SHAPES:
-            return (128,) * (n // 128)
+        _SPLIT32_NB schedule used by ranked #883174."""
         sched = _SPLIT32_NB_SCHEDULE.get((batch, n))
         if sched is None:
             nb = _SPLIT32_NB
@@ -2404,7 +2206,6 @@ if _HAVE_TRITON:
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
         global _MICRO32_HITS, _BMM_SCHUR_HITS, _BMM_TRAILING_HITS
-        global _FUSED_PANEL_HITS
         batch, n, _ = work.shape
         bmm_trailing = (batch, n) in _BMM_TRAILING_SHAPES
         previous_tf32 = torch.backends.cuda.matmul.allow_tf32
@@ -2413,26 +2214,22 @@ if _HAVE_TRITON:
         cuda_micro = _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
         bmm_schur = (batch, n) in _BMM_SCHUR_SHAPES
         tile = _SPLIT32_TILE
-        fused_cfg = _FUSED_PANEL_SHAPES.get((batch, n))
         ft = src is not None
         if not ft:
             src = work
         j = 0
         for nb in _nb_schedule(batch, n):
             panel_end = min(j + nb, n)
-            fused = fused_cfg is not None and panel_end - j == 128
             for k in range(j, panel_end, 32):
-                slot = (k - j) // 32 if fused else 0
                 if cuda_micro:
                     _MICRO32_HITS += 1
                     _MICRO32.micro32_launch(
-                        src, work, dinv[slot], n, k,
-                        1 if (ft and k == 0) else 0,
+                        src, work, dinv, n, k, 1 if (ft and k == 0) else 0
                     )
                 else:
                     _micro_potrf_gj32[(batch,)](
                         work,
-                        dinv[slot],
+                        dinv,
                         src,
                         n=n,
                         k=k,
@@ -2440,31 +2237,12 @@ if _HAVE_TRITON:
                         RECIPROCAL_SOLVE=fp16_trailing,
                         num_warps=1,
                     )
-                # With the fused panel the per-sub-step apply/inner launches
-                # are restricted to the diagonal block; every row below it is
-                # handled once, after the block is complete.
-                remaining = (panel_end if fused else n) - k - 32
+                remaining = n - k - 32
                 if remaining <= 0:
-                    if fused:
-                        continue
                     break
-                if fused and fused_cfg[2]:
-                    _diag_block_step[(batch,)](
-                        work,
-                        dinv[slot],
-                        src,
-                        n=n,
-                        k=k,
-                        nrows=remaining,
-                        TILE=128,
-                        PREC=panel_prec,
-                        FIRST=ft and k == 0,
-                        num_warps=8,
-                    )
-                    continue
                 _panel_apply32[(triton.cdiv(remaining, tile), batch)](
                     work,
-                    dinv[slot],
+                    dinv,
                     src,
                     n=n,
                     k=k,
@@ -2522,24 +2300,6 @@ if _HAVE_TRITON:
                             num_warps=4,
                         )
             rem_out = n - panel_end
-            if fused and rem_out > 0:
-                _FUSED_PANEL_HITS += 1
-                ftile, fwarps = fused_cfg[0], fused_cfg[1]
-                _panel_fused128[(triton.cdiv(rem_out, ftile), batch)](
-                    work,
-                    dinv,
-                    src,
-                    n=n,
-                    j=j,
-                    nrows=rem_out,
-                    dinv_stride=batch * 1024,
-                    TILE_R=ftile,
-                    PREC=panel_prec,
-                    FIRST=ft and j == 0,
-                    TRANSLOAD=1,
-                    MIRROR=1,
-                    num_warps=fwarps,
-                )
             if rem_out > 0 and bmm_trailing and not (ft and j == 0):
                 _BMM_TRAILING_HITS += 1
                 block = work[:, panel_end:, j:panel_end]
@@ -2583,29 +2343,21 @@ if _HAVE_TRITON:
     _SPLIT32_GRAPHS = {}
     _SPLIT32_DINV = {}
 
-    def _dinv_slots(batch, n):
-        """Number of 32x32 diagonal inverses that must stay live at once.
-        The fused panel consumes all four inverses of a 128-wide block after
-        the block is finished, so they cannot share one buffer."""
-        return 4 if (batch, n) in _FUSED_PANEL_SHAPES else 1
-
     def _split32_factor(data: torch.Tensor) -> torch.Tensor:
         batch, n, _ = data.shape
         panel_prec, trailing_prec, trailing_tile, mode, fp16_trailing = (
             _SPLIT32_SHAPES[(batch, n)]
         )
-        slots = _dinv_slots(batch, n)
         data = data.contiguous()
 
         if mode == "eager":
             out = torch.empty_like(data)
-            dinv = _SPLIT32_DINV.get((batch, slots))
+            dinv = _SPLIT32_DINV.get(batch)
             if dinv is None:
                 dinv = torch.empty(
-                    slots, batch, 32, 32, device=data.device,
-                    dtype=torch.float32,
+                    batch, 32, 32, device=data.device, dtype=torch.float32
                 )
-                _SPLIT32_DINV[(batch, slots)] = dinv
+                _SPLIT32_DINV[batch] = dinv
             _split32_launch(
                 out,
                 dinv,
@@ -2623,8 +2375,7 @@ if _HAVE_TRITON:
             try:
                 work = torch.empty_like(data)
                 dinv = torch.empty(
-                    slots, batch, 32, 32, device=data.device,
-                    dtype=torch.float32,
+                    batch, 32, 32, device=data.device, dtype=torch.float32
                 )
                 for _ in range(2):
                     work.copy_(data)
@@ -2658,7 +2409,7 @@ if _HAVE_TRITON:
         if entry is False:
             work = data.clone()
             dinv = torch.empty(
-                slots, batch, 32, 32, device=data.device, dtype=torch.float32
+                batch, 32, 32, device=data.device, dtype=torch.float32
             )
             _split32_launch(
                 work,

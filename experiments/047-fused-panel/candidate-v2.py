@@ -1185,23 +1185,8 @@ _MICRO32_SHAPES = {
 # because the block-column tile is re-read from global on every launch of the
 # block. Loading the tile once and storing it once takes total panel traffic
 # from ~3.5 GB to ~503 MB at nb=128.
-# (TILE_R, num_warps, merge_diag_step). `merge_diag_step` collapses the
-# per-sub-step `_panel_apply32` + `_panel_inner32_subtile64` pair inside the
-# diagonal block into one `_diag_block_step` launch; it trades two cheap
-# launches for one register-heavy CTA-per-matrix launch and is only a win
-# where the launch count dominates.
-# Measured paired vs ranked #890659 (variant-05/06):
-#   640x512  merge=False 1.0566x   merge=True 0.9973x
-#   60x1024  merge=False 0.9147x   merge=True 1.2044x
-#   8x2048   0.9070x -- excluded. Its shipped schedule is NB=256 (exp 032,
-#     1.031x) and the fused panel requires uniform 128-wide panels, so
-#     enrolling it doubles the panel and trailing launch count.
-# At batch 640 the merged step's 128x128 register tiles cost more than the
-# launches they remove; at batch 60 there is no occupancy to lose and the
-# eight-panel schedule emits twice as many of them.
 _FUSED_PANEL_SHAPES = {
-    (640, 512): (128, 8, False),
-    (60, 1024): (128, 8, True),
+    (640, 512): (128, 8),
 }
 _FUSED_PANEL_HITS = 0
 
@@ -2053,60 +2038,6 @@ if _HAVE_TRITON:
         tl.store(t_ptrs, t - prod, mask=valid)
 
     @triton.jit
-    def _diag_block_step(
-        out_ptr,
-        dinv_ptr,
-        src_ptr,
-        n: tl.constexpr,
-        k,
-        nrows,
-        TILE: tl.constexpr,
-        PREC: tl.constexpr,
-        FIRST: tl.constexpr,
-    ):
-        """One CTA per matrix: apply + inner update for the rows of the
-        128-wide diagonal block that lie below the 32x32 pivot at `k`.
-
-        With `_panel_fused128` taking every row below the block, `nrows` is at
-        most 96, so the two launches the shipped schedule spends here
-        (`_panel_apply32` + `_panel_inner32_subtile64`) move almost no data and
-        are pure fixed cost -- measured 8.7us and 13.0us per call at 640x512.
-        Doing both in one kernel halves that. The inner update is L @ L^T of
-        the very tile the apply just produced, so it needs no second global
-        read either."""
-        b = tl.program_id(0).to(tl.int64)
-        base = b * n * n
-        r = tl.arange(0, TILE)
-        c = tl.arange(0, 32)
-        rmask = r < nrows
-        off = (k + 32 + r)[:, None] * n + (k + c)[None, :]
-        p = out_ptr + base + off
-        if FIRST:
-            a = tl.load(src_ptr + base + off, mask=rmask[:, None], other=0.0)
-        else:
-            a = tl.load(p, mask=rmask[:, None], other=0.0)
-        dinv = tl.load(dinv_ptr + b * 1024 + c[:, None] * 32 + c[None, :])
-        lik = tl.dot(
-            a, tl.trans(dinv), input_precision=PREC, out_dtype=tl.float32
-        )
-        tl.store(p, lik, mask=rmask[:, None])
-        m = out_ptr + base + (k + c)[:, None] * n + (k + 32 + r)[None, :]
-        tl.store(
-            m, tl.zeros((32, TILE), dtype=tl.float32), mask=rmask[None, :]
-        )
-        t_off = (k + 32 + r)[:, None] * n + (k + 32 + r)[None, :]
-        tp = out_ptr + base + t_off
-        valid = rmask[:, None] & rmask[None, :]
-        if FIRST:
-            t = tl.load(src_ptr + base + t_off, mask=valid, other=0.0)
-        else:
-            t = tl.load(tp, mask=valid, other=0.0)
-        prod = tl.dot(
-            lik, tl.trans(lik), input_precision=PREC, out_dtype=tl.float32
-        )
-        tl.store(tp, t - prod, mask=valid)
-
-    @triton.jit
     def _fdot(a, ptr, TRANSLOAD: tl.constexpr, PREC: tl.constexpr):
         """a @ B^T where `ptr` addresses B (TRANSLOAD=0, via `tl.trans`) or
         already addresses B^T with swapped index expressions (TRANSLOAD=1).
@@ -2339,14 +2270,7 @@ if _HAVE_TRITON:
 
     def _nb_schedule(batch, n):
         """Panel-width schedule for one shape. Falls back to the uniform
-        _SPLIT32_NB schedule used by ranked #883174.
-
-        Experiment 047: a fused shape must use uniform 128-wide panels. The
-        fused panel solves one 128-wide block column against the diagonal
-        block above it; a wider panel would need an extra rank-128 Schur
-        update between its two halves, which is exactly nb=128 again."""
-        if (batch, n) in _FUSED_PANEL_SHAPES:
-            return (128,) * (n // 128)
+        _SPLIT32_NB schedule used by ranked #883174."""
         sched = _SPLIT32_NB_SCHEDULE.get((batch, n))
         if sched is None:
             nb = _SPLIT32_NB
@@ -2448,20 +2372,6 @@ if _HAVE_TRITON:
                     if fused:
                         continue
                     break
-                if fused and fused_cfg[2]:
-                    _diag_block_step[(batch,)](
-                        work,
-                        dinv[slot],
-                        src,
-                        n=n,
-                        k=k,
-                        nrows=remaining,
-                        TILE=128,
-                        PREC=panel_prec,
-                        FIRST=ft and k == 0,
-                        num_warps=8,
-                    )
-                    continue
                 _panel_apply32[(triton.cdiv(remaining, tile), batch)](
                     work,
                     dinv[slot],
@@ -2524,7 +2434,7 @@ if _HAVE_TRITON:
             rem_out = n - panel_end
             if fused and rem_out > 0:
                 _FUSED_PANEL_HITS += 1
-                ftile, fwarps = fused_cfg[0], fused_cfg[1]
+                ftile, fwarps = fused_cfg
                 _panel_fused128[(triton.cdiv(rem_out, ftile), batch)](
                     work,
                     dinv,
@@ -3546,3 +3456,143 @@ def custom_kernel(data: input_t) -> output_t:
 
     # Default: batched cuSOLVER. Correct for every input family.
     return torch.linalg.cholesky_ex(data, check_errors=False).L
+
+
+def mid_probe():
+    """Experiment 047: time `_panel_fused128` against the shipped
+    apply+inner sequence it replaces, in one Modal run.
+
+    Row 0 is an end-to-end correctness check of the enrolled shape. The
+    remaining rows sweep (TILE_R, num_warps) for the fused kernel and report
+    achieved bandwidth: the design exists to move less data, so a
+    configuration below ~5 TB/s is spilling and has reinstated the traffic.
+    """
+    rows = []
+    if not _HAVE_TRITON or not torch.cuda.is_available():
+        return [{"name": "no-triton", "us": 0.0, "ok": False}]
+    dev = torch.device("cuda")
+    batch, n = 640, 512
+    torch.manual_seed(20470721)
+
+    def _time(fn, iters=20, warmup=5):
+        for _ in range(warmup):
+            fn()
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        for _ in range(iters):
+            fn()
+        end.record()
+        torch.cuda.synchronize()
+        return start.elapsed_time(end) * 1000.0 / iters
+
+    # --- end-to-end correctness on the enrolled shape --------------------
+    try:
+        a = torch.randn(batch, n, n, device=dev)
+        spd = torch.baddbmm(
+            torch.eye(n, device=dev).expand(batch, n, n) * n,
+            a, a.transpose(1, 2), beta=1.0, alpha=1.0 / n,
+        ).contiguous()
+        del a
+        out = custom_kernel(spd.clone())
+        recon = torch.bmm(out, out.transpose(1, 2))
+        err = (recon - spd).abs().max().item()
+        scale = spd.abs().max().item()
+        upper = out.triu(1).abs().max().item()
+        rows.append({
+            "name": "correctness 640x512 dense",
+            "us": 0.0,
+            "max_abs_err": err,
+            "max_abs_a": scale,
+            "rel": err / max(scale, 1e-30),
+            "strict_upper_max": upper,
+            "min_diag": out.diagonal(dim1=1, dim2=2).min().item(),
+            "fused_hits": _FUSED_PANEL_HITS,
+            "ok": bool(err / max(scale, 1e-30) < 1e-4 and upper == 0.0),
+        })
+        del spd, out, recon
+        torch.cuda.empty_cache()
+    except Exception as exc:  # pragma: no cover
+        rows.append({"name": "correctness 640x512 dense", "us": 0.0,
+                     "ok": False, "error": repr(exc)[:300]})
+
+    # --- kernel timing ----------------------------------------------------
+    work = (torch.randn(batch, n, n, device=dev) * 0.1).contiguous()
+    dinv = torch.eye(32, device=dev).expand(4, batch, 32, 32).contiguous()
+    panels = [(0, 384), (128, 256), (256, 128)]
+
+    configs = []
+    for tl_, wp in ((64, 4), (64, 8), (128, 8), (128, 4), (256, 8)):
+        configs.append((tl_, wp, 1, 1))
+        configs.append((tl_, wp, 0, 1))
+    configs.append((128, 8, 1, 0))
+    configs.append((256, 8, 1, 0))
+    for tile_r, warps, transload, mirror in configs:
+        def run(tile_r=tile_r, warps=warps, transload=transload,
+                mirror=mirror):
+            for j, nrows in panels:
+                _panel_fused128[(triton.cdiv(nrows, tile_r), batch)](
+                    work, dinv, work,
+                    n=n, j=j, nrows=nrows, dinv_stride=batch * 1024,
+                    TILE_R=tile_r, PREC="tf32x3", FIRST=False,
+                    TRANSLOAD=transload, MIRROR=mirror,
+                    num_warps=warps,
+                )
+        name = "fused TILE_R=%d warps=%d transload=%d mirror=%d" % (
+            tile_r, warps, transload, mirror)
+        try:
+            us = _time(run)
+        except Exception as exc:
+            rows.append({"name": name, "us": 0.0, "ok": False,
+                         "error": repr(exc)[:300]})
+            continue
+        tile_bytes = sum(batch * nr * 128 * 4 * 2 for _, nr in panels)
+        mirror_bytes = mirror * sum(batch * nr * 128 * 4 for _, nr in panels)
+        diag_bytes = sum(
+            batch * ((nr + tile_r - 1) // tile_r) * 10 * 1024 * 4
+            for _, nr in panels
+        )
+        total = tile_bytes + mirror_bytes + diag_bytes
+        rows.append({
+            "name": name,
+            "us": round(us, 3),
+            "tbps_total": round(total / us / 1e6, 2),
+            "tbps_tile": round(tile_bytes / us / 1e6, 2),
+            "ok": True,
+        })
+
+    def shipped():
+        for j, _nrows in panels:
+            panel_end = j + 128
+            for k in range(j, panel_end, 32):
+                remaining = n - k - 32
+                if remaining <= 0:
+                    break
+                _panel_apply32[(triton.cdiv(remaining, 128), batch)](
+                    work, dinv[0], work, n=n, k=k, remaining=remaining,
+                    PREC="tf32x3", TILE_R=128, FIRST=False, num_warps=4,
+                )
+                width = panel_end - (k + 32)
+                if width > 0:
+                    ntc = triton.cdiv(width, 64)
+                    _panel_inner32_subtile64[
+                        (triton.cdiv(remaining, 64) * ntc, batch)
+                    ](
+                        work, work, n=n, k=k, width=width,
+                        remaining=remaining, PREC="tf32x3", NTILES_C=ntc,
+                        FIRST=False, num_warps=4,
+                    )
+
+    try:
+        rows.append({
+            "name": "shipped apply+inner, same 3 panels",
+            "us": round(_time(shipped), 3),
+            "ok": True,
+        })
+    except Exception as exc:
+        rows.append({"name": "shipped apply+inner, same 3 panels", "us": 0.0,
+                     "ok": False, "error": repr(exc)[:300]})
+    del work, dinv
+    torch.cuda.empty_cache()
+    return rows

@@ -69,7 +69,10 @@ Current adopted source: **`#890037` = 825.4657219594694μs public /
 non-overlapping exp 043 + exp 044 integration improved the paired grid 1.0130x,
 but official test `#890068` hit the six-minute compile limit; it was not ranked,
 and the root source remains exact `#890037`.
-Current adopted source: **`#890659` = 806.037μs public (Session 42, exp 046)**.
+Current adopted source: **`#890798` = 801.977μs public / 847.836μs secret
+(Session 43, exp 047)**. It improves `#890659` by 0.504% public on a paired
+grid of 1.012106x. Previously: **`#890659` = 806.037μs public (Session 42,
+exp 046)**.
 Previously: **`#890089` = 810.246μs public (Session 41, exp 045
 = exp 044 carried onto the 64x256 winner `#890037`)**. Previously: **`#889994`
 = 852.746μs public / 847.396μs secret (Session 40)**. Previously: **`#888996` = 916.5768129471865μs public /
@@ -87,11 +90,11 @@ every stage-specific control exceeds 2x.
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
-| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + **✓ fused resident panel + merged diag step** (S43, 1.092×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
-| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19); ✗ fused resident panel (S43, 0.907× — needs uniform NB=128, loses exp 032's NB=256) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ cooperative six-path bound (S37, best 0.376×) | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
 | 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
@@ -190,6 +193,75 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-21 — Session 43: exp 047 fused resident panel → ranked #890798
+
+Fourth pass at `640x512` / `60x1024` / `8x2048`, from the finding that the
+panel kernels are **bandwidth-bound, not compute-bound**:
+`_panel_inner32_subtile64` moves 275 MB per call in 36.0us = **7.6 TB/s**, B200
+HBM peak, because the block-column tile is re-read from global on every one of
+the seven launches making up one 128-wide block.
+
+`_panel_fused128` loads a `TILE_R x 128` tile once as four `(TILE_R, 32)`
+register tensors, runs all four 32-wide sub-steps against the four diagonal
+inverses (ten `N=32, K=32` dots, 1.24x the exact triangular-solve flops), and
+stores once; the per-sub-step apply/inner launches are restricted to the
+diagonal block. `dinv` becomes `(slots, batch, 32, 32)` because the fused
+panel consumes all four 32x32 inverses *after* the block is finished.
+
+**The traffic premise was half right.** The fused kernel does remove the
+traffic, but the result is not bandwidth-bound: best config (TILE_R=128,
+8 warps) measures **2.43 TB/s** — far under the 5 TB/s gate — and **28
+TFLOP/s** on 1.007e10 useful FLOP, against the ~52 TFLOP/s the kernel it
+replaces reaches at the same tf32x3. Removing the redundant traffic bought
+**1.95x on the panel component** (731 -> 375us for three panels), not the
+10-15x the traffic ratio projected. Eliminating `tl.trans` on the 32x32
+operands was exactly null (375.4 -> 375.1us); the mirrored zero-fill costs
+44us and was kept (no clear pass exists on the eager path).
+
+Most of that saving did not reach the wall. `shapediag` on the candidate at
+`640x512`: fused 358.4us / 3 calls, but the 24 **restricted** diagonal-block
+launches cost **260us for at most 96 rows of data** — pure fixed cost at
+10.8us/launch, the same per-launch floor as S29 (~16us) and S44's
+batch-independent 13.55us micro. First drop-in: 1.0392x.
+
+`_diag_block_step` merges the restricted apply and inner into one
+CTA-per-matrix launch (the in-block inner update is `L @ L^T` of the tile the
+apply just produced, so no second global read). It is **batch-dependent**: at
+batch 640 it is a net loss (1.0566 -> **0.9973x**, two live 128x128 register
+tiles cost more than the twelve launches removed); at batch 60 it is the whole
+win (0.9147 -> **1.2044x**). Enrolled at `60x1024` only.
+
+`8x2048` **rejected at 0.9070x**, structurally: its shipped schedule is NB=256
+(exp 032) and the fused panel needs uniform 128-wide panels, because a 256-wide
+panel would want an extra rank-128 Schur update between its halves. Forcing
+128 doubles the panel and trailing launches (`_BMM_TRAILING_HITS` 21 -> 45).
+
+Full 15-shape paired grid **1.012106x CI [1.011423, 1.012789]**, 15/15 pass,
+`640x512` 1350.5 -> 1229.0us (**1.0985x**), `60x1024` 1253.3 -> 1147.5us
+(**1.0924x**), all 13 other shapes 0.9985-1.0010 against a 0.60% A-vs-A floor.
+Six families clean on both changed shapes with **every residual identical to
+the baseline's to three significant figures** (640x512 dense 2.69/20; 60x1024
+dense 9.59/20); panels stay tf32x3 at n=512. Both new kernels are Triton, so
+the submission still performs three nvcc invocations and test `#890791` passed
+17/17 in 95s.
+
+Ranked `#890798` = **801.977us public / 847.836us secret**, improving
+`#890659` (806.037) by **0.504%**. Exact ranked SHA-256:
+`fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
+
+**2x is still not reached on any of the three shapes** (targets 676 / 627 /
+784us; shipped 1229 / 1147 / 1571us). The new quantitative bound: removing the
+redundant panel traffic converts a kernel that was at HBM peak into one that is
+arithmetic-bound at less than half the useful throughput of its predecessor,
+and every reformulation with better dot shape costs >=1.6x the MACs while
+tf32x3 — mandatory at n=512 (exp 044 v11: 2.59 -> 17.7/20 under plain tf32) —
+caps a well-shaped dot near 52 TFLOP/s. Remaining `640x512` device time is
+358us fused panel + 260us data-free restricted launches + 169us micro chain.
+
+Evidence: `experiments/047-fused-panel/`, `docs/goal-exp047-fused-panel.md`.
 
 ---
 
