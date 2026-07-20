@@ -112,3 +112,51 @@ still be rejected for compile cost alone.
 - `candidate-v7.py` — eager shapes only, four nvcc extensions (compile-fail).
 - `candidate-v9.py` — **ranked `#889994`**, merged extension.
 - `variant-*.json` — every raw measurement referenced above.
+
+---
+
+# Round 2 — 16x512, 64x256, 4x1024 (no promotable win)
+
+Four further architectures were measured against ranked `#889994`. None is
+promotable; the legal design space for `16x512` and `4x1024` is **EXHAUSTED**.
+
+| variant | change | 16x512 | 4x1024 | verdict |
+|---|---|---|---|---|
+| v10 | `graph` -> `eager` so the CUDA micro applies | **0.9610x** | **0.9925x** | REJECTED |
+| v11 | tf32 panels + tf32 trailing at 16x512 | 1.0542x | — | REJECTED (accuracy) |
+| v12 | tf32x3 panels + tf32 trailing at 16x512 | 0.9992x | — | REJECTED (null) |
+
+**v10 — eager mode.** The CUDA micro is only capturable if the launch names
+the current work queue, which popcorn's source policy forbids, so the only way
+to reach these shapes is to abandon their CUDA graph. The micro saves ~50us of
+device time at `16x512`, but the eager launch gaps cost ~66us across the 54
+launches, netting -15.7us. Confirms the graph replay (~0.4us/launch measured
+idle) is worth more than the kernel win.
+
+**v11 — tf32 panels.** 1.0542x (392.6 -> 372.5us), but the dense scaled
+reconstruction residual jumps **2.59 -> 17.7 / 20** — 88.5% of the official
+tolerance, far past the 8/20 ship margin this program holds for secret-seed
+variance. Rejected on margin, not on speed. This confirms exp 033's boundary
+empirically at n=512: tf32 panels are safe at n>=1024 only.
+
+**v12 — trailing precision alone.** Exactly null (0.9992x, CI includes 1.0,
+residual unchanged at 2.59). `_trailing_nb` is only 27us of `16x512`; the
+entire tf32x3 cost is in `_panel_apply32` + `_panel_inner32_subtile64`
+(61 + 46 = 107us). Speed and tolerance are therefore the *same* knob at this
+shape — there is no safe middle setting.
+
+**64x256 — not attempted.** A concurrent session held this shape for the whole
+run and had already reached a verified 2.0259x (227.7 -> 112.3us, six families
+clean, full grid 1.04824x). Its Popcorn test `#890001` failed at exactly the
+six-minute mark — the same compile budget that broke `#889979` here, with the
+same fix: fold the kernel into an existing extension instead of adding a fifth
+`load_inline` module. Duplicating that shape would have risked two concurrent
+ranked submissions, which `program.md` forbids.
+
+## Standing conclusion for these shapes
+
+`16x512` and `4x1024` have a **measured, ready 1.1910x / 1.2214x** available
+from the exp-044 micro (`candidate-v5.py`, full grid 1.055953x). It is gated
+solely by popcorn's source policy rejecting an explicit current-queue launch,
+without which a `load_inline` kernel cannot enter a CUDA graph. That is the
+single highest-value unblock left on the board, worth ~4.3% geomean.

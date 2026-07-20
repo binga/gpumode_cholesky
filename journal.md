@@ -78,9 +78,9 @@ every stage-specific control exceeds 2x.
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
-| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
+| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64, 1.089× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -182,6 +182,41 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-20 — Session 40b: exp 044 round 2 (16x512, 64x256, 4x1024) — EXHAUSTED, no rank
+
+Continued the 2x objective on the three named shapes against ranked `#889994`.
+Four further architectures measured; none promotable.
+
+- **v10, `graph` -> `eager` at 16x512/4x1024** so the blocked CUDA micro could
+  apply: **0.9610x / 0.9925x**. The micro saves ~50us of device time at
+  `16x512` but eager launch gaps cost ~66us over 54 launches. The CUDA graph
+  (~0.4us/launch measured idle) is worth more than the kernel win, so
+  abandoning it to reach the kernel is net negative.
+- **v11, tf32 panels at 16x512**: 1.0542x (392.6 -> 372.5us) but the dense
+  residual jumps **2.59 -> 17.7 / 20**, 88.5% of tolerance and far past the
+  8/20 secret-seed ship margin. Rejected on margin. Confirms exp 033's
+  boundary empirically at n=512.
+- **v12, tf32 trailing only at 16x512**: exactly null (0.9992x, CI includes 1,
+  residual unchanged). `_trailing_nb` is only 27us here; the whole tf32x3 cost
+  is the two panel kernels (61 + 46 = 107us). Speed and tolerance are the same
+  knob at this shape — no safe middle setting exists.
+- **64x256 not attempted.** A concurrent session held it all run and had
+  already reached a verified 2.0259x with six clean families and a 1.04824x
+  full grid; its Popcorn test `#890001` failed at exactly six minutes, the same
+  compile budget that broke `#889979`, with the same fix (fold into an existing
+  extension rather than add another `load_inline` module). Duplicating it would
+  have risked two concurrent ranked submissions.
+
+`16x512` and `4x1024` are classified **EXHAUSTED** for the legal design space.
+A measured **1.1910x / 1.2214x** remains ready in `candidate-v5.py` (full grid
+1.055953x), gated solely by popcorn rejecting an explicit current-queue launch,
+without which a `load_inline` kernel cannot enter a CUDA graph. That unblock is
+worth ~4.3% geomean and is the highest-value item left.
+
+Ranked source unchanged: `#889994`.
 
 ---
 
