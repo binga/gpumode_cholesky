@@ -1,7 +1,8 @@
-# Experiment 041 result — `1024x64` reaches 2x and ranks
+# Experiment 041 result — `1024x64` reaches 2x, then another 1.664x
 
-Status: **WINNER / ADOPTED.** Exact ranked source `ranked-888803.py`, SHA-256
-`aa7a5badc577ba365f468773f9516b18b1f470809de077934d8e88c2f2317b42`.
+Status: **V3 WINNER / ADOPTED.** Exact latest ranked source
+`ranked-888867.py`, SHA-256
+`7380e038441b55666819d6685ff3ddd68776c7571757afced15c29b3656ac9c2`.
 
 ## Constituents and architecture
 
@@ -14,6 +15,13 @@ V1 replaces the whole graph with one cuSOLVER-free launch. Each warp owns one
 64x64 matrix; every lane holds two rows in registers. A padded 64x65 shared
 tile coalesces input/output, two shared pivot columns exchange only the live
 cross-lane state, and rank-2 processing fuses two trailing updates.
+
+After the 2x target was secured, V2 tried rank-4 pivot processing. It was
+correct but slower: 58.784 -> 62.788us (0.9353x), so it remained isolated.
+V3 instead doubles row parallelism: two warps own each matrix, every thread
+holds one complete row, and four block rendezvous hand off each pair of pivots.
+It keeps the rank-2 arithmetic reuse while halving the register-row work per
+thread.
 
 ## Promotion evidence
 
@@ -30,7 +38,16 @@ cross-lane state, and rank-2 processing fuses two trailing updates.
 - Popcorn test `#888798`: 17/17.
 - Ranked `#888803`: **928.0782200444549us public / 921.3029017430186us
   secret**, improving `#888636` by **6.496% / 8.176%**.
+- V3 isolated paired target versus exact `#888803`: **56.084 -> 33.860us =
+  1.6540x**, CI [1.6479, 1.6601], residual unchanged at 0.025/20.
+- V3 six-family gate: 6/6 active, no fallback, worst residual 0.0376/20.
+- V3 full paired grid: 15/15 correct, target **53.584 -> 32.192us = 1.6640x**,
+  all other shapes at parity, aggregate **1.034641x**, CI
+  [1.033705, 1.035578].
+- Popcorn V3 test `#888864`: 17/17.
+- Ranked V3 `#888867`: **899.124686138768us public / 905.4166394915869us
+  secret**, improving `#888803` by **3.220% / 1.755%** and `#888636` by
+  **10.391% / 10.814%**.
 
-The first serious architecture crossed 2x. Post-target rank-4 and staging
-refinements remain eligible for another serial leaderboard submission only if
-paired evidence shows an additional real gain.
+The first serious architecture crossed 2x; the successful post-target V3 takes
+the original graph path from 122.324us to 32.192us, about **3.80x end-to-end**.

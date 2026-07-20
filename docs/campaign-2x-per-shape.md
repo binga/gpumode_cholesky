@@ -114,10 +114,11 @@ factorization for n<=256 where a matrix fits in one SM's smem.
    best candidate 4066us versus 1531us ranked. Tile 64, tensor-core panel
    inverse, occupancy saturation, left-looking, and rank-128 superpanels all
    lost. Do not transfer this mechanism to `2x4096`.
-6. ~~**1024x64**~~ — **2x ACHIEVED** by exp 041. One warp per matrix, two
-   register rows per lane, padded shared staging, and rank-2 updates replaced
-   the 17-operation vendor graph: 122.32 -> 53.90us = 2.270x; ranked as
-   `#888803`.
+6. ~~**1024x64**~~ — **2x ACHIEVED** by exp 041. V1's one-warp, two-register-
+   row design replaced the 17-operation vendor graph at 122.32 -> 53.90us =
+   2.270x. Post-target V3 moved to two warps, one row per thread, and a
+   four-rendezvous rank-2 handoff: 53.584 -> 32.192us = another 1.664x, or
+   about 3.80x end-to-end. Latest ranked source is `#888867`.
 7. **256x128** — current third contract target; enough matrices
    to saturate B200 with one whole-matrix CTA each.
 8. **16x512 / 64x256** — re-diagnose per shape before assuming a
@@ -131,7 +132,6 @@ factorization for n<=256 where a matrix fits in one SM's smem.
 kill a 6-variant plan whose premise was wrong, and produced the campaign's
 best finding by doing so.
 
-Measurement note: the paired grid harness from exp 035 is now the campaign's
-acceptance signal. Its one known null-calibration exception is `1024x64`, whose
-cross-module graph interference must be fixed before a sub-percent verdict on
-that shape.
+Measurement note: the paired grid harness from exp 035 is the campaign's
+acceptance signal. Once exp 041 replaced the `1024x64` graph route, the V3
+same-process comparison was stable: 1.664x with 0.28% order spread.

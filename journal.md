@@ -63,15 +63,16 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#888803` = 928.0782200444549μs public geomean** (Session 38;
-secret 921.3029017430186μs). Experiments 039 and 041 replace `4096×32` and
-`1024×64` with cuSOLVER-free CUDA rank-2 warp kernels; both shapes exceed 2×.
+Current best: **`#888867` = 899.124686138768μs public geomean** (Session 38;
+secret 905.4166394915869μs). Experiments 039 and 041 replace `4096×32` and
+`1024×64` with cuSOLVER-free CUDA rank-2 warp kernels; both shapes exceed 2×,
+and exp 041's two-warp refinement reaches about 3.80× end-to-end.
 `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
-| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ rank-2 warp CUDA** (S38, 2.270×) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
+| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
 | 256×128  | ✗ | ✗ | **✓** split32 route (S28, 1.108×) | ✗ (S3) | **✓** (S28) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S28; vendor-graph fallback S9/S15) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
@@ -282,7 +283,23 @@ path. Post-2x refinements remain eligible for a later serial submission if they
 produce a verified additional gain.
 
 Evidence: `experiments/041-cuda-n64/`, `audit/exp041-result.json`, and ranked
-submission `#888803`.
+submissions `#888803` / `#888867`.
+
+The post-target ladder continued from that exact source. Rank-4 V2 preserved
+correctness but regressed 58.784 -> 62.788us (0.9353x). V3 instead assigned one
+register-resident row to each of 64 threads and used four block rendezvous for
+each rank-2 pivot handoff. Against exact `#888803`, its isolated comparison was
+56.084 -> 33.860us (**1.6540x**). Its six-family gate stayed 6/6 active with no
+fallback and worst residual 0.0376/20.
+
+The V3 full paired grid passed 15/15: `1024x64` **53.584 -> 32.192us =
+1.6640x**, all other shapes at parity, aggregate **1.034641x CI
+[1.033705,1.035578]**. Popcorn test `#888864` passed 17/17. Ranked `#888867`
+succeeded at **899.125us public / 905.417us secret**, improving `#888803` by
+**3.220% / 1.755%**. Exact latest ranked SHA-256:
+`7380e038441b55666819d6685ff3ddd68776c7571757afced15c29b3656ac9c2`.
+This closes exp 041 with about **3.80x** target-shape improvement from the
+original vendor graph; shape three is `256x128`.
 
 ## 2026-07-20 — Session 37: exp 040 cooperative `1x4096` → EXHAUSTED
 

@@ -144,15 +144,17 @@ popcorn submissions                                # view your entries
   root-source change or Popcorn submission was made. The remaining campaign
   picks are revised to `1024×64` and `256×128`. See
   `experiments/040-cooperative-1x4096/`.
-- **Ranked submission `#888803`** (exp 041 — current best): `done`, public
-  geomean **928.0782200444549us** and secret **921.3029017430186us**. A
-  cuSOLVER-free CUDA warp kernel replaces the exact `1024×64` graph path: two
-  register rows per lane, padded shared input/output staging, and rank-2 pivot
-  updates. Paired target **122.32→53.90us = 2.270×**; six families passed with
-  worst residual 0.0376/20. The full paired grid passed 15/15, kept all other
-  shapes at parity, and improved geomean **1.05441×**. Popcorn test `#888798`
-  passed 17/17; ranked `#888803` improves `#888636` by **6.496% public / 8.176%
-  secret**. See `experiments/041-cuda-n64/`.
+- **Ranked submission `#888867`** (exp 041 V3 — current best): `done`, public
+  geomean **899.124686138768us** and secret **905.4166394915869us**. The first
+  cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at
+  **122.32→53.90us = 2.270×**. The post-target V3 assigns one register row to
+  each of 64 threads and uses a four-rendezvous rank-2 handoff, improving the
+  exact first winner another **53.584→32.192us = 1.664×**. Six families remain
+  active with worst residual 0.0376/20; the V3 paired grid passed 15/15 and
+  improved aggregate latency another **1.03464×**. Popcorn test `#888864`
+  passed 17/17. Ranked `#888867` improves `#888803` by **3.220% public / 1.755%
+  secret**, and `#888636` by **10.391% / 10.814%**. See
+  `experiments/041-cuda-n64/`.
 - **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
   `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**

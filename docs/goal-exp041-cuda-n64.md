@@ -41,7 +41,7 @@ below 62.270us, full 15-shape parity, Popcorn test 17/17, then one serial ranked
 submission. The new fast path may use neither cuSOLVER nor an
 auxiliary/concurrent CUDA queue API.
 
-## Result — 2x achieved and ranked
+## Result — 2x achieved, refined, and ranked
 
 V1 crossed the target immediately: isolated paired latency 122.324 ->
 53.896us (**2.2696x**), six families 6/6 with worst residual 0.0376/20, and
@@ -49,3 +49,11 @@ full-grid target 2.2130x with aggregate 1.05441x. Popcorn test `#888798` passed
 17/17; ranked `#888803` scored 928.078us public / 921.303us secret. Exact
 ranked SHA-256 is
 `aa7a5badc577ba365f468773f9516b18b1f470809de077934d8e88c2f2317b42`.
+
+The authorized post-target ladder then rejected correct rank-4 V2 at 0.9353x
+and adopted two-warp V3. One register row per thread plus a four-rendezvous
+rank-2 handoff improved exact V1 another 53.584 -> 32.192us (**1.6640x**) on
+the full paired grid; aggregate latency improved 1.034641x with all 15 shapes
+correct. Popcorn test `#888864` passed 17/17, and ranked `#888867` scored
+899.125us public / 905.417us secret. Exact latest ranked SHA-256 is
+`7380e038441b55666819d6685ff3ddd68776c7571757afced15c29b3656ac9c2`.
