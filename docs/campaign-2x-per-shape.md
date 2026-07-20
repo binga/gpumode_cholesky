@@ -114,9 +114,11 @@ factorization for n<=256 where a matrix fits in one SM's smem.
    best candidate 4066us versus 1531us ranked. Tile 64, tensor-core panel
    inverse, occupancy saturation, left-looking, and rank-128 superpanels all
    lost. Do not transfer this mechanism to `2x4096`.
-6. **1024x64** — revised second contract target. A whole-matrix CUDA CTA can
-   remove the currently graphed/vendor small-matrix chain.
-7. **256x128** — revised third contract target after `1024x64`; enough matrices
+6. ~~**1024x64**~~ — **2x ACHIEVED** by exp 041. One warp per matrix, two
+   register rows per lane, padded shared staging, and rank-2 updates replaced
+   the 17-operation vendor graph: 122.32 -> 53.90us = 2.270x; ranked as
+   `#888803`.
+7. **256x128** — current third contract target; enough matrices
    to saturate B200 with one whole-matrix CTA each.
 8. **16x512 / 64x256** — re-diagnose per shape before assuming a
    lever; the `4x1024` lesson is that the campaign's headroom table says

@@ -2764,6 +2764,71 @@ def run_pairedgrid(filter_ns=None):
     return result
 
 
+def run_familygrid(filter_ns=None):
+    """Six-family correctness and active-backend gate for candidate shapes."""
+    cand_mod = _load_submission_module("sub_family_cand", "/root/candidate.py")
+    family_cases = [
+        ("dense", 2),
+        ("spectrum", 5),
+        ("diagonal", 5),
+        ("lowrank", 4),
+        ("rowscale", 4),
+        ("tridiagonal", 1),
+    ]
+    specs = [s for s in BENCH_SPECS if not filter_ns or s["n"] in filter_ns]
+    rows = []
+    for spec in specs:
+        for index, (case, cond) in enumerate(family_cases):
+            data = generate_input(
+                batch=spec["batch"],
+                n=spec["n"],
+                cond=cond,
+                seed=spec["seed"] + 1000 + index,
+                case=case,
+            )
+            pristine = data.clone()
+            before = _counters(cand_mod)
+            output = cand_mod.custom_kernel(data)
+            torch.cuda.synchronize()
+            good, message = check_implementation(pristine, output)
+            deltas = _counter_deltas(before, _counters(cand_mod))
+            active = any(
+                key.endswith("_HITS") and value > 0
+                for key, value in deltas.items()
+            )
+            fallbacks = {
+                key: value
+                for key, value in deltas.items()
+                if key.endswith("_FALLBACKS") and value > 0
+            }
+            row = {
+                "batch": spec["batch"],
+                "n": spec["n"],
+                "case": case,
+                "ok": bool(good and active and not fallbacks),
+                "checker_ok": bool(good),
+                "message": message,
+                "active_backend": active,
+                "counters": deltas,
+                "fallbacks": fallbacks,
+                "errors": _module_errors(cand_mod),
+            }
+            rows.append(row)
+            print(
+                f"batch={spec['batch']} n={spec['n']} case={case:<11} "
+                f"ok={row['ok']} counters={deltas} {message}",
+                flush=True,
+            )
+            del data, pristine, output
+            torch.cuda.empty_cache()
+    return {
+        "mode": "familygrid",
+        "device": torch.cuda.get_device_name(0),
+        "rows": rows,
+        "passed": bool(rows and all(row["ok"] for row in rows)),
+    }
+
+
 def main():
     # argv may contain the mode, an optional comma-separated shapes filter, and
     # an optional `emu` token (handled at import time). Ignore `emu` here.
@@ -2818,6 +2883,8 @@ def main():
         result = run_shapediag(filter_ns)
     elif mode == "pairedgrid":
         result = run_pairedgrid(filter_ns)
+    elif mode == "familygrid":
+        result = run_familygrid(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

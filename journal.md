@@ -63,15 +63,15 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#888636` = 992.5512746923738μs public geomean** (Session 36;
-secret 1003.3324708424547μs). Experiment 039 replaces only `n=32` with a
-cuSOLVER-free CUDA rank-2 warp kernel: `4096×32` improves 2.269× paired and the
-full paired grid improves 1.05554×. `nb` = block size.
+Current best: **`#888803` = 928.0782200444549μs public geomean** (Session 38;
+secret 921.3029017430186μs). Experiments 039 and 041 replace `4096×32` and
+`1024×64` with cuSOLVER-free CUDA rank-2 warp kernels; both shapes exceed 2×.
+`nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
-| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | ✗ (S3) | ✗ | ✗ | TBD | TBD | **✓** (S15, 1.09×) |
+| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ rank-2 warp CUDA** (S38, 2.270×) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
 | 256×128  | ✗ | ✗ | **✓** split32 route (S28, 1.108×) | ✗ (S3) | **✓** (S28) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S28; vendor-graph fallback S9/S15) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
@@ -252,6 +252,37 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 38: exp 041 `1024x64` CUDA warp kernel → 2.270x, ranked #888803
+
+The revision-4 null calibration measured 124.540us and set a 62.270us 2x
+threshold. The shipped graph profile was 119.8us wall / 119.4us device over 17
+operations: 73.56us vendor factor/SYRK/TRSM, 33.08us output elementwise plus
+triangular cleanup, 9.53us copies, and 2.26us info setup. Graph replay itself
+was not the lever; the whole chain had to be replaced.
+
+V1 generalized exp 039's register-row kernel to n=64: one warp per matrix, two
+rows per lane, padded 64x65 shared input/output staging, two shared pivot
+columns, and rank-2 trailing updates. It crossed the target immediately at
+**122.324 -> 53.896us = 2.2696x**, with `_CUDA64_HITS=1` and residual 0.025/20.
+
+The six-family gate passed 6/6 on the active backend with no fallback and worst
+residual 0.0376/20. The full paired grid passed 15/15: target 2.2130x, all 14
+other shapes at parity, aggregate **1.05441x CI [1.05363,1.05520]**. The machine
+audit measured the integrated target at 122.284 -> 53.540us (57.0% lower) with
+no contract regression; its overall verdict remains incomplete/rejected only
+because `256x128` has not yet reached 2x.
+
+Popcorn test `#888798` passed 17/17. Ranked `#888803` succeeded at
+**928.078us public / 921.303us secret**, improving `#888636` by **6.496% /
+8.176%**. Exact ranked SHA-256:
+`aa7a5badc577ba365f468773f9516b18b1f470809de077934d8e88c2f2317b42`.
+The source uses neither cuSOLVER nor auxiliary/concurrent queue APIs on the new
+path. Post-2x refinements remain eligible for a later serial submission if they
+produce a verified additional gain.
+
+Evidence: `experiments/041-cuda-n64/`, `audit/exp041-result.json`, and ranked
+submission `#888803`.
 
 ## 2026-07-20 — Session 37: exp 040 cooperative `1x4096` → EXHAUSTED
 

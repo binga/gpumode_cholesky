@@ -49,9 +49,6 @@ Shape dispatcher:
     per matrix (experiment 039, 2.28x paired at 4096x32). Rows remain in
     registers; a shared pivot-column exchange replaces Triton's full-tile
     predication. Falls back to the shipped Triton kernel if compilation fails.
-  * batch == 1024 and n == 64       -> custom CUDA rank-2 warp kernel, two
-    register rows per lane (experiment 041, 2.27x paired). Padded shared
-    staging coalesces the one-launch input/output path.
   * batch == 256 and n == 128       -> captured vendor batched factorization
     (1.177x paired speedup, exact numerics).
   * batch == 16 and n == 512        -> static-buffer captured vendor batched
@@ -191,152 +188,6 @@ def _cuda_cholesky32(data: torch.Tensor) -> torch.Tensor:
     out = torch.empty_like(data)
     _CUDA32.chol32_launch(data, out)
     _CUDA32_HITS += 1
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Experiment 041: cuSOLVER-free CUDA rank-2 Cholesky for 1024x64.
-#
-# One warp owns one matrix and every lane owns two register-resident rows.
-# Padded shared staging coalesces input/output; only two pivot columns cross
-# lanes per iteration. The kernel writes the strict-lower representation in a
-# single launch and replaces the prior 17-operation captured vendor path.
-# ---------------------------------------------------------------------------
-_CUDA64_HITS = 0
-_CUDA64_ERROR = None
-_CUDA64 = None
-
-_CUDA64_SOURCE = r"""
-#include <torch/extension.h>
-#include <cuda_runtime.h>
-
-constexpr int N = 64;
-
-__global__ void cholesky64_rank2(const float* input, float* output) {
-    const int lane = threadIdx.x;
-    const int row0 = lane;
-    const int row1 = lane + 32;
-    const size_t base = (size_t)blockIdx.x * N * N;
-    __shared__ float tile[64][65];
-    __shared__ float pivot0[64];
-    __shared__ float pivot1[64];
-
-    for (int linear = lane; linear < N * N; linear += 32) {
-        tile[linear >> 6][linear & 63] = input[base + linear];
-    }
-    __syncwarp();
-
-    float values0[64];
-    float values1[64];
-    #pragma unroll
-    for (int column = 0; column < 64; ++column) {
-        values0[column] = tile[row0][column];
-        values1[column] = tile[row1][column];
-    }
-
-    #pragma unroll
-    for (int iteration = 0; iteration < 32; ++iteration) {
-        const int k = 2 * iteration;
-        const int q = k + 1;
-        const int owner0 = k & 31;
-        float inverse0 = 0.0f;
-        if (lane == owner0) {
-            inverse0 = rsqrtf(k < 32 ? values0[k] : values1[k]);
-        }
-        inverse0 = __shfl_sync(0xffffffffu, inverse0, owner0);
-        if (row0 >= k) values0[k] *= inverse0;
-        if (row1 >= k) values1[k] *= inverse0;
-        pivot0[row0] = values0[k];
-        pivot0[row1] = values1[k];
-        __syncwarp();
-
-        if (row0 >= q) {
-            values0[q] = fmaf(-values0[k], pivot0[q], values0[q]);
-        }
-        if (row1 >= q) {
-            values1[q] = fmaf(-values1[k], pivot0[q], values1[q]);
-        }
-        const int owner1 = q & 31;
-        float inverse1 = 0.0f;
-        if (lane == owner1) {
-            inverse1 = rsqrtf(q < 32 ? values0[q] : values1[q]);
-        }
-        inverse1 = __shfl_sync(0xffffffffu, inverse1, owner1);
-        if (row0 >= q) values0[q] *= inverse1;
-        if (row1 >= q) values1[q] *= inverse1;
-        pivot1[row0] = values0[q];
-        pivot1[row1] = values1[q];
-        __syncwarp();
-
-        if (row0 > q) {
-            const float scale0 = values0[k];
-            const float scale1 = values0[q];
-            #pragma unroll
-            for (int column = 0; column < 64; ++column) {
-                if (column > q && column <= row0) {
-                    float value = fmaf(
-                        -scale0, pivot0[column], values0[column]);
-                    values0[column] = fmaf(
-                        -scale1, pivot1[column], value);
-                }
-            }
-        }
-        if (row1 > q) {
-            const float scale0 = values1[k];
-            const float scale1 = values1[q];
-            #pragma unroll
-            for (int column = 0; column < 64; ++column) {
-                if (column > q && column <= row1) {
-                    float value = fmaf(
-                        -scale0, pivot0[column], values1[column]);
-                    values1[column] = fmaf(
-                        -scale1, pivot1[column], value);
-                }
-            }
-        }
-    }
-
-    #pragma unroll
-    for (int column = 0; column < 64; ++column) {
-        tile[row0][column] = column <= row0 ? values0[column] : 0.0f;
-        tile[row1][column] = column <= row1 ? values1[column] : 0.0f;
-    }
-    __syncwarp();
-    for (int linear = lane; linear < N * N; linear += 32) {
-        output[base + linear] = tile[linear >> 6][linear & 63];
-    }
-}
-
-void chol64_launch(torch::Tensor input, torch::Tensor output) {
-    const int batch = (int)input.size(0);
-    cholesky64_rank2<<<dim3(batch), dim3(32)>>>(
-        input.data_ptr<float>(), output.data_ptr<float>());
-    cudaError_t status = cudaGetLastError();
-    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
-}
-"""
-
-if torch.cuda.is_available():
-    try:
-        from torch.utils.cpp_extension import load_inline
-
-        _CUDA64 = load_inline(
-            name="chol64_exp041_final",
-            cpp_sources="void chol64_launch(torch::Tensor, torch::Tensor);",
-            cuda_sources=_CUDA64_SOURCE,
-            functions=["chol64_launch"],
-            extra_cuda_cflags=["-O3"],
-            verbose=False,
-        )
-    except Exception as exc:
-        _CUDA64_ERROR = repr(exc)
-
-
-def _cuda_cholesky64(data: torch.Tensor) -> torch.Tensor:
-    global _CUDA64_HITS
-    out = torch.empty_like(data)
-    _CUDA64.chol64_launch(data, out)
-    _CUDA64_HITS += 1
     return out
 
 # ---------------------------------------------------------------------------
@@ -2297,15 +2148,6 @@ def custom_kernel(data: input_t) -> output_t:
 
     if is_f32_cuda and _HAVE_TRITON and n == 32:
         return _triton_cholesky32_rank2(data)
-
-    if (
-        is_f32_cuda
-        and _CUDA64 is not None
-        and batch == 1024
-        and n == 64
-        and data.is_contiguous()
-    ):
-        return _cuda_cholesky64(data)
 
     # Experiment 015 round 4: two-level blocked tensor-core potrf with
     # per-shape graph replay for the mid shapes. On any numerical failure

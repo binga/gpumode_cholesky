@@ -128,6 +128,7 @@ def main() -> int:
             "dotprobe",
             "mxprobe",
             "pairedgrid",
+            "familygrid",
             "shapediag",
             "microprobe",
             "asmprobe",

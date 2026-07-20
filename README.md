@@ -125,7 +125,7 @@ popcorn submissions                                # view your entries
   so paired evidence remains the acceptance signal. Experiments 036--038 then
   decomposed the mid-shape latency floor and bounded the proposed micro/cluster
   rewrites without changing the ranked source or spending another ranked slot.
-- **Ranked submission `#888636`** (exp 039 — current best): `done`, public
+- **Ranked submission `#888636`** (exp 039 — superseded by exp 041): `done`, public
   geomean **992.5512746923738us** and secret **1003.3324708424547us**.
   A cuSOLVER-free CUDA warp kernel replaces only the `n=32` fast path: rows
   stay in registers, pivot columns cross lanes through padded shared memory,
@@ -144,6 +144,15 @@ popcorn submissions                                # view your entries
   root-source change or Popcorn submission was made. The remaining campaign
   picks are revised to `1024×64` and `256×128`. See
   `experiments/040-cooperative-1x4096/`.
+- **Ranked submission `#888803`** (exp 041 — current best): `done`, public
+  geomean **928.0782200444549us** and secret **921.3029017430186us**. A
+  cuSOLVER-free CUDA warp kernel replaces the exact `1024×64` graph path: two
+  register rows per lane, padded shared input/output staging, and rank-2 pivot
+  updates. Paired target **122.32→53.90us = 2.270×**; six families passed with
+  worst residual 0.0376/20. The full paired grid passed 15/15, kept all other
+  shapes at parity, and improved geomean **1.05441×**. Popcorn test `#888798`
+  passed 17/17; ranked `#888803` improves `#888636` by **6.496% public / 8.176%
+  secret**. See `experiments/041-cuda-n64/`.
 - **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
   `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**
