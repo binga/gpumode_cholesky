@@ -2680,6 +2680,31 @@ def run_shapediag(filter_ns=None):
     return out
 
 
+def run_midprobe(filter_ns=None):
+    """Experiment 044: let the candidate time its own kernel variants.
+
+    The submission under test exposes `mid_probe()` returning a list of
+    {"name", "us", ...} rows. Keeping the benchmark inside the candidate
+    means a new kernel design costs one Modal run and no harness edit.
+    """
+    import submission as sub
+
+    if not hasattr(sub, "mid_probe"):
+        return {"mode": "midprobe", "passed": False, "error": "mid_probe missing"}
+    rows = sub.mid_probe()
+    for row in rows:
+        extra = " ".join(
+            f"{k}={v}" for k, v in row.items() if k not in ("name", "us")
+        )
+        print(f"    {row['us']:>9.3f}us  {row['name']}  {extra}", flush=True)
+    return {
+        "mode": "midprobe",
+        "device": torch.cuda.get_device_name(0),
+        "rows": rows,
+        "passed": all(row.get("ok", True) for row in rows),
+    }
+
+
 def run_n128phase(filter_ns=None):
     """Experiment 042: internal phases of the instrumented whole-matrix CTA."""
     import submission as sub
@@ -2986,6 +3011,8 @@ def main():
         result = run_microprobe(filter_ns)
     elif mode == "shapediag":
         result = run_shapediag(filter_ns)
+    elif mode == "midprobe":
+        result = run_midprobe(filter_ns)
     elif mode == "n128phase":
         result = run_n128phase(filter_ns)
     elif mode == "pairedgrid":

@@ -434,149 +434,6 @@ __global__ void cholesky128_block16(const float* input, float* output) {
     }
 }
 
-
-// --- Experiment 044 diagonal micro (compiled into this module so the
-// submission keeps three nvcc invocations; a fourth extension pushed the
-// official runner's six-minute compile budget over the limit).
-constexpr int MICRO_BK = 32;
-constexpr int MICRO_WARPS = 4;
-constexpr int MICRO_THREADS = MICRO_WARPS * 32;
-constexpr unsigned MICRO_FULL = 0xffffffffu;
-
-// Rank-4 warp-synchronous 32x32 diagonal factorization with coalesced
-// shared staging. Chosen from a six-variant probe: 10.26us/launch against
-// 11.25us rank-1, 11.27us rank-2, 12.31us uncoalesced rank-1 and Triton
-// `_micro_potrf_gj32`'s 13.56us, on a 3.5us launch floor.
-__global__ __launch_bounds__(MICRO_THREADS)
-void micro_potrf32_rank4(const float* __restrict__ src, float* __restrict__ work,
-                 float* __restrict__ inv, int batch, int n, int k, int first) {
-    const int warp = threadIdx.x >> 5;
-    const int lane = threadIdx.x & 31;
-    const int matrix = blockIdx.x * MICRO_WARPS + warp;
-    if (matrix >= batch) return;
-
-    __shared__ float staging[MICRO_WARPS][MICRO_BK][MICRO_BK + 1];
-    __shared__ float pivot_s[MICRO_WARPS][4][MICRO_BK];
-    float (*tile)[MICRO_BK + 1] = staging[warp];
-    float (*pivots)[MICRO_BK] = pivot_s[warp];
-
-    const size_t block_base = (size_t)matrix * n * n + (size_t)k * n + k;
-    const float* input = (first ? src : work) + block_base;
-    float* output = work + block_base;
-
-    #pragma unroll
-    for (int row = 0; row < MICRO_BK; ++row) {
-        tile[row][lane] = input[(size_t)row * n + lane];
-    }
-    __syncwarp();
-
-    float values[MICRO_BK];
-    #pragma unroll
-    for (int c = 0; c < MICRO_BK; ++c) values[c] = tile[lane][c];
-
-    float reciprocal_row = 0.0f;
-    #pragma unroll
-    for (int iteration = 0; iteration < MICRO_BK / 4; ++iteration) {
-        const int p0 = 4 * iteration;
-        const int p1 = p0 + 1;
-        const int p2 = p0 + 2;
-        const int p3 = p0 + 3;
-
-        const float rec0 = rsqrtf(__shfl_sync(MICRO_FULL, values[p0], p0));
-        const float s0 = (lane >= p0) ? values[p0] * rec0 : 0.0f;
-        values[p0] = s0;
-        pivots[0][lane] = s0;
-        const float c01 = __shfl_sync(MICRO_FULL, s0, p1);
-        const float c02 = __shfl_sync(MICRO_FULL, s0, p2);
-        const float c03 = __shfl_sync(MICRO_FULL, s0, p3);
-        values[p1] = (lane >= p1) ? fmaf(-s0, c01, values[p1]) : values[p1];
-        values[p2] = (lane >= p2) ? fmaf(-s0, c02, values[p2]) : values[p2];
-        values[p3] = (lane >= p3) ? fmaf(-s0, c03, values[p3]) : values[p3];
-
-        const float rec1 = rsqrtf(__shfl_sync(MICRO_FULL, values[p1], p1));
-        const float s1 = (lane >= p1) ? values[p1] * rec1 : 0.0f;
-        values[p1] = s1;
-        pivots[1][lane] = s1;
-        const float c12 = __shfl_sync(MICRO_FULL, s1, p2);
-        const float c13 = __shfl_sync(MICRO_FULL, s1, p3);
-        values[p2] = (lane >= p2) ? fmaf(-s1, c12, values[p2]) : values[p2];
-        values[p3] = (lane >= p3) ? fmaf(-s1, c13, values[p3]) : values[p3];
-
-        const float rec2 = rsqrtf(__shfl_sync(MICRO_FULL, values[p2], p2));
-        const float s2 = (lane >= p2) ? values[p2] * rec2 : 0.0f;
-        values[p2] = s2;
-        pivots[2][lane] = s2;
-        const float c23 = __shfl_sync(MICRO_FULL, s2, p3);
-        values[p3] = (lane >= p3) ? fmaf(-s2, c23, values[p3]) : values[p3];
-
-        const float rec3 = rsqrtf(__shfl_sync(MICRO_FULL, values[p3], p3));
-        const float s3 = (lane >= p3) ? values[p3] * rec3 : 0.0f;
-        values[p3] = s3;
-        pivots[3][lane] = s3;
-
-        if (lane == p0) reciprocal_row = rec0;
-        if (lane == p1) reciprocal_row = rec1;
-        if (lane == p2) reciprocal_row = rec2;
-        if (lane == p3) reciprocal_row = rec3;
-        __syncwarp();
-
-        #pragma unroll
-        for (int c = 0; c < MICRO_BK; ++c) {
-            if (c > p3) {
-                float value = values[c];
-                if (c <= lane) {
-                    value = fmaf(-s0, pivots[0][c], value);
-                    value = fmaf(-s1, pivots[1][c], value);
-                    value = fmaf(-s2, pivots[2][c], value);
-                    value = fmaf(-s3, pivots[3][c], value);
-                }
-                values[c] = value;
-            }
-        }
-        __syncwarp();
-    }
-
-    #pragma unroll
-    for (int c = 0; c < MICRO_BK; ++c) {
-        tile[lane][c] = (c <= lane) ? values[c] : 0.0f;
-    }
-    pivots[0][lane] = reciprocal_row;
-    __syncwarp();
-    #pragma unroll
-    for (int row = 0; row < MICRO_BK; ++row) {
-        output[(size_t)row * n + lane] = tile[row][lane];
-    }
-
-    float inverse[MICRO_BK];
-    #pragma unroll
-    for (int r = 0; r < MICRO_BK; ++r) {
-        float accumulator = (r == lane) ? 1.0f : 0.0f;
-        #pragma unroll
-        for (int p = 0; p < MICRO_BK; ++p) {
-            if (p < r) accumulator = fmaf(-tile[r][p], inverse[p], accumulator);
-        }
-        inverse[r] = (r >= lane) ? accumulator * pivots[0][r] : 0.0f;
-    }
-    float* inverse_out = inv + (size_t)matrix * MICRO_BK * MICRO_BK + lane;
-    #pragma unroll
-    for (int r = 0; r < MICRO_BK; ++r) inverse_out[r * MICRO_BK] = inverse[r];
-}
-
-void micro32_launch(
-    torch::Tensor src,
-    torch::Tensor work,
-    torch::Tensor inv,
-    int64_t n,
-    int64_t k,
-    int64_t first) {
-    const int batch = (int)work.size(0);
-    const int blocks = (batch + MICRO_WARPS - 1) / MICRO_WARPS;
-    micro_potrf32_rank4<<<dim3(blocks), dim3(MICRO_THREADS)>>>(
-        src.data_ptr<float>(), work.data_ptr<float>(),
-        inv.data_ptr<float>(), batch, (int)n, (int)k, (int)first);
-    cudaError_t status = cudaGetLastError();
-    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
-}
 void chol128_launch(torch::Tensor input, torch::Tensor output) {
     static bool configured = false;
     if (!configured) {
@@ -600,14 +457,10 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol128_exp042_v5_with_exp044_micro",
-            cpp_sources=(
-                "void chol128_launch(torch::Tensor, torch::Tensor);\n"
-                "void micro32_launch(torch::Tensor, torch::Tensor, "
-                "torch::Tensor, int64_t, int64_t, int64_t);"
-            ),
+            name="chol128_exp042_v5_final",
+            cpp_sources="void chol128_launch(torch::Tensor, torch::Tensor);",
             cuda_sources=_CUDA128_SOURCE,
-            functions=["chol128_launch", "micro32_launch"],
+            functions=["chol128_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
@@ -636,10 +489,171 @@ def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
 # `dinv`) is identical, so the surrounding split32 schedule is unchanged.
 # ---------------------------------------------------------------------------
 _MICRO32_HITS = 0
-# The diagonal micro ships inside the experiment-042 extension (one nvcc
-# invocation for both kernels) so the submission still compiles in three.
-_MICRO32_ERROR = _CUDA128_ERROR
-_MICRO32 = _CUDA128
+_MICRO32_ERROR = None
+_MICRO32 = None
+
+_MICRO32_SOURCE = r"""
+#include <torch/extension.h>
+#include <cuda_runtime.h>
+
+constexpr int BK = 32;
+constexpr int WARPS = 4;
+constexpr int THREADS = WARPS * 32;
+constexpr unsigned FULL = 0xffffffffu;
+
+// Rank-4 warp-synchronous 32x32 diagonal factorization with coalesced
+// shared staging. Chosen from a six-variant probe: 10.26us/launch against
+// 11.25us rank-1, 11.27us rank-2, 12.31us uncoalesced rank-1 and Triton
+// `_micro_potrf_gj32`'s 13.56us, on a 3.5us launch floor.
+__global__ __launch_bounds__(THREADS)
+void micro_potrf32_rank4(const float* __restrict__ src, float* __restrict__ work,
+                 float* __restrict__ inv, int batch, int n, int k, int first) {
+    const int warp = threadIdx.x >> 5;
+    const int lane = threadIdx.x & 31;
+    const int matrix = blockIdx.x * WARPS + warp;
+    if (matrix >= batch) return;
+
+    __shared__ float staging[WARPS][BK][BK + 1];
+    __shared__ float pivot_s[WARPS][4][BK];
+    float (*tile)[BK + 1] = staging[warp];
+    float (*pivots)[BK] = pivot_s[warp];
+
+    const size_t block_base = (size_t)matrix * n * n + (size_t)k * n + k;
+    const float* input = (first ? src : work) + block_base;
+    float* output = work + block_base;
+
+    #pragma unroll
+    for (int row = 0; row < BK; ++row) {
+        tile[row][lane] = input[(size_t)row * n + lane];
+    }
+    __syncwarp();
+
+    float values[BK];
+    #pragma unroll
+    for (int c = 0; c < BK; ++c) values[c] = tile[lane][c];
+
+    float reciprocal_row = 0.0f;
+    #pragma unroll
+    for (int iteration = 0; iteration < BK / 4; ++iteration) {
+        const int p0 = 4 * iteration;
+        const int p1 = p0 + 1;
+        const int p2 = p0 + 2;
+        const int p3 = p0 + 3;
+
+        const float rec0 = rsqrtf(__shfl_sync(FULL, values[p0], p0));
+        const float s0 = (lane >= p0) ? values[p0] * rec0 : 0.0f;
+        values[p0] = s0;
+        pivots[0][lane] = s0;
+        const float c01 = __shfl_sync(FULL, s0, p1);
+        const float c02 = __shfl_sync(FULL, s0, p2);
+        const float c03 = __shfl_sync(FULL, s0, p3);
+        values[p1] = (lane >= p1) ? fmaf(-s0, c01, values[p1]) : values[p1];
+        values[p2] = (lane >= p2) ? fmaf(-s0, c02, values[p2]) : values[p2];
+        values[p3] = (lane >= p3) ? fmaf(-s0, c03, values[p3]) : values[p3];
+
+        const float rec1 = rsqrtf(__shfl_sync(FULL, values[p1], p1));
+        const float s1 = (lane >= p1) ? values[p1] * rec1 : 0.0f;
+        values[p1] = s1;
+        pivots[1][lane] = s1;
+        const float c12 = __shfl_sync(FULL, s1, p2);
+        const float c13 = __shfl_sync(FULL, s1, p3);
+        values[p2] = (lane >= p2) ? fmaf(-s1, c12, values[p2]) : values[p2];
+        values[p3] = (lane >= p3) ? fmaf(-s1, c13, values[p3]) : values[p3];
+
+        const float rec2 = rsqrtf(__shfl_sync(FULL, values[p2], p2));
+        const float s2 = (lane >= p2) ? values[p2] * rec2 : 0.0f;
+        values[p2] = s2;
+        pivots[2][lane] = s2;
+        const float c23 = __shfl_sync(FULL, s2, p3);
+        values[p3] = (lane >= p3) ? fmaf(-s2, c23, values[p3]) : values[p3];
+
+        const float rec3 = rsqrtf(__shfl_sync(FULL, values[p3], p3));
+        const float s3 = (lane >= p3) ? values[p3] * rec3 : 0.0f;
+        values[p3] = s3;
+        pivots[3][lane] = s3;
+
+        if (lane == p0) reciprocal_row = rec0;
+        if (lane == p1) reciprocal_row = rec1;
+        if (lane == p2) reciprocal_row = rec2;
+        if (lane == p3) reciprocal_row = rec3;
+        __syncwarp();
+
+        #pragma unroll
+        for (int c = 0; c < BK; ++c) {
+            if (c > p3) {
+                float value = values[c];
+                if (c <= lane) {
+                    value = fmaf(-s0, pivots[0][c], value);
+                    value = fmaf(-s1, pivots[1][c], value);
+                    value = fmaf(-s2, pivots[2][c], value);
+                    value = fmaf(-s3, pivots[3][c], value);
+                }
+                values[c] = value;
+            }
+        }
+        __syncwarp();
+    }
+
+    #pragma unroll
+    for (int c = 0; c < BK; ++c) {
+        tile[lane][c] = (c <= lane) ? values[c] : 0.0f;
+    }
+    pivots[0][lane] = reciprocal_row;
+    __syncwarp();
+    #pragma unroll
+    for (int row = 0; row < BK; ++row) {
+        output[(size_t)row * n + lane] = tile[row][lane];
+    }
+
+    float inverse[BK];
+    #pragma unroll
+    for (int r = 0; r < BK; ++r) {
+        float accumulator = (r == lane) ? 1.0f : 0.0f;
+        #pragma unroll
+        for (int p = 0; p < BK; ++p) {
+            if (p < r) accumulator = fmaf(-tile[r][p], inverse[p], accumulator);
+        }
+        inverse[r] = (r >= lane) ? accumulator * pivots[0][r] : 0.0f;
+    }
+    float* inverse_out = inv + (size_t)matrix * BK * BK + lane;
+    #pragma unroll
+    for (int r = 0; r < BK; ++r) inverse_out[r * BK] = inverse[r];
+}
+
+void micro32_launch(
+    torch::Tensor src,
+    torch::Tensor work,
+    torch::Tensor inv,
+    int64_t n,
+    int64_t k,
+    int64_t first) {
+    const int batch = (int)work.size(0);
+    const int blocks = (batch + WARPS - 1) / WARPS;
+    micro_potrf32_rank4<<<dim3(blocks), dim3(THREADS)>>>(
+        src.data_ptr<float>(), work.data_ptr<float>(),
+        inv.data_ptr<float>(), batch, (int)n, (int)k, (int)first);
+    cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+}
+"""
+
+if torch.cuda.is_available():
+    try:
+        from torch.utils.cpp_extension import load_inline
+
+        _MICRO32 = load_inline(
+            name="micro32_exp044_v6_rank4_defaultlaunch",
+            cpp_sources=(
+                "void micro32_launch(torch::Tensor, torch::Tensor, "
+                "torch::Tensor, int64_t, int64_t, int64_t);"
+            ),
+            cuda_sources=_MICRO32_SOURCE,
+            functions=["micro32_launch"],
+            extra_cuda_cflags=["-O3"],
+            verbose=False,
+        )
+    except Exception as exc:
+        _MICRO32_ERROR = repr(exc)
 
 # Shapes whose split32 schedule uses the CUDA diagonal micro-factorization.
 # Only the eager-mode split32 shapes are enrolled. The kernel uses a plain

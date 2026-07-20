@@ -63,7 +63,8 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current adopted source: **`#888996` = 916.5768129471865μs public /
+Current adopted source: **`#889994` = 852.746μs public / 847.396μs secret
+(Session 40, exp 044)**. Previously: **`#888996` = 916.5768129471865μs public /
 863.8500740634134μs secret** (Session 39). `#888867` remains the best public
 score at 899.124686138768μs; `#888996` is adopted because its same-process full
 grid improves 1.04787x and its secret score improves 4.812%. Experiments 039,
@@ -78,9 +79,9 @@ every stage-specific control exceeds 2x.
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
-| 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S21, panel-inner 64×64, 1.128× vs S20) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64, 1.089× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×; S21 subtile excluded: 1.055× isolated/0.977× grid) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ cooperative six-path bound (S37, best 0.376×) | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
@@ -181,6 +182,59 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-20 — Session 40: exp 044 mid-shape diagonal chain → ranked #889994
+
+Targeted the split32 mid shapes with `program.md`'s 2x objective, excluding
+`64x256` (a concurrent session held it for experiment 043). A fresh
+`shapediag` constituent profile found one kernel dominating three shapes:
+`_micro_potrf_gj32` costs **13.55us per launch independent of batch** —
+57.7% of `16x512`, 62.6% of `4x1024`, 52.1% of `8x2048` device time — because
+its 32-step serial pivot chain pays a Triton block rendezvous per pivot.
+
+A new `midprobe` harness (the candidate times its own kernel variants, so a
+design costs one Modal run and no harness edit) measured ten architectures.
+Best per 32x32 launch: **rank-4 warp-synchronous CUDA with coalesced shared
+staging, 10.26us**, against 11.25us rank-1, 11.27us rank-2, 12.31us
+uncoalesced and Triton's 13.56us. Every fused whole-block design was worse per
+column — block64 165.8us, block128 189.4us, hybrid block128-plus-inverse
+230.2us for n=512 — and all were batch-independent, proving exposed serial
+latency. An eight-warp `__syncthreads` chain costs ~324ns/pivot against
+~134ns/pivot for one warp, so widening the CTA makes the chain slower.
+
+**2x is not reachable on these shapes.** Cholesky needs n sequential square
+roots; at the best measured 134ns/pivot that is 69/137/274us for
+n=512/1024/2048 before any panel, trailing, copy or gate work, against 2x
+targets of 199/403/681us.
+
+The shipped kernel keeps `_micro_potrf_gj32`'s exact contract, so the split32
+schedule is unchanged. With an explicit current-queue launch it wins on five
+shapes — `16x512` 1.1910x, `640x512` 1.0982x, `4x1024` 1.2214x, `60x1024`
+1.1937x, `8x2048` 1.1857x, **full grid 1.055953x** — but popcorn's source
+policy rejects any queue reference, and a plain `<<<grid, block>>>` launch
+cannot be captured into the CUDA graphs three of those shapes replay (measured
+0.38-0.52x through the finiteness fallback). No attempt was made to disguise
+the reference. Shipped scope is therefore the two eager-mode shapes:
+**`640x512` 1.0982x, `60x1024` 1.1061x, full grid 1.012977x CI
+[1.012531, 1.013423]**, 15/15 pass, all other shapes inside the 0.55% A-vs-A
+noise floor, residuals byte-identical, six families clean at both shapes.
+
+Shipping it as a fourth `load_inline` extension broke the runner's six-minute
+compile budget: test `#889943` failed at exactly 6:00 and ranked `#889979`
+**failed secret validation**. Folding the kernel into the exp-042 extension
+(three nvcc invocations, as `#888996`) cut the test run to 94 seconds.
+
+Ranked `#889994` = **852.746us public / 847.396us secret**, improving
+`#888996` by **6.966% / 1.905%** and beating the best-ever public score
+`#888867` (899.125us) by 5.161%. Exact ranked SHA-256:
+`3485efa3d26eacce3a58c77db558b868887e61d59ccb0612b9a3b1590a96ac49`.
+
+Rejected: `60x1024` eager->graph (1.0056x — the 583.5us `shapediag` idle at
+that shape is eager-launch pipelining, not dead time).
+
+Evidence: `experiments/044-midshape-2x/`, `docs/goal-exp044-midshape-2x.md`.
 
 ---
 

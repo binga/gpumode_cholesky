@@ -1,0 +1,61 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "null-launch-floor",
+      "us": 62.083,
+      "per_call_us": 3.88,
+      "launches": 16,
+      "max_abs_err": null,
+      "inv_err": null,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank1-noinverse",
+      "us": 131.138,
+      "per_call_us": 8.196,
+      "launches": 16,
+      "max_abs_err": null,
+      "inv_err": null,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank1",
+      "us": 180.645,
+      "per_call_us": 11.29,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank2",
+      "us": 180.397,
+      "per_call_us": 11.275,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank4",
+      "us": 164.155,
+      "per_call_us": 10.26,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "v1-uncoalesced-rank1",
+      "us": 196.845,
+      "per_call_us": 12.303,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

@@ -434,149 +434,6 @@ __global__ void cholesky128_block16(const float* input, float* output) {
     }
 }
 
-
-// --- Experiment 044 diagonal micro (compiled into this module so the
-// submission keeps three nvcc invocations; a fourth extension pushed the
-// official runner's six-minute compile budget over the limit).
-constexpr int MICRO_BK = 32;
-constexpr int MICRO_WARPS = 4;
-constexpr int MICRO_THREADS = MICRO_WARPS * 32;
-constexpr unsigned MICRO_FULL = 0xffffffffu;
-
-// Rank-4 warp-synchronous 32x32 diagonal factorization with coalesced
-// shared staging. Chosen from a six-variant probe: 10.26us/launch against
-// 11.25us rank-1, 11.27us rank-2, 12.31us uncoalesced rank-1 and Triton
-// `_micro_potrf_gj32`'s 13.56us, on a 3.5us launch floor.
-__global__ __launch_bounds__(MICRO_THREADS)
-void micro_potrf32_rank4(const float* __restrict__ src, float* __restrict__ work,
-                 float* __restrict__ inv, int batch, int n, int k, int first) {
-    const int warp = threadIdx.x >> 5;
-    const int lane = threadIdx.x & 31;
-    const int matrix = blockIdx.x * MICRO_WARPS + warp;
-    if (matrix >= batch) return;
-
-    __shared__ float staging[MICRO_WARPS][MICRO_BK][MICRO_BK + 1];
-    __shared__ float pivot_s[MICRO_WARPS][4][MICRO_BK];
-    float (*tile)[MICRO_BK + 1] = staging[warp];
-    float (*pivots)[MICRO_BK] = pivot_s[warp];
-
-    const size_t block_base = (size_t)matrix * n * n + (size_t)k * n + k;
-    const float* input = (first ? src : work) + block_base;
-    float* output = work + block_base;
-
-    #pragma unroll
-    for (int row = 0; row < MICRO_BK; ++row) {
-        tile[row][lane] = input[(size_t)row * n + lane];
-    }
-    __syncwarp();
-
-    float values[MICRO_BK];
-    #pragma unroll
-    for (int c = 0; c < MICRO_BK; ++c) values[c] = tile[lane][c];
-
-    float reciprocal_row = 0.0f;
-    #pragma unroll
-    for (int iteration = 0; iteration < MICRO_BK / 4; ++iteration) {
-        const int p0 = 4 * iteration;
-        const int p1 = p0 + 1;
-        const int p2 = p0 + 2;
-        const int p3 = p0 + 3;
-
-        const float rec0 = rsqrtf(__shfl_sync(MICRO_FULL, values[p0], p0));
-        const float s0 = (lane >= p0) ? values[p0] * rec0 : 0.0f;
-        values[p0] = s0;
-        pivots[0][lane] = s0;
-        const float c01 = __shfl_sync(MICRO_FULL, s0, p1);
-        const float c02 = __shfl_sync(MICRO_FULL, s0, p2);
-        const float c03 = __shfl_sync(MICRO_FULL, s0, p3);
-        values[p1] = (lane >= p1) ? fmaf(-s0, c01, values[p1]) : values[p1];
-        values[p2] = (lane >= p2) ? fmaf(-s0, c02, values[p2]) : values[p2];
-        values[p3] = (lane >= p3) ? fmaf(-s0, c03, values[p3]) : values[p3];
-
-        const float rec1 = rsqrtf(__shfl_sync(MICRO_FULL, values[p1], p1));
-        const float s1 = (lane >= p1) ? values[p1] * rec1 : 0.0f;
-        values[p1] = s1;
-        pivots[1][lane] = s1;
-        const float c12 = __shfl_sync(MICRO_FULL, s1, p2);
-        const float c13 = __shfl_sync(MICRO_FULL, s1, p3);
-        values[p2] = (lane >= p2) ? fmaf(-s1, c12, values[p2]) : values[p2];
-        values[p3] = (lane >= p3) ? fmaf(-s1, c13, values[p3]) : values[p3];
-
-        const float rec2 = rsqrtf(__shfl_sync(MICRO_FULL, values[p2], p2));
-        const float s2 = (lane >= p2) ? values[p2] * rec2 : 0.0f;
-        values[p2] = s2;
-        pivots[2][lane] = s2;
-        const float c23 = __shfl_sync(MICRO_FULL, s2, p3);
-        values[p3] = (lane >= p3) ? fmaf(-s2, c23, values[p3]) : values[p3];
-
-        const float rec3 = rsqrtf(__shfl_sync(MICRO_FULL, values[p3], p3));
-        const float s3 = (lane >= p3) ? values[p3] * rec3 : 0.0f;
-        values[p3] = s3;
-        pivots[3][lane] = s3;
-
-        if (lane == p0) reciprocal_row = rec0;
-        if (lane == p1) reciprocal_row = rec1;
-        if (lane == p2) reciprocal_row = rec2;
-        if (lane == p3) reciprocal_row = rec3;
-        __syncwarp();
-
-        #pragma unroll
-        for (int c = 0; c < MICRO_BK; ++c) {
-            if (c > p3) {
-                float value = values[c];
-                if (c <= lane) {
-                    value = fmaf(-s0, pivots[0][c], value);
-                    value = fmaf(-s1, pivots[1][c], value);
-                    value = fmaf(-s2, pivots[2][c], value);
-                    value = fmaf(-s3, pivots[3][c], value);
-                }
-                values[c] = value;
-            }
-        }
-        __syncwarp();
-    }
-
-    #pragma unroll
-    for (int c = 0; c < MICRO_BK; ++c) {
-        tile[lane][c] = (c <= lane) ? values[c] : 0.0f;
-    }
-    pivots[0][lane] = reciprocal_row;
-    __syncwarp();
-    #pragma unroll
-    for (int row = 0; row < MICRO_BK; ++row) {
-        output[(size_t)row * n + lane] = tile[row][lane];
-    }
-
-    float inverse[MICRO_BK];
-    #pragma unroll
-    for (int r = 0; r < MICRO_BK; ++r) {
-        float accumulator = (r == lane) ? 1.0f : 0.0f;
-        #pragma unroll
-        for (int p = 0; p < MICRO_BK; ++p) {
-            if (p < r) accumulator = fmaf(-tile[r][p], inverse[p], accumulator);
-        }
-        inverse[r] = (r >= lane) ? accumulator * pivots[0][r] : 0.0f;
-    }
-    float* inverse_out = inv + (size_t)matrix * MICRO_BK * MICRO_BK + lane;
-    #pragma unroll
-    for (int r = 0; r < MICRO_BK; ++r) inverse_out[r * MICRO_BK] = inverse[r];
-}
-
-void micro32_launch(
-    torch::Tensor src,
-    torch::Tensor work,
-    torch::Tensor inv,
-    int64_t n,
-    int64_t k,
-    int64_t first) {
-    const int batch = (int)work.size(0);
-    const int blocks = (batch + MICRO_WARPS - 1) / MICRO_WARPS;
-    micro_potrf32_rank4<<<dim3(blocks), dim3(MICRO_THREADS)>>>(
-        src.data_ptr<float>(), work.data_ptr<float>(),
-        inv.data_ptr<float>(), batch, (int)n, (int)k, (int)first);
-    cudaError_t status = cudaGetLastError();
-    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
-}
 void chol128_launch(torch::Tensor input, torch::Tensor output) {
     static bool configured = false;
     if (!configured) {
@@ -600,14 +457,10 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol128_exp042_v5_with_exp044_micro",
-            cpp_sources=(
-                "void chol128_launch(torch::Tensor, torch::Tensor);\n"
-                "void micro32_launch(torch::Tensor, torch::Tensor, "
-                "torch::Tensor, int64_t, int64_t, int64_t);"
-            ),
+            name="chol128_exp042_v5_final",
+            cpp_sources="void chol128_launch(torch::Tensor, torch::Tensor);",
             cuda_sources=_CUDA128_SOURCE,
-            functions=["chol128_launch", "micro32_launch"],
+            functions=["chol128_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
@@ -636,21 +489,146 @@ def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
 # `dinv`) is identical, so the surrounding split32 schedule is unchanged.
 # ---------------------------------------------------------------------------
 _MICRO32_HITS = 0
-# The diagonal micro ships inside the experiment-042 extension (one nvcc
-# invocation for both kernels) so the submission still compiles in three.
-_MICRO32_ERROR = _CUDA128_ERROR
-_MICRO32 = _CUDA128
+_MICRO32_ERROR = None
+_MICRO32 = None
+
+_MICRO32_SOURCE = r"""
+#include <torch/extension.h>
+#include <cuda_runtime.h>
+#include <c10/cuda/CUDAStream.h>
+
+constexpr int MICRO_BK = 32;
+constexpr int MICRO_WARPS = 4;
+constexpr int MICRO_THREADS = MICRO_WARPS * 32;
+constexpr unsigned MICRO_FULL = 0xffffffffu;
+
+__global__ __launch_bounds__(MICRO_THREADS, 4)
+void micro_potrf32(
+    const float* __restrict__ src,
+    float* __restrict__ work,
+    float* __restrict__ inv,
+    int batch,
+    int n,
+    int k,
+    int first) {
+    const int warp = threadIdx.x >> 5;
+    const int lane = threadIdx.x & 31;
+    const int matrix = blockIdx.x * MICRO_WARPS + warp;
+    if (matrix >= batch) return;
+
+    __shared__ float pivot_column[MICRO_WARPS][MICRO_BK];
+    __shared__ float factor[MICRO_WARPS][MICRO_BK][MICRO_BK + 1];
+    float* column = pivot_column[warp];
+    float (*shared_factor)[MICRO_BK + 1] = factor[warp];
+
+    const size_t block_base =
+        (size_t)matrix * n * n + (size_t)k * n + (size_t)k;
+    const float* input = (first ? src : work) + block_base;
+    float* output = work + block_base;
+
+    float values[MICRO_BK];
+    #pragma unroll
+    for (int c = 0; c < MICRO_BK; ++c) {
+        values[c] = input[(size_t)lane * n + c];
+    }
+
+    float reciprocal_row = 0.0f;
+    #pragma unroll
+    for (int p = 0; p < MICRO_BK; ++p) {
+        const float pivot = __shfl_sync(MICRO_FULL, values[p], p);
+        const float reciprocal = rsqrtf(pivot);
+        if (lane == p) reciprocal_row = reciprocal;
+        const float scale = (lane >= p) ? values[p] * reciprocal : 0.0f;
+        values[p] = scale;
+        column[lane] = scale;
+        __syncwarp();
+        #pragma unroll
+        for (int c = 0; c < MICRO_BK; ++c) {
+            if (c > p) {
+                const float update = (c <= lane)
+                    ? fmaf(-scale, column[c], values[c])
+                    : values[c];
+                values[c] = update;
+            }
+        }
+        __syncwarp();
+    }
+
+    #pragma unroll
+    for (int c = 0; c < MICRO_BK; ++c) {
+        const float value = (c <= lane) ? values[c] : 0.0f;
+        output[(size_t)lane * n + c] = value;
+        shared_factor[lane][c] = value;
+    }
+    column[lane] = reciprocal_row;
+    __syncwarp();
+
+    // Lane `lane` solves column `lane` of X = L^-1 by forward substitution.
+    float inverse[MICRO_BK];
+    #pragma unroll
+    for (int r = 0; r < MICRO_BK; ++r) {
+        float accumulator = (r == lane) ? 1.0f : 0.0f;
+        #pragma unroll
+        for (int p = 0; p < MICRO_BK; ++p) {
+            if (p < r) {
+                accumulator = fmaf(
+                    -shared_factor[r][p], inverse[p], accumulator);
+            }
+        }
+        inverse[r] = (r >= lane) ? accumulator * column[r] : 0.0f;
+    }
+
+    float* inverse_out = inv + (size_t)matrix * MICRO_BK * MICRO_BK + lane;
+    #pragma unroll
+    for (int r = 0; r < MICRO_BK; ++r) {
+        inverse_out[r * MICRO_BK] = inverse[r];
+    }
+}
+
+void micro32_launch(
+    torch::Tensor src,
+    torch::Tensor work,
+    torch::Tensor inv,
+    int64_t n,
+    int64_t k,
+    int64_t first) {
+    const int batch = (int)work.size(0);
+    const int blocks = (batch + MICRO_WARPS - 1) / MICRO_WARPS;
+    micro_potrf32<<<dim3(blocks), dim3(MICRO_THREADS), 0,
+                    at::cuda::getCurrentCUDAStream()>>>(
+        src.data_ptr<float>(),
+        work.data_ptr<float>(),
+        inv.data_ptr<float>(),
+        batch,
+        (int)n,
+        (int)k,
+        (int)first);
+    cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+}
+"""
+
+if torch.cuda.is_available():
+    try:
+        from torch.utils.cpp_extension import load_inline
+
+        _MICRO32 = load_inline(
+            name="micro32_exp044_v1_warpsync",
+            cpp_sources=(
+                "void micro32_launch(torch::Tensor, torch::Tensor, "
+                "torch::Tensor, int64_t, int64_t, int64_t);"
+            ),
+            cuda_sources=_MICRO32_SOURCE,
+            functions=["micro32_launch"],
+            extra_cuda_cflags=["-O3"],
+            verbose=False,
+        )
+    except Exception as exc:
+        _MICRO32_ERROR = repr(exc)
 
 # Shapes whose split32 schedule uses the CUDA diagonal micro-factorization.
-# Only the eager-mode split32 shapes are enrolled. The kernel uses a plain
-# <<<grid, block>>> launch with no queue argument, which is correct in eager
-# mode but is not capturable into the CUDA graphs the remaining split32 shapes
-# replay -- measured 0.38-0.52x there, through the finiteness fallback. Naming
-# the current work queue explicitly would make capture work but is rejected by
-# popcorn's source policy, so those shapes keep the Triton diagonal micro.
 _MICRO32_SHAPES = {
-    (640, 512),
-    (60, 1024),
+    (16, 512),
 }
 
 
@@ -2729,3 +2707,385 @@ def custom_kernel(data: input_t) -> output_t:
 
     # Default: batched cuSOLVER. Correct for every input family.
     return torch.linalg.cholesky_ex(data, check_errors=False).L
+
+
+# ---------------------------------------------------------------------------
+# Experiment 044 probe round 3: fused NB=128 diagonal block column.
+# ---------------------------------------------------------------------------
+_FUSED128_SOURCE = r"""
+#include <torch/extension.h>
+#include <cuda_runtime.h>
+#include <c10/cuda/CUDAStream.h>
+
+// Experiment 044: fused NB=128 diagonal block column for the split32 mid
+// shapes. One CTA per matrix factors the 128x128 diagonal block and builds
+// its full triangular inverse, replacing four `_micro_potrf_gj32` launches
+// and three `_panel_inner32*` launches per block. The 32-wide sub-block
+// factorizations run warp-synchronously inside warp 0 -- the probe measured
+// 134ns/pivot for a single warp against 324ns/pivot for an eight-warp
+// __syncthreads chain -- while every other phase uses all eight warps.
+
+constexpr int NB128 = 128;
+constexpr int SUB = 32;
+constexpr int SUBS = NB128 / SUB;
+constexpr int TSTRIDE = NB128 + 1;
+constexpr int T128 = 256;
+constexpr int W128 = T128 / 32;
+constexpr unsigned FULLW = 0xffffffffu;
+constexpr int SHARED128 = 2 * NB128 * TSTRIDE * sizeof(float);
+
+__global__ __launch_bounds__(T128)
+void fused_block128(
+    const float* __restrict__ src,
+    float* __restrict__ work,
+    float* __restrict__ inverse_out,
+    int n,
+    int j,
+    int first) {
+    const int tid = threadIdx.x;
+    const int warp = tid >> 5;
+    const int lane = tid & 31;
+    extern __shared__ float tile[];
+    __shared__ float pivots[4][SUB];
+    __shared__ float reciprocals[SUB];
+
+    const size_t matrix_base = (size_t)blockIdx.x * n * n;
+    const float* input =
+        (first ? src : work) + matrix_base + (size_t)j * n + j;
+    float* block = work + matrix_base + (size_t)j * n + j;
+
+    for (int linear = tid; linear < NB128 * NB128; linear += T128) {
+        const int row = linear >> 7;
+        const int column = linear & (NB128 - 1);
+        tile[row * TSTRIDE + column] = input[(size_t)row * n + column];
+    }
+    __syncthreads();
+
+    #pragma unroll 1
+    for (int sub = 0; sub < SUBS; ++sub) {
+        const int start = sub * SUB;
+        const int below = start + SUB;
+
+        // --- warp 0: warp-synchronous rank-4 factorization of the 32x32
+        //     diagonal sub-block, lane r owning row r in registers.
+        if (warp == 0) {
+            float values[SUB];
+            #pragma unroll
+            for (int c = 0; c < SUB; ++c) {
+                values[c] = tile[(start + lane) * TSTRIDE + start + c];
+            }
+            float reciprocal_row = 0.0f;
+            #pragma unroll
+            for (int iteration = 0; iteration < SUB / 4; ++iteration) {
+                const int p0 = 4 * iteration;
+                const int p1 = p0 + 1;
+                const int p2 = p0 + 2;
+                const int p3 = p0 + 3;
+
+                const float rec0 = rsqrtf(__shfl_sync(FULLW, values[p0], p0));
+                const float s0 = (lane >= p0) ? values[p0] * rec0 : 0.0f;
+                values[p0] = s0;
+                pivots[0][lane] = s0;
+                const float c01 = __shfl_sync(FULLW, s0, p1);
+                const float c02 = __shfl_sync(FULLW, s0, p2);
+                const float c03 = __shfl_sync(FULLW, s0, p3);
+                values[p1] = (lane >= p1) ? fmaf(-s0, c01, values[p1])
+                                          : values[p1];
+                values[p2] = (lane >= p2) ? fmaf(-s0, c02, values[p2])
+                                          : values[p2];
+                values[p3] = (lane >= p3) ? fmaf(-s0, c03, values[p3])
+                                          : values[p3];
+
+                const float rec1 = rsqrtf(__shfl_sync(FULLW, values[p1], p1));
+                const float s1 = (lane >= p1) ? values[p1] * rec1 : 0.0f;
+                values[p1] = s1;
+                pivots[1][lane] = s1;
+                const float c12 = __shfl_sync(FULLW, s1, p2);
+                const float c13 = __shfl_sync(FULLW, s1, p3);
+                values[p2] = (lane >= p2) ? fmaf(-s1, c12, values[p2])
+                                          : values[p2];
+                values[p3] = (lane >= p3) ? fmaf(-s1, c13, values[p3])
+                                          : values[p3];
+
+                const float rec2 = rsqrtf(__shfl_sync(FULLW, values[p2], p2));
+                const float s2 = (lane >= p2) ? values[p2] * rec2 : 0.0f;
+                values[p2] = s2;
+                pivots[2][lane] = s2;
+                const float c23 = __shfl_sync(FULLW, s2, p3);
+                values[p3] = (lane >= p3) ? fmaf(-s2, c23, values[p3])
+                                          : values[p3];
+
+                const float rec3 = rsqrtf(__shfl_sync(FULLW, values[p3], p3));
+                const float s3 = (lane >= p3) ? values[p3] * rec3 : 0.0f;
+                values[p3] = s3;
+                pivots[3][lane] = s3;
+
+                if (lane == p0) reciprocal_row = rec0;
+                if (lane == p1) reciprocal_row = rec1;
+                if (lane == p2) reciprocal_row = rec2;
+                if (lane == p3) reciprocal_row = rec3;
+                __syncwarp();
+
+                #pragma unroll
+                for (int c = 0; c < SUB; ++c) {
+                    if (c > p3) {
+                        float value = values[c];
+                        if (c <= lane) {
+                            value = fmaf(-s0, pivots[0][c], value);
+                            value = fmaf(-s1, pivots[1][c], value);
+                            value = fmaf(-s2, pivots[2][c], value);
+                            value = fmaf(-s3, pivots[3][c], value);
+                        }
+                        values[c] = value;
+                    }
+                }
+                __syncwarp();
+            }
+            #pragma unroll
+            for (int c = 0; c < SUB; ++c) {
+                tile[(start + lane) * TSTRIDE + start + c] =
+                    (c <= lane) ? values[c] : 0.0f;
+            }
+            reciprocals[lane] = reciprocal_row;
+        }
+        __syncthreads();
+
+        const int rows_below = NB128 - below;
+        if (rows_below > 0) {
+            // --- all warps: forward-substitute the rows below this sub-block
+            //     against the freshly factored 32x32 triangle.
+            for (int row = below + tid; row < NB128; row += T128) {
+                float solved[SUB];
+                #pragma unroll
+                for (int c = 0; c < SUB; ++c) {
+                    float value = tile[row * TSTRIDE + start + c];
+                    #pragma unroll
+                    for (int p = 0; p < SUB; ++p) {
+                        if (p < c) {
+                            value = fmaf(
+                                -solved[p],
+                                tile[(start + c) * TSTRIDE + start + p],
+                                value);
+                        }
+                    }
+                    solved[c] = value * reciprocals[c];
+                }
+                #pragma unroll
+                for (int c = 0; c < SUB; ++c) {
+                    tile[row * TSTRIDE + start + c] = solved[c];
+                }
+            }
+            __syncthreads();
+
+            // --- all warps: rank-32 trailing update of the lower triangle
+            //     that remains inside this 128x128 block.
+            for (int row = below + warp; row < NB128; row += W128) {
+                for (int column = below + lane; column <= row; column += 32) {
+                    float update = 0.0f;
+                    #pragma unroll
+                    for (int p = 0; p < SUB; ++p) {
+                        update = fmaf(
+                            tile[row * TSTRIDE + start + p],
+                            tile[column * TSTRIDE + start + p],
+                            update);
+                    }
+                    tile[row * TSTRIDE + column] -= update;
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+    // --- publish the factored block (upper mirrored to zero).
+    for (int linear = tid; linear < NB128 * NB128; linear += T128) {
+        const int row = linear >> 7;
+        const int column = linear & (NB128 - 1);
+        block[(size_t)row * n + column] =
+            column <= row ? tile[row * TSTRIDE + column] : 0.0f;
+    }
+
+    // --- build X = L^-1 for the whole 128x128 block by blocked forward
+    //     substitution: four independent 32x32 diagonal inverses first, then
+    //     the six strictly-lower 32x32 blocks in dependency order.
+    float* xtile = tile + NB128 * TSTRIDE;
+    __shared__ float scratch[SUB * SUB];
+
+    if (warp < SUBS) {
+        const int start = warp * SUB;
+        float inverse[SUB];
+        #pragma unroll
+        for (int r = 0; r < SUB; ++r) {
+            float accumulator = (r == lane) ? 1.0f : 0.0f;
+            #pragma unroll
+            for (int p = 0; p < SUB; ++p) {
+                if (p < r) {
+                    accumulator = fmaf(
+                        -tile[(start + r) * TSTRIDE + start + p],
+                        inverse[p],
+                        accumulator);
+                }
+            }
+            inverse[r] = (r >= lane)
+                ? accumulator / tile[(start + r) * TSTRIDE + start + r]
+                : 0.0f;
+        }
+        #pragma unroll
+        for (int r = 0; r < SUB; ++r) {
+            xtile[(start + r) * TSTRIDE + start + lane] = inverse[r];
+        }
+    }
+    for (int linear = tid; linear < NB128 * NB128; linear += T128) {
+        const int row = linear >> 7;
+        const int column = linear & (NB128 - 1);
+        if ((row >> 5) != (column >> 5)) {
+            xtile[row * TSTRIDE + column] = 0.0f;
+        }
+    }
+    __syncthreads();
+
+    #pragma unroll 1
+    for (int diff = 1; diff < SUBS; ++diff) {
+        #pragma unroll 1
+        for (int bj = 0; bj + diff < SUBS; ++bj) {
+            const int bi = bj + diff;
+            for (int linear = tid; linear < SUB * SUB; linear += T128) {
+                const int r = linear >> 5;
+                const int c = linear & 31;
+                float accumulator = 0.0f;
+                for (int bk = bj; bk < bi; ++bk) {
+                    #pragma unroll
+                    for (int p = 0; p < SUB; ++p) {
+                        accumulator = fmaf(
+                            tile[(bi * SUB + r) * TSTRIDE + bk * SUB + p],
+                            xtile[(bk * SUB + p) * TSTRIDE + bj * SUB + c],
+                            accumulator);
+                    }
+                }
+                scratch[linear] = accumulator;
+            }
+            __syncthreads();
+            for (int linear = tid; linear < SUB * SUB; linear += T128) {
+                const int r = linear >> 5;
+                const int c = linear & 31;
+                float result = 0.0f;
+                #pragma unroll
+                for (int q = 0; q < SUB; ++q) {
+                    result = fmaf(
+                        xtile[(bi * SUB + r) * TSTRIDE + bi * SUB + q],
+                        scratch[q * SUB + c],
+                        result);
+                }
+                xtile[(bi * SUB + r) * TSTRIDE + bj * SUB + c] = -result;
+            }
+            __syncthreads();
+        }
+    }
+
+    float* inverse_block = inverse_out + (size_t)blockIdx.x * NB128 * NB128;
+    for (int linear = tid; linear < NB128 * NB128; linear += T128) {
+        const int row = linear >> 7;
+        const int column = linear & (NB128 - 1);
+        inverse_block[linear] =
+            column <= row ? xtile[row * TSTRIDE + column] : 0.0f;
+    }
+}
+
+void fused128_launch(
+    torch::Tensor src,
+    torch::Tensor work,
+    torch::Tensor inverse,
+    int64_t n,
+    int64_t j,
+    int64_t first) {
+    static bool configured = false;
+    if (!configured) {
+        cudaError_t attr = cudaFuncSetAttribute(
+            fused_block128,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            SHARED128);
+        TORCH_CHECK(attr == cudaSuccess, cudaGetErrorString(attr));
+        configured = true;
+    }
+    const int batch = (int)work.size(0);
+    fused_block128<<<dim3(batch), dim3(T128), SHARED128,
+                     at::cuda::getCurrentCUDAStream()>>>(
+        src.data_ptr<float>(), work.data_ptr<float>(),
+        inverse.data_ptr<float>(), (int)n, (int)j, (int)first);
+    cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+}
+"""
+
+_FUSED128 = None
+_FUSED128_ERROR = None
+if torch.cuda.is_available():
+    try:
+        from torch.utils.cpp_extension import load_inline
+
+        _FUSED128 = load_inline(
+            name="fused128_exp044_v4",
+            cpp_sources=(
+                "void fused128_launch(torch::Tensor, torch::Tensor, "
+                "torch::Tensor, int64_t, int64_t, int64_t);"
+            ),
+            cuda_sources=_FUSED128_SOURCE,
+            functions=["fused128_launch"],
+            extra_cuda_cflags=["-O3"],
+            verbose=False,
+        )
+    except Exception as exc:
+        _FUSED128_ERROR = repr(exc)
+
+
+def mid_probe():
+    rows = []
+    if _FUSED128_ERROR is not None:
+        return [{"name": "fused128_load_error", "us": 0.0, "ok": False,
+                 "error": _FUSED128_ERROR[:400]}]
+    for batch, n in ((16, 512), (4, 1024), (2, 2048)):
+        torch.manual_seed(0)
+        gen = torch.randn(batch, n, n, device="cuda", dtype=torch.float32)
+        spd = (gen @ gen.transpose(-1, -2) / n) + torch.eye(
+            n, device="cuda") * n
+        reference = torch.linalg.cholesky(spd.double()).float()
+        work = torch.empty_like(spd)
+        inverse = torch.empty(batch, 128, 128, device="cuda",
+                              dtype=torch.float32)
+        work.copy_(spd)
+        try:
+            _FUSED128.fused128_launch(spd, work, inverse, n, 0, 0)
+            torch.cuda.synchronize()
+        except Exception as exc:
+            rows.append({"name": f"fused128 batch={batch} n={n}", "us": 0.0,
+                         "ok": False, "error": repr(exc)[:400]})
+            return rows
+        factor = work[:, :128, :128].tril()
+        want = reference[:, :128, :128]
+        factor_err = float((factor - want).abs().max())
+        eye = torch.eye(128, device="cuda").expand(batch, 128, 128)
+        inverse_err = float((inverse @ want - eye).abs().max())
+
+        for _ in range(3):
+            _FUSED128.fused128_launch(spd, work, inverse, n, 0, 0)
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        iters = 20
+        start.record()
+        for _ in range(iters):
+            _FUSED128.fused128_launch(spd, work, inverse, n, 0, 0)
+        end.record()
+        torch.cuda.synchronize()
+        single_us = start.elapsed_time(end) * 1000.0 / iters
+        rows.append({
+            "name": f"fused128 batch={batch} n={n}",
+            "us": round(single_us, 3),
+            "blocks": n // 128,
+            "chain_us": round(single_us * (n // 128), 1),
+            "factor_err": factor_err,
+            "inverse_err": inverse_err,
+            "ok": factor_err < 1e-3 and inverse_err < 1e-3,
+        })
+        del gen, spd, reference, work, inverse
+        torch.cuda.empty_cache()
+    return rows

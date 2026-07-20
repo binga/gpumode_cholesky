@@ -1,0 +1,157 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "null-launch-floor",
+      "us": 56.387,
+      "per_call_us": 3.524,
+      "launches": 16,
+      "max_abs_err": null,
+      "inv_err": null,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank1-noinverse",
+      "us": 131.16,
+      "per_call_us": 8.197,
+      "launches": 16,
+      "max_abs_err": null,
+      "inv_err": null,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank1",
+      "us": 179.997,
+      "per_call_us": 11.25,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank2",
+      "us": 180.331,
+      "per_call_us": 11.271,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "coalesced-rank4",
+      "us": 164.074,
+      "per_call_us": 10.255,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "v1-uncoalesced-rank1",
+      "us": 196.966,
+      "per_call_us": 12.31,
+      "launches": 16,
+      "max_abs_err": 3.814697265625e-06,
+      "inv_err": 2.384185791015625e-07,
+      "ok": true
+    },
+    {
+      "name": "block64-bk16-t256 batch=16 n=512",
+      "us": 20.73,
+      "blocks_for_n": 8,
+      "chain_us": 165.8,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t256 batch=16 n=512",
+      "us": 47.36,
+      "blocks_for_n": 4,
+      "chain_us": 189.4,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk32-t256 batch=16 n=512",
+      "us": 67.784,
+      "blocks_for_n": 4,
+      "chain_us": 271.1,
+      "max_abs_err": 5.7220458984375e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t512 batch=16 n=512",
+      "us": 49.341,
+      "blocks_for_n": 4,
+      "chain_us": 197.4,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block64-bk16-t256 batch=4 n=1024",
+      "us": 20.698,
+      "blocks_for_n": 16,
+      "chain_us": 331.2,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t256 batch=4 n=1024",
+      "us": 47.331,
+      "blocks_for_n": 8,
+      "chain_us": 378.6,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk32-t256 batch=4 n=1024",
+      "us": 67.819,
+      "blocks_for_n": 8,
+      "chain_us": 542.6,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t512 batch=4 n=1024",
+      "us": 49.347,
+      "blocks_for_n": 8,
+      "chain_us": 394.8,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block64-bk16-t256 batch=2 n=2048",
+      "us": 20.73,
+      "blocks_for_n": 32,
+      "chain_us": 663.3,
+      "max_abs_err": 3.814697265625e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t256 batch=2 n=2048",
+      "us": 47.277,
+      "blocks_for_n": 16,
+      "chain_us": 756.4,
+      "max_abs_err": 7.62939453125e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk32-t256 batch=2 n=2048",
+      "us": 67.787,
+      "blocks_for_n": 16,
+      "chain_us": 1084.6,
+      "max_abs_err": 7.62939453125e-06,
+      "ok": true
+    },
+    {
+      "name": "block128-bk16-t512 batch=2 n=2048",
+      "us": 49.283,
+      "blocks_for_n": 16,
+      "chain_us": 788.5,
+      "max_abs_err": 7.62939453125e-06,
+      "ok": true
+    }
+  ],
+  "passed": true
+}
