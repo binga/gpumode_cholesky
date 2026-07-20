@@ -1,0 +1,42 @@
+{
+  "artifacts": {
+    "pairedgrid_json": "/Users/phani/projects/gpumode_cholesky/audit/baseline-rev6.pairedgrid.json"
+  },
+  "audit": {
+    "contract_sha256": "529b74b73454a990807b6846a128c871020533a5728c835dacb5fd755d32e155",
+    "mode": "quick",
+    "protected_sha256": {
+      "audit/baseline-submission.py": "5bbb8e8de3eedfadfb70fdcfaa902723fab03c2998bc18e9cb80512e82cce80c",
+      "kernel-audit.json": "825838f3d79dc29e8e8aa605715548c1d829daafe8b328faabe5622b96b0b024",
+      "reference": "fdfe77e0d13c3f7db31294ff1d856f8a1bcf83645dd4fb4acab122d5241d3eb0",
+      "scripts/audit_adapter.py": "52ecc3d80ad9833d0b4e0b10295f312c7ce4852991975d16f3cb24f04e415da8"
+    }
+  },
+  "candidate_id": "5bbb8e8de3eedfadfb70fdcfaa902723fab03c2998bc18e9cb80512e82cce80c",
+  "correctness": {
+    "checks": [
+      {
+        "name": "64x256-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=3.91; batch=64; n=256"
+      }
+    ],
+    "passed": true
+  },
+  "environment": {
+    "cuda": "13.0",
+    "driver": "Modal managed",
+    "framework": "torch 2.13.0+cu130",
+    "gpu": "NVIDIA B200"
+  },
+  "run_id": "baseline-rev6.pairedgrid",
+  "schema_version": 1,
+  "workloads": [
+    {
+      "cv": 0.0019476502412105745,
+      "id": "64x256-fp32-dense",
+      "latency_us": 225.3040000796318,
+      "metrics": {}
+    }
+  ]
+}

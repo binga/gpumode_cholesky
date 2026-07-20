@@ -1,0 +1,43 @@
+{
+  "analysis": [
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "64x256-fp32-dense"
+    }
+  ],
+  "artifacts": {
+    "pairedgrid_json": "/Users/phani/projects/gpumode_cholesky/audit/baseline-rev6.pairedgrid.json"
+  },
+  "correctness": {
+    "checks": [
+      {
+        "name": "64x256-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=3.91; batch=64; n=256"
+      }
+    ],
+    "passed": true
+  },
+  "objective_us": 225.30400007963172,
+  "schema_version": 1,
+  "verdict": "inspected"
+}
