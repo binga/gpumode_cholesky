@@ -57,6 +57,16 @@ popcorn submissions                                # view your entries
 - Baseline: `torch.linalg.cholesky_ex` (cuSOLVER). Correct across all input families.
 - CPU property check: **10/10 pass**.
 - Real B200 verify (Modal sandbox): **13/13 pass** (torch 2.12+cu130 on `NVIDIA B200`). The default torch wheel already ships Blackwell/sm_100 kernels — no cu128 pin needed.
+- **Current ranked winner `#890798`** (exp 047): `done`, public geomean
+  **801.977us** and secret geomean **847.836us**; exact root SHA-256
+  `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
+  **Experiment 048 (`4×1024`) is exhausted with nothing submitted:** the best
+  dense-only cooperative candidate measured 719.712→616.768us (1.166791×),
+  missed the 2× target, and failed the low-rank family with NaN/Inf. Resident,
+  rank-4, cluster/DSM, dual-warp cluster, and persistent FP16-WMMA variants also
+  lost. Experiment 048 made no source change from its then-current `#890659`;
+  the repository now carries exp 047's independently ranked `#890798`. See
+  `experiments/048-4x1024-2x/` and `journal.md` Session 44.
 - **Ranked submission `#876988`** (cuSOLVER baseline): `done`, 17/17 on B200, geomean ≈ **2080μs**.
 - **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.
 - **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.
@@ -157,7 +167,7 @@ popcorn submissions                                # view your entries
   17/17. Ranked `#888996` improves secret by **4.812%** versus `#888867`; public
   drifted **1.904%** slower despite the paired aggregate win. See
   `experiments/042-cuda-n128/`.
-- **Ranked submission `#890037`** (exp 043 V35 — current adopted source):
+- **Ranked submission `#890037`** (exp 043 V35 — superseded by `#890659`):
   `done`, public geomean **825.4657219594694us** and secret
   **824.9085045342571us**. A single CTA now owns each ranked `64×256` matrix:
   packed lower 16×16 shared tiles, FP32 diagonal/panel work, and TF32 WMMA

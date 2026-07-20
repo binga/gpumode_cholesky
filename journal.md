@@ -63,15 +63,11 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current adopted source: **`#890037` = 825.4657219594694μs public /
-824.9085045342571μs secret** (Session 41, exp 043). It improves `#888996` by
-9.940% public / 4.508% secret and supersedes exp 044's `#889994` score. The
-non-overlapping exp 043 + exp 044 integration improved the paired grid 1.0130x,
-but official test `#890068` hit the six-minute compile limit; it was not ranked,
-and the root source remains exact `#890037`.
 Current adopted source: **`#890798` = 801.977μs public / 847.836μs secret
 (Session 43, exp 047)**. It improves `#890659` by 0.504% public on a paired
-grid of 1.012106x. Previously: **`#890659` = 806.037μs public (Session 42,
+grid of 1.012106x. Exact SHA-256:
+`fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
+Previously: **`#890659` = 806.037μs public / 806.396μs secret (Session 42,
 exp 046)**.
 Previously: **`#890089` = 810.246μs public (Session 41, exp 045
 = exp 044 carried onto the 64x256 winner `#890037`)**. Previously: **`#889994`
@@ -91,7 +87,7 @@ every stage-specific control exceeds 2x.
 | 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cooperative + cluster/DSM persistent paths rejected (S44/exp048, best dense 1.167× and family-invalid) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + **✓ fused resident panel + merged diag step** (S43, 1.092×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19); ✗ fused resident panel (S43, 0.907× — needs uniform NB=128, loses exp 032's NB=256) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -262,6 +258,73 @@ caps a well-shaped dot near 52 TFLOP/s. Remaining `640x512` device time is
 358us fused panel + 260us data-free restricted launches + 169us micro chain.
 
 Evidence: `experiments/047-fused-panel/`, `docs/goal-exp047-fused-panel.md`.
+
+---
+
+## 2026-07-21 — Session 44: exp 048 `4×1024` persistent CUDA search exhausted — no submission
+
+Experiment 048 reopened `4×1024` against the exact ranked `#890659` source
+(`59558b…d5e52`) with a strict paired target of at least 2.000×. A fresh B200
+constituent profile measured **674.6us wall / 664.1us device**, only **10.5us
+(1.6%)** outside device work, and **102 launches**. The latency decomposition
+was:
+
+| constituent | latency | calls | device share |
+|---|---:|---:|---:|
+| `_micro_potrf_gj32` diagonal chain | 411.73us | 32 | 62.0% |
+| panel apply | 98.44us | 31 | 14.8% |
+| panel-inner update | 67.53us | 24 | 10.2% |
+| rank-128 trailing update | 63.64us | 7 | 9.6% |
+| D2D input/output copies | 8.90us | 2 | 1.3% |
+| finite gate, reduction, and D2H | about 12.9us | 5 | about 2.0% |
+
+The modeled HBM and arithmetic floors are tiny relative to each kernel's
+observed time: the entire useful factorization is 1.432 GFLOP, about 3.18us at
+450 TFLOP/s, while one full read plus write is 33.55MB, about 4.36us at
+7.7TB/s. This is a launch/dependency-span problem. Even holding the measured
+263us of non-micro work fixed leaves only about 74us for all diagonal work at
+the representative **337us** 2× target.
+
+Seven same-process paired candidates were measured; each used a positive
+target-backend counter and introduced no timed fallback:
+
+| variant | architecture | exact baseline | candidate | speedup | verdict |
+|---|---|---:|---:|---:|---|
+| V1 | graph-capturable resident rank-128 panel | 677.368us | 687.228us | 0.985594× | rejected |
+| V2 | 128-CTA cooperative tile-32 right-looking kernel | 719.712us | **616.768us** | **1.166791×** | rejected: low-rank NaN/Inf |
+| V3 | V2 reciprocal-multiply panel solve | 706.588us | 617.016us | 1.145283× | rejected; null versus V2 |
+| V4 | rank-4 diagonal pivot groups | 706.128us | 768.696us | 0.918603× | rejected |
+| V5 | four cluster16 kernels with DSM diagonal broadcast | 707.340us | 962.912us | 0.734453× | rejected |
+| V6 | cluster16 with dual-warp concurrent panel ownership | 715.052us | 843.400us | 0.848006× | rejected |
+| V7 | V2 core plus explicit FP16 WMMA trailing update | 686.696us | 777.860us | 0.882847× | rejected |
+
+V1 explains why launch count alone is not enough: device work dropped from
+664.1us/102 launches to 393.8us/52 launches, but graph dependency idle time
+rose from 10.5us to 326.1us and wall time became 719.9us. Internal `%globaltimer`
+instrumentation on V2 split its single cooperative call into **197.120us
+diagonal/barriers, 286.240us scalar panel/barriers, 201.856us TF32 trailing
+WMMA/barriers, and 4.064us cleanup**. Reciprocal syntax was compiler-null;
+rank-4 grouping increased resource pressure; cluster/DSM narrowed useful
+parallelism; dual-warp panel ownership recovered 119.5us from the first cluster
+attempt but still lost; and explicit FP32-to-FP16 staging cost more than the
+shorter WMMA sequence saved.
+
+The family gate closed the apparent V2 dense improvement. The active `4×1024`
+backend passed dense (**4.09/20**), spectrum (**5.57/20**), diagonal
+(**0.00146/20**), rowscale (**1.13/20**), and tridiagonal (**0.105/20**), but
+the low-rank family produced **NaN/Inf**. Therefore V2 is diagnostic dense-only
+evidence, not a correctness-valid frontier. No candidate reached 2×, no full
+15-shape gate was justified, and **no Popcorn test, leaderboard submission, or
+root-source change was made**. Experiment 048 therefore made no source change;
+it ran against the then-current `#890659`, while the repository's subsequently
+integrated current winner is `#890798` from experiment 047.
+
+Implication: do not reopen cooperative-grid, cluster/DSM, rank-4 persistent
+diagonal, or explicitly staged persistent-FP16 trailing variants for
+`4×1024` without a new mechanism that both shortens the scalar panel/barrier
+span and supplies family-safe pivot handling. The campaign should proceed
+serially to the next requested shape; the complete raw record is in
+`experiments/048-4x1024-2x/`.
 
 ---
 

@@ -1,0 +1,163 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=4.09; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=5.57; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": false,
+      "message": "output contains NaN or Inf",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=1.13; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.105; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_COOP1024_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "dense",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=9.59; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "spectrum",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7.82; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "diagonal",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00387; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "rowscale",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7.86; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "tridiagonal",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.786; batch=60; n=1024",
+      "active_backend": false,
+      "counters": {},
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": false
+}
