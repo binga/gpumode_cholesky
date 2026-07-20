@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "run_id": "campaign-stage-specific-controls",
+  "candidate_id": "stage-controls-exp039-exp041-exp042",
+  "environment": {
+    "gpu": "NVIDIA B200",
+    "driver": "Modal managed",
+    "cuda": "13.0",
+    "framework": "torch 2.13.0+cu130"
+  },
+  "correctness": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "4096x32-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.0691; batch=4096; n=32",
+        "passed": true
+      },
+      {
+        "name": "1024x64-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.0165; batch=1024; n=64",
+        "passed": true
+      },
+      {
+        "name": "256x128-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.0156; batch=256; n=128",
+        "passed": true
+      }
+    ]
+  },
+  "workloads": [
+    {
+      "id": "4096x32-fp32-dense",
+      "latency_us": 43.29199995845556,
+      "cv": 0.002882274674265606,
+      "metrics": {}
+    },
+    {
+      "id": "1024x64-fp32-dense",
+      "latency_us": 122.32399918138981,
+      "cv": 0.002815618405324738,
+      "metrics": {}
+    },
+    {
+      "id": "256x128-fp32-dense",
+      "latency_us": 154.82399612665176,
+      "cv": 0.005791541982800075,
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "4096x32": "experiments/039-cuda-n32/final-paired.json",
+    "1024x64": "experiments/041-cuda-n64/variant-01-paired.json",
+    "256x128": "audit/baseline-rev5.json"
+  }
+}

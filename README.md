@@ -144,7 +144,20 @@ popcorn submissions                                # view your entries
   root-source change or Popcorn submission was made. The remaining campaign
   picks are revised to `1024×64` and `256×128`. See
   `experiments/040-cooperative-1x4096/`.
-- **Ranked submission `#888867`** (exp 041 V3 — current best): `done`, public
+- **Ranked submission `#888996`** (exp 042 V5 — current adopted source):
+  `done`, public geomean **916.5768129471865us** and secret
+  **863.8500740634134us**. The old `256×128` graph spent 55.13us in four
+  diagonal micros, 32.81us in panel math, 8.90us in copies, 9.13us in the
+  finite/host gate, 9.18us in other elementwise work, and 28.1us outside
+  profiled device operations. One eight-warp CTA now keeps each matrix in a
+  padded shared tile and uses FP32 blocked-16 diagonal, panel, and trailing
+  phases. Exact V5 full grid: **140.932→69.852us = 2.019×**, 15/15 correct,
+  all other shapes at parity, aggregate **1.04787×**. Six families were active
+  with no fallback and worst residual 0.0176/20; Popcorn test `#888995` passed
+  17/17. Ranked `#888996` improves secret by **4.812%** versus `#888867`; public
+  drifted **1.904%** slower despite the paired aggregate win. See
+  `experiments/042-cuda-n128/`.
+- **Ranked submission `#888867`** (exp 041 V3 — best public score): `done`, public
   geomean **899.124686138768us** and secret **905.4166394915869us**. The first
   cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at
   **122.32→53.90us = 2.270×**. The post-target V3 assigns one register row to

@@ -1,0 +1,130 @@
+{
+  "analysis": [
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "4096x32-fp32-dense"
+    },
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "1024x64-fp32-dense"
+    },
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "256x128-fp32-dense"
+    }
+  ],
+  "artifacts": {
+    "pairedgrid_json": "experiments/042-cuda-n128/variant-05-full-grid.json",
+    "ranked_source": "experiments/042-cuda-n128/ranked-888996.py"
+  },
+  "correctness": {
+    "checks": [
+      {
+        "name": "4096x32-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.0553; batch=4096; n=32"
+      },
+      {
+        "name": "1024x64-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.025; batch=1024; n=64"
+      },
+      {
+        "name": "256x128-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.0127; batch=256; n=128"
+      }
+    ],
+    "passed": true
+  },
+  "objective": {
+    "baseline": 93.5949746700615,
+    "candidate": 34.852864573529104,
+    "improvement_fraction": 0.6276203429041838,
+    "minimum_improvement_fraction": 0.5,
+    "name": "weighted_geomean_latency_us"
+  },
+  "regressions": [],
+  "schema_version": 1,
+  "verdict": "accepted",
+  "workloads": [
+    {
+      "baseline_us": 43.29199995845556,
+      "candidate_us": 18.776000011712313,
+      "change_fraction": -0.5662940028243004,
+      "id": "4096x32-fp32-dense",
+      "weight": 0.3333333333333333
+    },
+    {
+      "baseline_us": 122.32399918138981,
+      "candidate_us": 32.27999992668629,
+      "change_fraction": -0.7361106557772081,
+      "id": "1024x64-fp32-dense",
+      "weight": 0.3333333333333333
+    },
+    {
+      "baseline_us": 154.82399612665176,
+      "candidate_us": 69.85199823975563,
+      "change_fraction": -0.5488296388977448,
+      "id": "256x128-fp32-dense",
+      "weight": 0.3333333333333333
+    }
+  ]
+}

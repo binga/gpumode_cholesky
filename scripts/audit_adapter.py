@@ -1,6 +1,6 @@
 """Normalize the repository's paired Modal B200 harness for audit-kernel.
 
-The frozen baseline is ``audit/baseline-submission.py`` (ranked #888636).
+The frozen baseline is ``audit/baseline-submission.py`` (ranked #888867).
 The candidate is always the repository-root ``submission.py``.  The adapter
 measures only the three user-approved campaign shapes and writes the normalized
 schema consumed by ``skills/audit-kernel/scripts/audit_kernel.py``.

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "run_id": "campaign-final-ranked-888996",
+  "candidate_id": "5bbb8e8de3eedfadfb70fdcfaa902723fab03c2998bc18e9cb80512e82cce80c",
+  "environment": {
+    "gpu": "NVIDIA B200",
+    "driver": "Modal managed",
+    "cuda": "13.0",
+    "framework": "torch 2.13.0+cu130"
+  },
+  "correctness": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "4096x32-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.0553; batch=4096; n=32",
+        "passed": true
+      },
+      {
+        "name": "1024x64-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.025; batch=1024; n=64",
+        "passed": true
+      },
+      {
+        "name": "256x128-fp32-dense",
+        "value": "scaled_reconstruction_residual=0.0127; batch=256; n=128",
+        "passed": true
+      }
+    ]
+  },
+  "workloads": [
+    {
+      "id": "4096x32-fp32-dense",
+      "latency_us": 18.776000011712313,
+      "cv": 0.003853111164196843,
+      "metrics": {}
+    },
+    {
+      "id": "1024x64-fp32-dense",
+      "latency_us": 32.27999992668629,
+      "cv": 0.0026015136124962757,
+      "metrics": {}
+    },
+    {
+      "id": "256x128-fp32-dense",
+      "latency_us": 69.85199823975563,
+      "cv": 0.001701431505048756,
+      "metrics": {}
+    }
+  ],
+  "artifacts": {
+    "pairedgrid_json": "experiments/042-cuda-n128/variant-05-full-grid.json",
+    "ranked_source": "experiments/042-cuda-n128/ranked-888996.py"
+  }
+}

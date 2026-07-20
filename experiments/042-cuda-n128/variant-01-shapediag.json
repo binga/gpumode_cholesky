@@ -1,0 +1,27 @@
+{
+  "mode": "shapediag",
+  "device": "NVIDIA B200",
+  "shapes": [
+    {
+      "spec": "batch=256 n=128",
+      "batch": 256,
+      "n": 128,
+      "wall_us": 103.4,
+      "device_us": 100.2,
+      "idle_us": 3.2,
+      "idle_pct": 3.1,
+      "kernel_launches": 1,
+      "us_per_launch_wall": 103.4,
+      "kernels": [
+        {
+          "kernel": "cholesky128_rank2(float const*, float*)",
+          "us": 100.23,
+          "calls": 1,
+          "us_per_call": 100.234,
+          "pct_device": 100.0
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

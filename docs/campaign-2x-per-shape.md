@@ -119,8 +119,12 @@ factorization for n<=256 where a matrix fits in one SM's smem.
    2.270x. Post-target V3 moved to two warps, one row per thread, and a
    four-rendezvous rank-2 handoff: 53.584 -> 32.192us = another 1.664x, or
    about 3.80x end-to-end. Latest ranked source is `#888867`.
-7. **256x128** — current third contract target; enough matrices
-   to saturate B200 with one whole-matrix CTA each.
+7. ~~**256x128**~~ — **2x ACHIEVED** by exp 042. The old 18-operation split32
+   graph was 154.824us in the revision-5 control. One eight-warp CTA per matrix
+   uses FP32 blocked-16 diagonal factors, register panel solves, and rank-16
+   trailing dots: final V5 140.932 -> 69.852us = 2.019x on the full paired
+   grid (154.824 -> 69.852us = 2.216x against the contract control). Ranked as
+   `#888996`.
 8. **16x512 / 64x256** — re-diagnose per shape before assuming a
    lever; the `4x1024` lesson is that the campaign's headroom table says
    *whether* a shape is slow, never *why*.
@@ -135,3 +139,11 @@ best finding by doing so.
 Measurement note: the paired grid harness from exp 035 is the campaign's
 acceptance signal. Once exp 041 replaced the `1024x64` graph route, the V3
 same-process comparison was stable: 1.664x with 0.28% order spread.
+
+## Campaign result — complete
+
+All three stage-specific controls now pass the machine contract: `4096x32`
+43.292 -> 18.776us (**2.306x**), `1024x64` 122.324 -> 32.280us
+(**3.789x**), and `256x128` 154.824 -> 69.852us (**2.216x**). The weighted
+geomean latency fell 93.595 -> 34.853us (**2.685x**, 62.762% lower), with no
+regressions; `audit/campaign-final-result.json` verdict is **accepted**.

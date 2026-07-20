@@ -1,0 +1,10 @@
+{
+  "submission_id": 888995,
+  "mode": "test",
+  "runner": "B200",
+  "status": "succeeded",
+  "passed": true,
+  "cases_passed": 17,
+  "cases_total": 17,
+  "source_sha256": "5bbb8e8de3eedfadfb70fdcfaa902723fab03c2998bc18e9cb80512e82cce80c"
+}

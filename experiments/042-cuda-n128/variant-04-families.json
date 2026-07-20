@@ -1,0 +1,91 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0121; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0113; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00781; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "lowrank",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0117; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0139; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 256,
+      "n": 128,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0176; batch=256; n=128",
+      "active_backend": true,
+      "counters": {
+        "_CUDA128_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": true
+}

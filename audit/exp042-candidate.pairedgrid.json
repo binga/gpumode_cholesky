@@ -1,0 +1,142 @@
+{
+  "mode": "pairedgrid",
+  "byte_identical": false,
+  "shapes": [
+    {
+      "n": 32,
+      "batch": 4096,
+      "spec": "batch=4096 n=32 case=dense",
+      "ratio_median": 1.001881998978116,
+      "ratio_ci95": [
+        0.9976871144935848,
+        1.0063171185263649
+      ],
+      "ratio_mad": 0.0033657320471638386,
+      "ratios": [
+        1.00084,
+        0.99457,
+        1.00525,
+        1.00188,
+        1.00464,
+        1.00677,
+        0.99769,
+        1.00632,
+        0.99979
+      ],
+      "baseline_us": 19.05599981546402,
+      "candidate_us": 19.024000503122807,
+      "order_spread_median": 0.009637569315349844,
+      "ratio_first_half": 1.0013603656087282,
+      "ratio_second_half": 1.0046393788695145,
+      "repeats": 9,
+      "iters_per_block": 20,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=0.0553; batch=4096; n=32",
+      "candidate_msg": "scaled_reconstruction_residual=0.0553; batch=4096; n=32",
+      "baseline_counters": {
+        "_CUDA32_HITS": 1
+      },
+      "candidate_counters": {
+        "_CUDA32_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    },
+    {
+      "n": 64,
+      "batch": 1024,
+      "spec": "batch=1024 n=64 case=dense",
+      "ratio_median": 1.002341678315851,
+      "ratio_ci95": [
+        0.9998767114005881,
+        1.0049480255420167
+      ],
+      "ratio_mad": 0.0023386793893365176,
+      "ratios": [
+        1.00385,
+        1.00468,
+        0.99238,
+        1.00173,
+        1.00853,
+        1.00495,
+        1.00234,
+        0.99988,
+        1.00185
+      ],
+      "baseline_us": 32.495999708771706,
+      "candidate_us": 32.45200123637915,
+      "order_spread_median": 0.002213164993700433,
+      "ratio_first_half": 1.0027903070273405,
+      "ratio_second_half": 1.002341678315851,
+      "repeats": 9,
+      "iters_per_block": 20,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=0.025; batch=1024; n=64",
+      "candidate_msg": "scaled_reconstruction_residual=0.025; batch=1024; n=64",
+      "baseline_counters": {
+        "_CUDA64_HITS": 1
+      },
+      "candidate_counters": {
+        "_CUDA64_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    },
+    {
+      "n": 128,
+      "batch": 256,
+      "spec": "batch=256 n=128 case=dense",
+      "ratio_median": 2.0307249816989446,
+      "ratio_ci95": [
+        2.0287858943188324,
+        2.0368637008042416
+      ],
+      "ratio_mad": 0.00193908738011217,
+      "ratios": [
+        2.03195,
+        2.03686,
+        2.03897,
+        2.03645,
+        2.03072,
+        2.02879,
+        2.02366,
+        2.02914,
+        2.02899
+      ],
+      "baseline_us": 144.14799958467484,
+      "candidate_us": 70.97200118005276,
+      "order_spread_median": 0.005092938273972733,
+      "ratio_first_half": 2.036656295193273,
+      "ratio_second_half": 2.028994480961998,
+      "repeats": 9,
+      "iters_per_block": 20,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=0.0156; batch=256; n=128",
+      "candidate_msg": "scaled_reconstruction_residual=0.0127; batch=256; n=128",
+      "baseline_counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "candidate_counters": {
+        "_CUDA128_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    }
+  ],
+  "geomean_ratio": 1.2681223536124355,
+  "geomean_ci95": [
+    1.2658523060321927,
+    1.2703964720593917
+  ],
+  "geomean_ci_excludes_1": true,
+  "worst_shape_deviation": 1.0307249816989446,
+  "worst_order_spread": 0.009637569315349844,
+  "all_shapes_ok": true,
+  "passed": true
+}

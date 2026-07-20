@@ -2680,6 +2680,111 @@ def run_shapediag(filter_ns=None):
     return out
 
 
+def run_n128phase(filter_ns=None):
+    """Experiment 042: internal phases of the instrumented whole-matrix CTA."""
+    import submission as sub
+
+    if not hasattr(sub, "phase_probe"):
+        return {"mode": "n128phase", "passed": False, "error": "phase_probe missing"}
+
+    spec = next(s for s in BENCH_SPECS if s["batch"] == 256 and s["n"] == 128)
+    data = generate_input(**{k: v for k, v in spec.items() if k != "case"},
+                          case=spec.get("case", "dense"))
+    for _ in range(3):
+        sub.custom_kernel(data)
+    torch.cuda.synchronize()
+
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    start.record()
+    output, timing = sub.phase_probe(data)
+    end.record()
+    torch.cuda.synchronize()
+    wall_us = start.elapsed_time(end) * 1000.0
+    ok, message = check_implementation(data, output)
+
+    stamps = timing.cpu().tolist()
+    blocked = len(stamps[0]) == 7
+    names = (
+        ("staging", "diagonal", "panel", "trailing", "output")
+        if blocked
+        else ("staging", "factor", "output")
+    )
+    stages = []
+    for index, name in enumerate(names):
+        values = sorted(
+            (row[index + 2] / 1000.0 if blocked else
+             (row[index + 1] - row[index]) / 1000.0)
+            for row in stamps
+        )
+        stages.append(
+            {
+                "name": name,
+                "median_us": round(_median(values), 3),
+                "p95_us": round(values[int(0.95 * (len(values) - 1))], 3),
+                "max_us": round(values[-1], 3),
+            }
+        )
+    first_start = min(row[0] for row in stamps)
+    last_start = max(row[0] for row in stamps)
+    last_end = max(row[1] if blocked else row[3] for row in stamps)
+    result = {
+        "mode": "n128phase",
+        "device": torch.cuda.get_device_name(0),
+        "wall_us": round(wall_us, 3),
+        "device_span_us": round((last_end - first_start) / 1000.0, 3),
+        "block_start_spread_us": round((last_start - first_start) / 1000.0, 3),
+        "stages": stages,
+        "correctness": {"passed": bool(ok), "message": message},
+        "passed": bool(ok),
+    }
+    if hasattr(sub, "barrier_probe"):
+        for _ in range(3):
+            sub.barrier_probe()
+        torch.cuda.synchronize()
+        barrier_start = torch.cuda.Event(enable_timing=True)
+        barrier_end = torch.cuda.Event(enable_timing=True)
+        barrier_start.record()
+        barrier_timing, _barrier_sink = sub.barrier_probe()
+        barrier_end.record()
+        torch.cuda.synchronize()
+        barrier_wall_us = barrier_start.elapsed_time(barrier_end) * 1000.0
+        barrier_stamps = barrier_timing.cpu().tolist()
+        barrier_values = sorted((row[1] - row[0]) / 1000.0 for row in barrier_stamps)
+        barrier_first = min(row[0] for row in barrier_stamps)
+        barrier_last = max(row[1] for row in barrier_stamps)
+        result["barrier_floor"] = {
+            "barriers": 256,
+            "wall_us": round(barrier_wall_us, 3),
+            "device_span_us": round((barrier_last - barrier_first) / 1000.0, 3),
+            "median_block_us": round(_median(barrier_values), 3),
+            "p95_block_us": round(
+                barrier_values[int(0.95 * (len(barrier_values) - 1))], 3
+            ),
+            "max_block_us": round(barrier_values[-1], 3),
+        }
+    print(
+        f"n128phase: wall={result['wall_us']}us device_span={result['device_span_us']}us "
+        f"start_spread={result['block_start_spread_us']}us ok={ok}",
+        flush=True,
+    )
+    for stage in stages:
+        print(
+            f"    {stage['name']}: median={stage['median_us']}us "
+            f"p95={stage['p95_us']}us max={stage['max_us']}us",
+            flush=True,
+        )
+    if "barrier_floor" in result:
+        barrier = result["barrier_floor"]
+        print(
+            f"    barrier floor ({barrier['barriers']}): "
+            f"median={barrier['median_block_us']}us "
+            f"device_span={barrier['device_span_us']}us",
+            flush=True,
+        )
+    return result
+
+
 def run_pairedgrid(filter_ns=None):
     specs = BENCH_SPECS
     if filter_ns:
@@ -2881,6 +2986,8 @@ def main():
         result = run_microprobe(filter_ns)
     elif mode == "shapediag":
         result = run_shapediag(filter_ns)
+    elif mode == "n128phase":
+        result = run_n128phase(filter_ns)
     elif mode == "pairedgrid":
         result = run_pairedgrid(filter_ns)
     elif mode == "familygrid":

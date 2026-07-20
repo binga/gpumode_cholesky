@@ -63,17 +63,19 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current best: **`#888867` = 899.124686138768μs public geomean** (Session 38;
-secret 905.4166394915869μs). Experiments 039 and 041 replace `4096×32` and
-`1024×64` with cuSOLVER-free CUDA rank-2 warp kernels; both shapes exceed 2×,
-and exp 041's two-warp refinement reaches about 3.80× end-to-end.
+Current adopted source: **`#888996` = 916.5768129471865μs public /
+863.8500740634134μs secret** (Session 39). `#888867` remains the best public
+score at 899.124686138768μs; `#888996` is adopted because its same-process full
+grid improves 1.04787x and its secret score improves 4.812%. Experiments 039,
+041, and 042 replace all three campaign shapes with cuSOLVER-free CUDA kernels;
+every stage-specific control exceeds 2x.
 `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
 |---|---|---|---|---|---|---|---|---|---|
 | 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
-| 256×128  | ✗ | ✗ | **✓** split32 route (S28, 1.108×) | ✗ (S3) | **✓** (S28) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S28; vendor-graph fallback S9/S15) |
+| 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64, 1.078× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | **✓** (S21, panel-inner 64×64, 1.128× vs S20) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -253,6 +255,46 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 39: exp 042 `256x128` blocked CUDA → 2.216x, ranked #888996
+
+Revision-5 froze exact `#888867` at 154.824us and set the 77.412us threshold.
+The fresh constituent profile measured 143.3us wall / 115.2us device over 18
+operations: **55.13us diagonal micros + 32.81us panel math + 8.90us copies +
+9.13us finite/host gate + 9.18us elementwise + 28.1us wall-minus-device**.
+Deleting only the dominant micro would still miss 2x, so the launch chain had
+to be replaced as a whole.
+
+V1 generalized register rows to four warps but managed only 1.081x. Its global-
+timer profile was 6.50us staging + 89.25us factor + 2.43us output; a forced
+256-barrier control was just 2.88us, proving scalar row arithmetic—not
+synchronization—dominated. V2's element-parallel shared tile was 0.988x; rolled
+V3 was 0.983x. V4 then used FP32 blocked-16 factorization inside one eight-warp
+CTA: diagonal factor, register panel solves, and rank-16 trailing dots. It
+crossed 2x immediately at 150.940 -> 71.828us.
+
+V5 forced the eight-iteration block loop not to unroll. It retained the speed
+at **140.932 -> 69.852us = 2.0191x** while reducing compile time enough for the
+official runner. Six families passed on the active backend with zero fallback
+and worst residual 0.0176/20. The full grid passed 15/15, held all other shapes
+at parity, and improved aggregate latency **1.047866x CI
+[1.047341,1.048391]**. Instrumented V5 device span: 3.30us staging, 21.28us
+diagonal, 6.05us panel, 23.62us trailing, 1.12us output, ~4.18us boundaries.
+
+Popcorn V4 test `#888971` hit the exact six-minute compile limit without a
+failed case. Compile-compact V5 test `#888995` passed 17/17. Ranked `#888996`
+succeeded at **916.577us public / 863.850us secret**: public drifted 1.904%
+slower than `#888867`, while secret improved **4.812%**. Exact ranked SHA-256:
+`5bbb8e8de3eedfadfb70fdcfaa902723fab03c2998bc18e9cb80512e82cce80c`.
+
+Post-2x V6 dual accumulation was unresolved noise (1.0018x, CI includes 1), V7
+BK=32 regressed 21.8%, and V8 16-warps regressed 5.2%; none was promoted. The
+stage-specific final machine audit is **accepted**: 4096x32 43.292 -> 18.776us
+(2.306x), 1024x64 122.324 -> 32.280us (3.789x), 256x128 154.824 -> 69.852us
+(2.216x), weighted geomean 93.595 -> 34.853us (62.762% lower), no regressions.
+
+Evidence: `experiments/042-cuda-n128/`, `audit/campaign-final-result.json`, and
+ranked submission `#888996`.
 
 ## 2026-07-20 — Session 38: exp 041 `1024x64` CUDA warp kernel → 2.270x, ranked #888803
 
