@@ -109,15 +109,21 @@ factorization for n<=256 where a matrix fits in one SM's smem.
    038's best hardware-cluster/TRSM path was 0.595x versus ranked.
 4. ~~**4096x32**~~ — **2x ACHIEVED** by exp 039. Register-row/shared-pivot
    rank-2 CUDA: 43.29 -> 19.09us = 2.269x; ranked as `#888636`.
-5. **1x4096** — next serial contract target; 90.8% is one 1393us vendor kernel,
-   with a 767.6us paired 2x threshold.
-6. **2x4096** — third serial contract target after 1x4096.
-7. **16x512 / 64x256 / 256x128** — re-diagnose per shape before assuming a
+5. ~~**1x4096**~~ — EXHAUSTED under six correct cooperative architectures.
+   Device-clock V1 profile: 837us diagonal + 1017us panel + 2142us trailing;
+   best candidate 4066us versus 1531us ranked. Tile 64, tensor-core panel
+   inverse, occupancy saturation, left-looking, and rank-128 superpanels all
+   lost. Do not transfer this mechanism to `2x4096`.
+6. **1024x64** — revised second contract target. A whole-matrix CUDA CTA can
+   remove the currently graphed/vendor small-matrix chain.
+7. **256x128** — revised third contract target after `1024x64`; enough matrices
+   to saturate B200 with one whole-matrix CTA each.
+8. **16x512 / 64x256** — re-diagnose per shape before assuming a
    lever; the `4x1024` lesson is that the campaign's headroom table says
    *whether* a shape is slow, never *why*.
-8. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
+9. **1x16384** (4.6x) — MXFP8 V3 blocked at 10.1/20 residual; revisit with
    the mantissa-clip fix.
-9. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
+10. **1x32768** — frontier-complete at 1.8x above roofline. Do not spend here.
 
 **Method note.** Diagnose before building. Exp 036 spent 3 profiling runs to
 kill a 6-variant plan whose premise was wrong, and produced the campaign's

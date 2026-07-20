@@ -1,6 +1,6 @@
 """Normalize the repository's paired Modal B200 harness for audit-kernel.
 
-The frozen baseline is ``audit/baseline-submission.py`` (ranked #888352).
+The frozen baseline is ``audit/baseline-submission.py`` (ranked #888636).
 The candidate is always the repository-root ``submission.py``.  The adapter
 measures only the three user-approved campaign shapes and writes the normalized
 schema consumed by ``skills/audit-kernel/scripts/audit_kernel.py``.
@@ -19,8 +19,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WORKLOAD_IDS = {
     (4096, 32): "4096x32-fp32-dense",
-    (1, 4096): "1x4096-fp32-dense",
-    (2, 4096): "2x4096-fp32-dense",
+    (1024, 64): "1024x64-fp32-dense",
+    (256, 128): "256x128-fp32-dense",
 }
 
 
@@ -42,7 +42,7 @@ def _run_paired(raw_path: Path) -> dict:
         "--candidate",
         "submission.py",
         "--shapes",
-        "32,4096",
+        "32,64,128",
         "--json",
         str(raw_path),
     ]

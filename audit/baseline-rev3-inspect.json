@@ -1,0 +1,99 @@
+{
+  "analysis": [
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "4096x32-fp32-dense"
+    },
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "1x4096-fp32-dense"
+    },
+    {
+      "coverage": {
+        "missing": [
+          "achieved_occupancy",
+          "barrier_stall_fraction",
+          "compute_throughput_fraction",
+          "cuda_api_time_fraction",
+          "dram_throughput_fraction",
+          "gpu_active_fraction",
+          "kernel_launch_count",
+          "local_memory_bytes",
+          "maximum_kernel_concurrency",
+          "memcpy_time_fraction",
+          "memory_dependency_stall_fraction",
+          "short_kernel_fraction",
+          "synchronization_time_fraction",
+          "tensor_core_utilization_fraction"
+        ],
+        "present": []
+      },
+      "gaps": [],
+      "id": "2x4096-fp32-dense"
+    }
+  ],
+  "artifacts": {
+    "pairedgrid_json": "/Users/phani/projects/gpumode_cholesky/audit/baseline-rev3.pairedgrid.json"
+  },
+  "correctness": {
+    "checks": [
+      {
+        "name": "4096x32-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.0553; batch=4096; n=32"
+      },
+      {
+        "name": "1x4096-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.000324; batch=1; n=4096"
+      },
+      {
+        "name": "2x4096-fp32-dense",
+        "passed": true,
+        "value": "scaled_reconstruction_residual=0.000327; batch=2; n=4096"
+      }
+    ],
+    "passed": true
+  },
+  "objective_us": 455.29508716094875,
+  "schema_version": 1,
+  "verdict": "inspected"
+}

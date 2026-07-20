@@ -1192,6 +1192,138 @@ def run_asmprobe(filter_ns=None):
     return result
 
 
+def run_coopprobe(filter_ns=None):
+    """Experiment 040 gate: measure cooperative full-grid barrier cost.
+
+    The proposed 1x4096 factorization needs one resident CTA per SM and about
+    three hardware grid rendezvous per outer tile. This isolates that cost
+    before the much larger correctness kernel is built. The launch uses the
+    CUDA default execution queue; no auxiliary/concurrent queue is created.
+    """
+    from torch.utils.cpp_extension import load_inline
+
+    cuda_source = r"""
+#include <torch/extension.h>
+#include <cuda_runtime.h>
+#include <cooperative_groups.h>
+
+namespace cg = cooperative_groups;
+
+__global__ void cooperative_barrier_floor(int phases,
+                                          unsigned long long* ticks) {
+    cg::grid_group grid = cg::this_grid();
+    const unsigned long long begin = clock64();
+    for (int phase = 0; phase < phases; ++phase) grid.sync();
+    ticks[blockIdx.x] = clock64() - begin;
+}
+
+torch::Tensor coop_launch(int64_t blocks64, int64_t phases64) {
+    const int blocks = (int)blocks64;
+    int phases = (int)phases64;
+    torch::Tensor ticks = torch::empty(
+        {blocks}, torch::TensorOptions().dtype(torch::kInt64).device(torch::kCUDA));
+    unsigned long long* ptr =
+        reinterpret_cast<unsigned long long*>(ticks.data_ptr<int64_t>());
+    void* args[] = {&phases, &ptr};
+    cudaError_t status = cudaLaunchCooperativeKernel(
+        (void*)cooperative_barrier_floor, dim3(blocks), dim3(32), args, 0);
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+    return ticks;
+}
+"""
+    module = load_inline(
+        name="coop_floor_exp040",
+        cpp_sources="torch::Tensor coop_launch(int64_t, int64_t);",
+        cuda_sources=cuda_source,
+        functions=["coop_launch"],
+        extra_cuda_cflags=["-O3"],
+        verbose=False,
+    )
+    properties = torch.cuda.get_device_properties(0)
+    sms = int(properties.multi_processor_count)
+    rows = []
+    for blocks in (sms, 2 * sms):
+        for phases in (0, 64, 96, 128, 192, 256):
+            try:
+                for _ in range(3):
+                    module.coop_launch(blocks, phases)
+                torch.cuda.synchronize()
+                start = torch.cuda.Event(enable_timing=True)
+                end = torch.cuda.Event(enable_timing=True)
+                iterations = 30
+                start.record()
+                ticks = None
+                for _ in range(iterations):
+                    ticks = module.coop_launch(blocks, phases)
+                end.record()
+                torch.cuda.synchronize()
+                elapsed_us = start.elapsed_time(end) * 1000.0 / iterations
+                max_ticks = int(ticks.max().item()) if ticks is not None else 0
+                row = {
+                    "blocks": blocks,
+                    "phases": phases,
+                    "mean_us": elapsed_us,
+                    "max_ticks": max_ticks,
+                }
+                rows.append(row)
+                print(
+                    f"blocks={blocks} phases={phases}: {elapsed_us:.3f}us "
+                    f"max_ticks={max_ticks}",
+                    flush=True,
+                )
+            except Exception as exc:
+                rows.append({"blocks": blocks, "phases": phases, "error": repr(exc)})
+                print(f"blocks={blocks} phases={phases}: ERROR {exc!r}", flush=True)
+                break
+    return {
+        "mode": "coopprobe",
+        "device": torch.cuda.get_device_name(0),
+        "sms": sms,
+        "rows": rows,
+        "passed": any(r.get("phases") == 192 and "mean_us" in r for r in rows),
+    }
+
+
+def run_coopphase(filter_ns=None):
+    """Read device-clock constituent timings from the instrumented V1 kernel."""
+    import statistics
+    import candidate as cand
+
+    module = getattr(cand, "_COOP4096", None)
+    if module is None or not hasattr(module, "chol4096_profile"):
+        return {
+            "mode": "coopphase",
+            "passed": False,
+            "error": repr(getattr(cand, "_COOP4096_ERROR", "profile unavailable")),
+        }
+    pristine = generate_input(batch=1, n=4096, cond=2, seed=74040)
+    samples = []
+    output = None
+    for _ in range(7):
+        output = pristine.clone()
+        raw = [int(v) for v in module.chol4096_profile(output)]
+        samples.append([nanoseconds / 1000.0 for nanoseconds in raw[:4]])
+    labels = ["diagonal_us", "panel_us", "trailing_us", "clear_us"]
+    medians = {
+        label: statistics.median(row[index] for row in samples)
+        for index, label in enumerate(labels)
+    }
+    medians["accounted_us"] = sum(medians.values())
+    good, message = check_implementation(pristine, output)
+    for label in labels:
+        print(f"{label}={medians[label]:.3f}", flush=True)
+    print(f"accounted_us={medians['accounted_us']:.3f} ok={good} {message}", flush=True)
+    return {
+        "mode": "coopphase",
+        "device": torch.cuda.get_device_name(0),
+        "samples_us": samples,
+        "medians_us": medians,
+        "correct": bool(good),
+        "correctness_message": message,
+        "passed": bool(good),
+    }
+
+
 def run_dotprobe(filter_ns=None):
     import statistics
 
@@ -2676,6 +2808,10 @@ def main():
         result = run_mxprobe(filter_ns)
     elif mode == "asmprobe":
         result = run_asmprobe(filter_ns)
+    elif mode == "coopprobe":
+        result = run_coopprobe(filter_ns)
+    elif mode == "coopphase":
+        result = run_coopphase(filter_ns)
     elif mode == "microprobe":
         result = run_microprobe(filter_ns)
     elif mode == "shapediag":

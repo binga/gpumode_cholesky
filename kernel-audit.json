@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "gpumode-cholesky-three-shape-2x-revision-2",
+  "name": "gpumode-cholesky-three-shape-2x-revision-3",
   "adapter": {
     "argv": [
       "python3",
@@ -16,8 +16,8 @@
   },
   "workloads": [
     {"id": "4096x32-fp32-dense", "weight": 0.3333333333333333},
-    {"id": "1x4096-fp32-dense", "weight": 0.3333333333333333},
-    {"id": "2x4096-fp32-dense", "weight": 0.3333333333333333}
+    {"id": "1024x64-fp32-dense", "weight": 0.3333333333333333},
+    {"id": "256x128-fp32-dense", "weight": 0.3333333333333333}
   ],
   "measurement": {
     "maximum_cv": 0.03

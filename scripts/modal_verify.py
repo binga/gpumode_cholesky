@@ -131,6 +131,8 @@ def main() -> int:
             "shapediag",
             "microprobe",
             "asmprobe",
+            "coopprobe",
+            "coopphase",
         ],
     )
     parser.add_argument(

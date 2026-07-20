@@ -1,0 +1,80 @@
+{
+  "mode": "coopprobe",
+  "device": "NVIDIA B200",
+  "sms": 148,
+  "rows": [
+    {
+      "blocks": 148,
+      "phases": 0,
+      "mean_us": 10.802132884661356,
+      "max_ticks": 586
+    },
+    {
+      "blocks": 148,
+      "phases": 64,
+      "mean_us": 79.71413135528564,
+      "max_ticks": 149276
+    },
+    {
+      "blocks": 148,
+      "phases": 96,
+      "mean_us": 117.40372975667317,
+      "max_ticks": 223961
+    },
+    {
+      "blocks": 148,
+      "phases": 128,
+      "mean_us": 155.3258736928304,
+      "max_ticks": 299047
+    },
+    {
+      "blocks": 148,
+      "phases": 192,
+      "mean_us": 231.5861384073893,
+      "max_ticks": 447990
+    },
+    {
+      "blocks": 148,
+      "phases": 256,
+      "mean_us": 307.6106707255046,
+      "max_ticks": 596851
+    },
+    {
+      "blocks": 296,
+      "phases": 0,
+      "mean_us": 6.426666676998138,
+      "max_ticks": 591
+    },
+    {
+      "blocks": 296,
+      "phases": 64,
+      "mean_us": 79.54986890157063,
+      "max_ticks": 151966
+    },
+    {
+      "blocks": 296,
+      "phases": 96,
+      "mean_us": 118.11199982961018,
+      "max_ticks": 227861
+    },
+    {
+      "blocks": 296,
+      "phases": 128,
+      "mean_us": 156.73707326253256,
+      "max_ticks": 296391
+    },
+    {
+      "blocks": 296,
+      "phases": 192,
+      "mean_us": 232.7605406443278,
+      "max_ticks": 452508
+    },
+    {
+      "blocks": 296,
+      "phases": 256,
+      "mean_us": 309.4389279683431,
+      "max_ticks": 603934
+    }
+  ],
+  "passed": true
+}

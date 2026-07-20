@@ -80,7 +80,7 @@ full paired grid improves 1.05554×. `nb` = block size.
 | 60×1024  | ✗ (S15) | ✗ (S4) | **✓** (S15, 1.99×; S21 subtile excluded: 1.055× isolated/0.977× grid) | ✗ | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
+| 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ cooperative six-path bound (S37, best 0.376×) | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
 | 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
 | 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
 | 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
@@ -252,6 +252,39 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 37: exp 040 cooperative `1x4096` → EXHAUSTED
+
+The frozen `#888636` baseline measured 1528.456us, setting a 764.228us 2x
+threshold. Its prior constituent profile was 1393.0us (91.1%) in one vendor
+factorization, 74.6us output staging, 57.4us cleanup, and about 4.6us setup.
+The cooperative hardware gate did not kill the premise: 148 B200 CTAs paid
+231.586us for 192 grid rendezvous, leaving nominal room below the target.
+
+Six correct active cuSOLVER-free architectures were then measured. Tile-32 V1
+ran in 4112.25us; tile-64 V2 in 6944.30us; inverse-plus-MMA panel V3 in
+4804.90us; residency-saturated V4 in **4066.43us**; left-looking V5 in
+18040.50us; and rank-128 superpanel V6 in 4838.74us. Every final path passed
+the dense checker with `_COOP4096_HITS=1`, residual 1.01--2.46/20, and left
+`2x4096` at parity. No auxiliary/concurrent queue API was used.
+
+An instrumented V1 measured the single cooperative launch internally with the
+B200 nanosecond global timer: **837.12us diagonal + 1016.96us panel +
+2142.08us trailing + 23.49us clear = 4019.65us**. These constituents explain
+the rejects: tile 64 lengthened/spilled the panel chain; inverse construction
+cost more than tensor-core application saved; extra residency did not move
+throughput; left-looking depth loops collapsed parallelism; and rank-128
+consolidation lost efficiency despite less C traffic.
+
+Best custom latency remained 2.657x slower than ranked and 5.321x above the 2x
+threshold. `1x4096` is therefore boundedly EXHAUSTED, root `submission.py`
+remains exact `#888636`, and no Popcorn slot was spent. Because the same
+mechanism cannot profitably transfer to `2x4096`, the user-directed three-shape
+campaign explicitly revises its remaining picks to `1024x64` and `256x128`,
+retaining achieved `4096x32` as shape one.
+
+Evidence: `experiments/040-cooperative-1x4096/` and
+`docs/goal-exp040-cooperative-1x4096.md`.
 
 ## 2026-07-20 — Session 36: exp 039 `4096x32` CUDA warp kernel → 2.269x, ranked #888636
 

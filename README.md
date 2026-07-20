@@ -135,6 +135,15 @@ popcorn submissions                                # view your entries
   parity, and improved geomean 1.05554×. Popcorn test `#888631` passed 17/17;
   the ranked result improves `#888352` by **5.704% public / 12.047% secret**.
   See `experiments/039-cuda-n32/`.
+- **Experiment 040 — `1×4096` boundedly exhausted:** six correct active
+  cuSOLVER-free cooperative architectures measured 0.085–0.376× versus the
+  ranked vendor path; best was 4066.4us versus 1530.7us. Device-clock V1
+  constituents were 837.1us diagonal, 1017.0us panel, 2142.1us trailing
+  update, and 23.5us cleanup. Tile 64, tensor-core inverse panels, occupancy
+  saturation, left-looking products, and rank-128 superpanels all lost. No
+  root-source change or Popcorn submission was made. The remaining campaign
+  picks are revised to `1024×64` and `256×128`. See
+  `experiments/040-cooperative-1x4096/`.
 - **Ranked submission `#883174`** (exps 029+030 — superseded by exps 032+033):
   `done`, public
   geomean **1084.4572420163716us** and secret **1083.720390333199us**
