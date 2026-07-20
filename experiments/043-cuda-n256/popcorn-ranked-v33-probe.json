@@ -1,0 +1,19 @@
+{
+  "submission_id": 890008,
+  "source_sha256": "4c6f66158da25c760db8ace162c523205ac2c3ad5b47d5cdc2c5012a9d6d08b6",
+  "status": "failed",
+  "job_error": "secret validation failed on B200; submission will not appear on the leaderboard",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0008230220100714838
+  },
+  "secret": {
+    "test_passed": false,
+    "score_seconds": null,
+    "start_time": "2026-07-20T10:51:22.264719Z",
+    "end_time": "2026-07-20T10:57:22.345719Z"
+  },
+  "verdict": "compile-timeout frontier; superseded by V35"
+}

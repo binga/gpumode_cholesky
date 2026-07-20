@@ -63,13 +63,12 @@ Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 - **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
 - **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
 
-Current adopted source: **`#889994` = 852.746μs public / 847.396μs secret
-(Session 40, exp 044)**. Previously: **`#888996` = 916.5768129471865μs public /
-863.8500740634134μs secret** (Session 39). `#888867` remains the best public
-score at 899.124686138768μs; `#888996` is adopted because its same-process full
-grid improves 1.04787x and its secret score improves 4.812%. Experiments 039,
-041, and 042 replace all three campaign shapes with cuSOLVER-free CUDA kernels;
-every stage-specific control exceeds 2x.
+Current adopted source: **`#890037` = 825.4657219594694μs public /
+824.9085045342571μs secret** (Session 41, exp 043). It improves `#888996` by
+9.940% public / 4.508% secret and supersedes exp 044's `#889994` score. The
+non-overlapping exp 043 + exp 044 integration improved the paired grid 1.0130x,
+but official test `#890068` hit the six-minute compile limit; it was not ranked,
+and the root source remains exact `#890037`.
 `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
@@ -77,7 +76,7 @@ every stage-specific control exceeds 2x.
 | 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
-| 64×256   | ✗ (S15) | TBD | **✓** (S21, panel-inner 64×64, 1.047× vs S20) | TBD | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (in-path S15) |
+| 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -344,6 +343,49 @@ the obvious lever if 16384 is ever to be unlocked. (3) `_scaled_mm` MX for the
 `1×8192` path (still cuSOLVER) is untried.
 
 ---
+
+## 2026-07-20 — Session 41: exp 043 `64x256` packed CUDA/WMMA → 2.018x, ranked #890037
+
+Exact ranked control `#888996` spent 219.0us wall / 195.0us device across 30
+operations at `64x256`: 105.96us diagonal micros, 55.14us panel work, 8.21us
+trailing, 8.80us copies, ~15.31us finite/output bookkeeping, and 24.0us gaps.
+This was a serialized launch/dependency problem, not a bandwidth or FLOP floor.
+
+The winning design assigns one matrix to one 256-thread CTA. Lower 16x16 tiles
+are packed in shared memory; diagonal and panel phases stay FP32, while dense
+trailing updates use TF32 WMMA. A pivot-relative detector restages difficult
+inputs and retries with scalar FP32 trailing updates. The best instrumented
+precursor split 109.70us device into 12.19us staging, 50.72us diagonal, 11.04us
+panel, 25.57us trailing, and 9.70us output.
+
+The architecture ladder exposed two independent problems. V18 crossed 2x at
+224.11 -> 110.32us but failed spectrum/low-rank. Manual TF32x3 repaired
+numerics, and adaptive selection restored dense speed. The resulting V28-V34
+sources then hit Popcorn's exact six-minute cold-compile limit. User-directed
+public probe `#890008` validated the opportunity at **823.022us**, 10.21% below
+`#888996`, but secret validation timed out. V35 removed the compile-heavy WMMA
+accurate retry and its scratch panels, replacing them with scalar FP32.
+
+V35 passed all six families on the active backend with zero fallbacks; worst
+residual was dense 17.9/20, while spectrum/low-rank/row-scaled improved to
+0.00858/0.00828/0.00739. The full paired grid passed 15/15: target
+**225.192 -> 111.608us = 2.0177x**, CI [2.0137,2.0216], other shapes at
+parity, aggregate **1.047717x CI [1.046994,1.048440]**. Popcorn test `#890035`
+passed 17/17 in 85.3s.
+
+Ranked `#890037` completed all public/secret stages at **825.466us public /
+824.909us secret**, improving `#888996` by **9.940% / 4.508%**. Exact ranked
+SHA-256: `bc4536c700c95ba34f268d5a7aa6cc200ba9c403b0000ecc67abb15ec262fcb6`.
+Evidence: `experiments/043-cuda-n256/`, `audit/exp043-v35-result.json`, test
+`#890035`, and ranked `#890037`.
+
+Post-rank integration with exp 044 passed the exact 15-shape paired grid at
+**1.013042x CI [1.012580,1.013503]** versus `#890037`, with 1.1003x at
+`640x512`, 1.1079x at `60x1024`, and parity at `64x256`. Every family checker
+passed; inherited safety fallbacks were unchanged. Official test `#890068`
+then failed at exactly 360 seconds from combined cold-compile cost. No ranked
+submission was made, and `submission.py` was restored byte-for-byte to
+successful ranked source `#890037`.
 
 ## 2026-07-20 — Session 39: exp 042 `256x128` blocked CUDA → 2.216x, ranked #888996
 

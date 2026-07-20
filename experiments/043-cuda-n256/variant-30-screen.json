@@ -1,0 +1,14 @@
+{
+  "mode": "benchmark",
+  "geomean_us": 115.6550401449203,
+  "shapes": [
+    {
+      "spec": "batch=64 n=256 case=dense",
+      "batch": 64,
+      "n": 256,
+      "passed": true,
+      "mean_us": 115.65504014492035,
+      "best_us": 112.83200234174728
+    }
+  ]
+}

@@ -479,11 +479,11 @@ def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 # Experiment 043: cuSOLVER-free packed-lower CUDA Cholesky for 64x256.
 #
-# One CTA owns each matrix, but the rank-16 trailing Schur tiles use warp-level
-# TF32 tensor-core MMA instead of scalar shared-memory dot products. Lower
-# 16x16 tiles are packed contiguously in shared memory (139,264 bytes), which
-# is both WMMA-loadable and within the B200 per-block budget. Diagonal and panel
-# arithmetic remain FP32.
+# A cooperative four-CTA group owns each matrix. The live factor stays in the
+# output/L2; only the current 32x32 diagonal block is staged in local shared
+# memory. Grid rendezvous connect diagonal, panel, and trailing phases without
+# distributed-shared-memory traffic or extra launches. The 256-block grid is
+# sized to fit cooperatively at two 256-thread CTAs per B200 SM.
 # ---------------------------------------------------------------------------
 _CUDA256_HITS = 0
 _CUDA256_ERROR = None
@@ -492,474 +492,169 @@ _CUDA256 = None
 _CUDA256_SOURCE = r"""
 #include <torch/extension.h>
 #include <cuda_runtime.h>
-#include <mma.h>
+#include <cooperative_groups.h>
 
 constexpr int N256 = 256;
-constexpr int BK256 = 16;
+constexpr int BK256 = 32;
+constexpr int DIAG_STRIDE256 = 33;
 constexpr int THREADS256 = 256;
-constexpr int WARPS256 = THREADS256 / 32;
-constexpr int TILE_STRIDE256 = 20;
-constexpr int TILE_VALUES256 = BK256 * TILE_STRIDE256;
-constexpr int TILES_PER_DIM256 = N256 / BK256;
-constexpr int TRI_TILES256 = TILES_PER_DIM256 * (TILES_PER_DIM256 + 1) / 2;
-constexpr int SHARED_VALUES256 =
-    TRI_TILES256 * TILE_VALUES256;
-constexpr int SHARED_BYTES256 = SHARED_VALUES256 * sizeof(float);
+constexpr int BLOCKS_PER_MATRIX256 = 4;
 
-__device__ __forceinline__ int tile_index256(int row, int column) {
-    const int tile_row = row >> 4;
-    const int tile_column = column >> 4;
-    const int tile = ((tile_row * (tile_row + 1)) >> 1) + tile_column;
-    return tile * TILE_VALUES256 + (row & 15) * TILE_STRIDE256 + (column & 15);
-}
-
-__device__ __noinline__ void accurate_trailing256(
-        float* tile,
-        int block,
-        int first_tile,
-        int remaining_tiles) {
-    const int tid = threadIdx.x;
-    const int first_row = first_tile << 4;
-    const int remaining = remaining_tiles << 4;
-    const int pair_count = remaining * (remaining + 1) / 2;
-    for (int pair = tid; pair < pair_count; pair += THREADS256) {
-        const int relative_row = (int)(
-            (sqrtf(8.0f * (float)pair + 1.0f) - 1.0f) * 0.5f);
-        const int relative_column =
-            pair - relative_row * (relative_row + 1) / 2;
-        const int row = first_row + relative_row;
-        const int column = first_row + relative_column;
-        const int output_index = tile_index256(row, column);
-        float value = tile[output_index];
-        #pragma unroll 1
-        for (int depth = 0; depth < BK256; ++depth) {
-            value = fmaf(
-                -tile[tile_index256(row, block + depth)],
-                tile[tile_index256(column, block + depth)],
-                value);
-        }
-        tile[output_index] = value;
-    }
-    __syncthreads();
-}
-
-__device__ __noinline__ void factor256_accurate(
-        float* tile,
-        float* reciprocal0,
-        float* reciprocal1,
-        float* inverse_diag,
-        float* pivot0,
-        float* pivot1) {
+__global__ __launch_bounds__(THREADS256, 2)
+void cholesky256_cooperative4(const float* input, float* output) {
+    namespace cg = cooperative_groups;
+    cg::grid_group grid = cg::this_grid();
     const int tid = threadIdx.x;
     const int warp = tid >> 5;
     const int lane = tid & 31;
+    const int rank = (int)blockIdx.x & (BLOCKS_PER_MATRIX256 - 1);
+    const int matrix = (int)blockIdx.x / BLOCKS_PER_MATRIX256;
+    const size_t base = (size_t)matrix * N256 * N256;
+    __shared__ float diagonal[BK256 * DIAG_STRIDE256];
+    __shared__ float reciprocal;
+
+    constexpr int OWNED_ROWS = N256 / BLOCKS_PER_MATRIX256;
+    for (int linear = tid; linear < OWNED_ROWS * N256; linear += THREADS256) {
+        const int row = rank + BLOCKS_PER_MATRIX256 * (linear >> 8);
+        const int column = linear & 255;
+        const size_t offset = base + (size_t)row * N256 + column;
+        output[offset] = column <= row ? input[offset] : 0.0f;
+    }
+    grid.sync();
 
     #pragma unroll 1
     for (int block = 0; block < N256; block += BK256) {
         const int block_end = block + BK256;
-        const int diagonal_row = lane;
-        float diagonal_values[BK256];
-        if (warp == 0) {
-            #pragma unroll 1
-            for (int column = 0; column < BK256; ++column) {
-                diagonal_values[column] =
-                    diagonal_row < BK256 && column <= diagonal_row
-                    ? tile[tile_index256(
-                          block + diagonal_row, block + column)]
-                    : 0.0f;
+
+        if (rank == 0) {
+            for (int linear = tid; linear < BK256 * BK256;
+                 linear += THREADS256) {
+                const int row = linear >> 5;
+                const int column = linear & 31;
+                diagonal[row * DIAG_STRIDE256 + column] =
+                    output[base + (size_t)(block + row) * N256 + block + column];
             }
+            __syncthreads();
 
-            #pragma unroll 1
-            for (int iteration = 0; iteration < BK256 / 2; ++iteration) {
-                const int k = 2 * iteration;
-                const int q = k + 1;
-                if (diagonal_row == k) {
-                    *reciprocal0 = rsqrtf(diagonal_values[k]);
-                    inverse_diag[k] = *reciprocal0;
+            #pragma unroll
+            for (int local = 0; local < BK256; ++local) {
+                if (tid == 0) {
+                    reciprocal = rsqrtf(diagonal[local * DIAG_STRIDE256 + local]);
+                    diagonal[local * DIAG_STRIDE256 + local] *= reciprocal;
+                    // The upper triangle is scratch and is cleared at exit.
+                    output[base + N256 - BK256 + local] = reciprocal;
                 }
-                __syncwarp();
+                __syncthreads();
 
-                if (diagonal_row < BK256 && diagonal_row >= k) {
-                    diagonal_values[k] *= *reciprocal0;
-                    pivot0[diagonal_row] = diagonal_values[k];
+                const int panel_row = local + 1 + tid;
+                if (panel_row < BK256) {
+                    diagonal[panel_row * DIAG_STRIDE256 + local] *= reciprocal;
                 }
-                if (diagonal_row == q) {
-                    diagonal_values[q] = fmaf(
-                        -diagonal_values[k], diagonal_values[k],
-                        diagonal_values[q]);
-                    *reciprocal1 = rsqrtf(diagonal_values[q]);
-                    inverse_diag[q] = *reciprocal1;
-                }
-                __syncwarp();
+                __syncthreads();
 
-                if (diagonal_row < BK256 && diagonal_row >= q) {
-                    if (diagonal_row != q) {
-                        diagonal_values[q] = fmaf(
-                            -diagonal_values[k], pivot0[q],
-                            diagonal_values[q]);
-                    }
-                    diagonal_values[q] *= *reciprocal1;
-                    pivot1[diagonal_row] = diagonal_values[q];
-                }
-                __syncwarp();
-
-                if (diagonal_row < BK256 && diagonal_row > q) {
-                    const float scale0 = diagonal_values[k];
-                    const float scale1 = diagonal_values[q];
-                    #pragma unroll 1
-                    for (int column = q + 1; column < BK256; ++column) {
-                        if (column <= diagonal_row) {
-                            float value = fmaf(
-                                -scale0, pivot0[column],
-                                diagonal_values[column]);
-                            diagonal_values[column] = fmaf(
-                                -scale1, pivot1[column], value);
-                        }
+                for (int linear = tid; linear < BK256 * BK256;
+                     linear += THREADS256) {
+                    const int row = linear >> 5;
+                    const int column = linear & 31;
+                    if (row > local && column > local && column <= row) {
+                        const int offset = row * DIAG_STRIDE256 + column;
+                        diagonal[offset] = fmaf(
+                            -diagonal[row * DIAG_STRIDE256 + local],
+                            diagonal[column * DIAG_STRIDE256 + local],
+                            diagonal[offset]);
                     }
                 }
-                __syncwarp();
+                __syncthreads();
             }
 
-            if (diagonal_row < BK256) {
-                #pragma unroll 1
-                for (int column = 0; column <= diagonal_row; ++column) {
-                    tile[tile_index256(
-                        block + diagonal_row, block + column)] =
-                        diagonal_values[column];
+            for (int linear = tid; linear < BK256 * BK256;
+                 linear += THREADS256) {
+                const int row = linear >> 5;
+                const int column = linear & 31;
+                if (column <= row) {
+                    output[base + (size_t)(block + row) * N256 + block + column] =
+                        diagonal[row * DIAG_STRIDE256 + column];
                 }
             }
         }
-        __syncthreads();
+        grid.sync();
 
-        const int row = block_end + tid;
+        const int row = block_end + rank + BLOCKS_PER_MATRIX256 * tid;
         if (row < N256) {
-            const int row_block_base = tile_index256(row, block);
-            #pragma unroll 1
+            const size_t row_base = base + (size_t)row * N256;
+            #pragma unroll
             for (int local = 0; local < BK256; ++local) {
                 const int column = block + local;
-                float value = tile[row_block_base + local];
-                const int column_block_base = tile_index256(column, block);
-                #pragma unroll 1
+                float value = output[row_base + column];
+                #pragma unroll
                 for (int prior = 0; prior < local; ++prior) {
                     value = fmaf(
-                        -tile[row_block_base + prior],
-                        tile[column_block_base + prior], value);
+                        -output[row_base + block + prior],
+                        output[base + (size_t)column * N256 + block + prior],
+                        value);
                 }
-                tile[row_block_base + local] = value * inverse_diag[local];
+                output[row_base + column] =
+                    value * output[base + N256 - BK256 + local];
             }
         }
-        __syncthreads();
+        grid.sync();
 
-        const int first_tile = block_end >> 4;
-        const int remaining_tiles = TILES_PER_DIM256 - first_tile;
-        accurate_trailing256(tile, block, first_tile, remaining_tiles);
-    }
-}
-
-__global__ __launch_bounds__(THREADS256, 1)
-void cholesky256_wmma16(const float* input, float* output) {
-    namespace wmma = nvcuda::wmma;
-    const int tid = threadIdx.x;
-    const int warp = tid >> 5;
-    const int lane = tid & 31;
-    const size_t base = (size_t)blockIdx.x * N256 * N256;
-    extern __shared__ float tile[];
-    __shared__ float reciprocal0;
-    __shared__ float reciprocal1;
-    __shared__ float inverse_diag[BK256];
-    __shared__ float pivot0[BK256];
-    __shared__ float pivot1[BK256];
-    __shared__ int accurate_required;
-
-    int staging_tile = 0;
-    #pragma unroll 1
-    for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-        for (int tile_column = 0; tile_column <= tile_row;
-             ++tile_column, ++staging_tile) {
-            if (tid < BK256 * BK256) {
-                const int local_row = tid >> 4;
-                const int local_column = tid & 15;
-                const int row = (tile_row << 4) + local_row;
-                const int column = (tile_column << 4) + local_column;
-                tile[staging_tile * TILE_VALUES256
-                     + local_row * TILE_STRIDE256 + local_column] =
-                    (tile_row != tile_column || local_column <= local_row)
-                    ? input[base + (size_t)row * N256 + column]
-                    : 0.0f;
-            }
-        }
-    }
-    __syncthreads();
-
-    float reference_diagonal = 0.0f;
-    if (warp == 0) {
-        for (int diagonal = lane; diagonal < N256; diagonal += 32) {
-            reference_diagonal = fmaxf(
-                reference_diagonal,
-                tile[tile_index256(diagonal, diagonal)]);
-        }
-        #pragma unroll
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            reference_diagonal = fmaxf(
-                reference_diagonal,
-                __shfl_down_sync(0xffffffffu, reference_diagonal, offset));
-        }
-        reference_diagonal = __shfl_sync(
-            0xffffffffu, reference_diagonal, 0);
-        if (lane == 0) accurate_required = 0;
-        __syncwarp();
-    }
-
-    {
-        #pragma unroll 1
-        for (int block = 0; block < N256; block += BK256) {
-            const int block_end = block + BK256;
-            const int diagonal_row = lane;
-            float diagonal_values[BK256];
-            if (warp == 0) {
+        for (int trailing_row = block_end + rank + BLOCKS_PER_MATRIX256 * warp;
+             trailing_row < N256;
+             trailing_row += BLOCKS_PER_MATRIX256 * (THREADS256 / 32)) {
+            const size_t row_base = base + (size_t)trailing_row * N256;
+            for (int column = block_end + lane;
+                 column <= trailing_row;
+                 column += 32) {
+                const size_t column_base = base + (size_t)column * N256;
+                float update = 0.0f;
                 #pragma unroll
-                for (int column = 0; column < BK256; ++column) {
-                    diagonal_values[column] =
-                        diagonal_row < BK256 && column <= diagonal_row
-                        ? tile[tile_index256(
-                              block + diagonal_row, block + column)]
-                        : 0.0f;
+                for (int k = 0; k < BK256; ++k) {
+                    update = fmaf(
+                        output[row_base + block + k],
+                        output[column_base + block + k],
+                        update);
                 }
-
-                #pragma unroll
-                for (int iteration = 0; iteration < BK256 / 2; ++iteration) {
-                    const int k = 2 * iteration;
-                    const int q = k + 1;
-                    if (diagonal_row == k) {
-                        if (!(diagonal_values[k]
-                                > reference_diagonal * 1.0e-2f)) {
-                            accurate_required = 1;
-                        }
-                        reciprocal0 = rsqrtf(diagonal_values[k]);
-                        inverse_diag[k] = reciprocal0;
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row >= k) {
-                        diagonal_values[k] *= reciprocal0;
-                        pivot0[diagonal_row] = diagonal_values[k];
-                    }
-                    if (diagonal_row == q) {
-                        diagonal_values[q] = fmaf(
-                            -diagonal_values[k], diagonal_values[k],
-                            diagonal_values[q]);
-                        if (!(diagonal_values[q]
-                                > reference_diagonal * 1.0e-2f)) {
-                            accurate_required = 1;
-                        }
-                        reciprocal1 = rsqrtf(diagonal_values[q]);
-                        inverse_diag[q] = reciprocal1;
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row >= q) {
-                        if (diagonal_row != q) {
-                            diagonal_values[q] = fmaf(
-                                -diagonal_values[k], pivot0[q],
-                                diagonal_values[q]);
-                        }
-                        diagonal_values[q] *= reciprocal1;
-                        pivot1[diagonal_row] = diagonal_values[q];
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row > q) {
-                        const float scale0 = diagonal_values[k];
-                        const float scale1 = diagonal_values[q];
-                        #pragma unroll
-                        for (int column = q + 1; column < BK256; ++column) {
-                            if (column <= diagonal_row) {
-                                float value = fmaf(
-                                    -scale0, pivot0[column],
-                                    diagonal_values[column]);
-                                diagonal_values[column] = fmaf(
-                                    -scale1, pivot1[column], value);
-                            }
-                        }
-                    }
-                    __syncwarp();
-                }
-
-                if (diagonal_row < BK256) {
-                    #pragma unroll
-                    for (int column = 0; column <= diagonal_row; ++column) {
-                        tile[tile_index256(
-                            block + diagonal_row, block + column)] =
-                            diagonal_values[column];
-                    }
-                }
+                output[row_base + column] -= update;
             }
-            __syncthreads();
-
-            const int row = block_end + tid;
-            if (row < N256) {
-                const int row_block_base = tile_index256(row, block);
-                #pragma unroll
-                for (int local = 0; local < BK256; ++local) {
-                    const int column = block + local;
-                    float value = tile[row_block_base + local];
-                    const int column_block_base = tile_index256(column, block);
-                    #pragma unroll
-                    for (int prior = 0; prior < local; ++prior) {
-                        value = fmaf(
-                            -tile[row_block_base + prior],
-                            tile[column_block_base + prior],
-                            value);
-                    }
-                    tile[row_block_base + local] =
-                        value * inverse_diag[local];
-                }
-            }
-            __syncthreads();
-
-            const int first_tile = block_end >> 4;
-            const int remaining_tiles = TILES_PER_DIM256 - first_tile;
-            const int pair_count =
-                remaining_tiles * (remaining_tiles + 1) / 2;
-            for (int pair = warp; pair < pair_count; pair += WARPS256) {
-                const int relative_row = (int)(
-                    (sqrtf(8.0f * (float)pair + 1.0f) - 1.0f) * 0.5f);
-                const int relative_column =
-                    pair - relative_row * (relative_row + 1) / 2;
-                const int tile_row = first_tile + relative_row;
-                const int tile_column = first_tile + relative_column;
-                float* c_ptr = tile + tile_index256(
-                    tile_row << 4, tile_column << 4);
-                const float* a_ptr = tile + tile_index256(
-                    tile_row << 4, block);
-                const float* b_ptr = tile + tile_index256(
-                    tile_column << 4, block);
-                wmma::fragment<
-                    wmma::accumulator, 16, 16, 8, float> c_fragment;
-                wmma::load_matrix_sync(
-                    c_fragment, c_ptr,
-                    TILE_STRIDE256, wmma::mem_row_major);
-                #pragma unroll
-                for (int k = 0; k < BK256; k += 8) {
-                    wmma::fragment<
-                        wmma::matrix_a, 16, 16, 8,
-                        wmma::precision::tf32,
-                        wmma::row_major> a_fragment;
-                    wmma::fragment<
-                        wmma::matrix_b, 16, 16, 8,
-                        wmma::precision::tf32,
-                        wmma::col_major> b_fragment;
-                    wmma::load_matrix_sync(
-                        a_fragment, a_ptr + k, TILE_STRIDE256);
-                    wmma::load_matrix_sync(
-                        b_fragment, b_ptr + k, TILE_STRIDE256);
-                    #pragma unroll
-                    for (int element = 0;
-                         element < a_fragment.num_elements; ++element) {
-                        a_fragment.x[element] = -a_fragment.x[element];
-                    }
-                    wmma::mma_sync(
-                        c_fragment, a_fragment, b_fragment, c_fragment);
-                }
-                wmma::store_matrix_sync(
-                    c_ptr, c_fragment,
-                    TILE_STRIDE256, wmma::mem_row_major);
-            }
-            __syncthreads();
         }
+        grid.sync();
     }
 
-    if (accurate_required) {
-        int restaging_tile = 0;
-        #pragma unroll 1
-        for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-            for (int tile_column = 0; tile_column <= tile_row;
-                 ++tile_column, ++restaging_tile) {
-                if (tid < BK256 * BK256) {
-                    const int local_row = tid >> 4;
-                    const int local_column = tid & 15;
-                    const int row = (tile_row << 4) + local_row;
-                    const int column = (tile_column << 4) + local_column;
-                    tile[restaging_tile * TILE_VALUES256
-                         + local_row * TILE_STRIDE256 + local_column] =
-                        (tile_row != tile_column || local_column <= local_row)
-                        ? input[base + (size_t)row * N256 + column]
-                        : 0.0f;
-                }
-            }
-        }
-        __syncthreads();
-        factor256_accurate(
-            tile,
-            &reciprocal0,
-            &reciprocal1,
-            inverse_diag,
-            pivot0,
-            pivot1);
-    }
-
-    int output_tile = 0;
-    #pragma unroll 1
-    for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-        for (int tile_column = 0; tile_column <= tile_row;
-             ++tile_column, ++output_tile) {
-            if (tid < BK256 * BK256) {
-                const int local_row = tid >> 4;
-                const int local_column = tid & 15;
-                const int row = (tile_row << 4) + local_row;
-                const int column = (tile_column << 4) + local_column;
-                if (tile_row == tile_column) {
-                    output[base + (size_t)row * N256 + column] =
-                        local_column <= local_row
-                        ? tile[output_tile * TILE_VALUES256
-                               + local_row * TILE_STRIDE256 + local_column]
-                        : 0.0f;
-                } else {
-                    output[base + (size_t)row * N256 + column] =
-                        tile[output_tile * TILE_VALUES256
-                             + local_row * TILE_STRIDE256 + local_column];
-                    const int upper_row = (tile_column << 4) + local_row;
-                    const int upper_column = (tile_row << 4) + local_column;
-                    output[base + (size_t)upper_row * N256 + upper_column] = 0.0f;
-                }
-            }
-        }
+    if (rank == 0 && tid < BK256) {
+        output[base + N256 - BK256 + tid] = 0.0f;
     }
 }
 
 void chol256_launch(torch::Tensor input, torch::Tensor output) {
     const int batch = (int)input.size(0);
-    static bool configured = false;
-    if (!configured) {
-        cudaError_t attr = cudaFuncSetAttribute(
-            cholesky256_wmma16,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            SHARED_BYTES256);
-        TORCH_CHECK(attr == cudaSuccess, cudaGetErrorString(attr));
-        configured = true;
-    }
-    cholesky256_wmma16<<<dim3(batch), dim3(THREADS256), SHARED_BYTES256>>>(
-        input.data_ptr<float>(), output.data_ptr<float>());
-    cudaError_t status = cudaGetLastError();
+    cudaLaunchConfig_t config = {};
+    config.gridDim = dim3(batch * BLOCKS_PER_MATRIX256);
+    config.blockDim = dim3(THREADS256);
+    cudaLaunchAttribute attribute = {};
+    attribute.id = cudaLaunchAttributeCooperative;
+    attribute.val.cooperative = 1;
+    config.attrs = &attribute;
+    config.numAttrs = 1;
+    cudaError_t status = cudaLaunchKernelEx(
+        &config,
+        cholesky256_cooperative4,
+        input.data_ptr<float>(),
+        output.data_ptr<float>());
     TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
 }
 """
 
-def _load_cuda256() -> None:
-    global _CUDA256, _CUDA256_ERROR
-    if _CUDA256 is not None or _CUDA256_ERROR is not None:
-        return
-    if not torch.cuda.is_available():
-        return
+if torch.cuda.is_available():
     try:
         from torch.utils.cpp_extension import load_inline
 
         _CUDA256 = load_inline(
-            name="chol256_exp043_v35_scalar_accurate",
+            name="chol256_exp043_v6_coop4_b32_t256",
             cpp_sources="void chol256_launch(torch::Tensor, torch::Tensor);",
             cuda_sources=_CUDA256_SOURCE,
             functions=["chol256_launch"],
-            extra_cuda_cflags=["-O2"],
+            extra_cuda_cflags=["-O3"],
             verbose=False,
         )
     except Exception as exc:
@@ -2952,13 +2647,12 @@ def custom_kernel(data: input_t) -> output_t:
 
     if (
         is_f32_cuda
+        and _CUDA256 is not None
         and batch == 64
         and n == 256
         and data.is_contiguous()
     ):
-        _load_cuda256()
-        if _CUDA256 is not None:
-            return _cuda_cholesky256(data)
+        return _cuda_cholesky256(data)
 
     # Experiment 015 round 4: two-level blocked tensor-core potrf with
     # per-shape graph replay for the mid shapes. On any numerical failure

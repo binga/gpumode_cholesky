@@ -1,0 +1,58 @@
+{
+  "mode": "pairedgrid",
+  "byte_identical": false,
+  "shapes": [
+    {
+      "n": 256,
+      "batch": 64,
+      "spec": "batch=64 n=256 case=dense",
+      "ratio_median": 0.1389572276888758,
+      "ratio_ci95": [
+        0.13849426857418906,
+        0.13936553173016028
+      ],
+      "ratio_mad": 0.00036649925936069194,
+      "ratios": [
+        0.13816,
+        0.13896,
+        0.13849,
+        0.13892,
+        0.13932,
+        0.13885,
+        0.13937,
+        0.13948,
+        0.13924
+      ],
+      "baseline_us": 234.97599363327026,
+      "candidate_us": 1690.2799606323242,
+      "order_spread_median": 0.003941018937261405,
+      "ratio_first_half": 0.13870582963085792,
+      "ratio_second_half": 0.1393237269482365,
+      "repeats": 9,
+      "iters_per_block": 15,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=3.91; batch=64; n=256",
+      "candidate_msg": "scaled_reconstruction_residual=0.00656; batch=64; n=256",
+      "baseline_counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "candidate_counters": {
+        "_CUDA256_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    }
+  ],
+  "geomean_ratio": 0.1389572276888758,
+  "geomean_ci95": [
+    0.13852219140729702,
+    0.13939363022494683
+  ],
+  "geomean_ci_excludes_1": true,
+  "worst_shape_deviation": 0.8610427723111242,
+  "worst_order_spread": 0.003941018937261405,
+  "all_shapes_ok": true,
+  "passed": true
+}

@@ -502,8 +502,9 @@ constexpr int TILE_STRIDE256 = 20;
 constexpr int TILE_VALUES256 = BK256 * TILE_STRIDE256;
 constexpr int TILES_PER_DIM256 = N256 / BK256;
 constexpr int TRI_TILES256 = TILES_PER_DIM256 * (TILES_PER_DIM256 + 1) / 2;
+constexpr int SCRATCH_TILES256 = 2 * TILES_PER_DIM256;
 constexpr int SHARED_VALUES256 =
-    TRI_TILES256 * TILE_VALUES256;
+    (TRI_TILES256 + SCRATCH_TILES256) * TILE_VALUES256;
 constexpr int SHARED_BYTES256 = SHARED_VALUES256 * sizeof(float);
 
 __device__ __forceinline__ int tile_index256(int row, int column) {
@@ -513,32 +514,92 @@ __device__ __forceinline__ int tile_index256(int row, int column) {
     return tile * TILE_VALUES256 + (row & 15) * TILE_STRIDE256 + (column & 15);
 }
 
+__device__ __forceinline__ float round_tf32_256(float value) {
+    unsigned int bits = __float_as_uint(value);
+    return __uint_as_float((bits + 0x00001000u) & 0xffffe000u);
+}
+
 __device__ __noinline__ void accurate_trailing256(
         float* tile,
         int block,
         int first_tile,
         int remaining_tiles) {
+    namespace wmma = nvcuda::wmma;
     const int tid = threadIdx.x;
-    const int first_row = first_tile << 4;
-    const int remaining = remaining_tiles << 4;
-    const int pair_count = remaining * (remaining + 1) / 2;
-    for (int pair = tid; pair < pair_count; pair += THREADS256) {
+    const int warp = tid >> 5;
+    const int lane = tid & 31;
+    const int pair_count = remaining_tiles * (remaining_tiles + 1) / 2;
+    float* high_panels = tile + TRI_TILES256 * TILE_VALUES256;
+    float* residual_panels =
+        high_panels + TILES_PER_DIM256 * TILE_VALUES256;
+
+    #pragma unroll 1
+    for (int panel_tile = 0; panel_tile < remaining_tiles; ++panel_tile) {
+        const int local_row = tid >> 4;
+        const int depth = tid & 15;
+        const float value = tile[
+            tile_index256((first_tile + panel_tile) << 4, block)
+            + local_row * TILE_STRIDE256 + depth];
+        const float high = round_tf32_256(value);
+        high_panels[panel_tile * TILE_VALUES256
+                    + local_row * TILE_STRIDE256 + depth] = high;
+        residual_panels[panel_tile * TILE_VALUES256
+                        + local_row * TILE_STRIDE256 + depth] =
+            round_tf32_256(value - high);
+    }
+    __syncthreads();
+
+    for (int pair = warp; pair < pair_count; pair += WARPS256) {
         const int relative_row = (int)(
             (sqrtf(8.0f * (float)pair + 1.0f) - 1.0f) * 0.5f);
         const int relative_column =
             pair - relative_row * (relative_row + 1) / 2;
-        const int row = first_row + relative_row;
-        const int column = first_row + relative_column;
-        const int output_index = tile_index256(row, column);
-        float value = tile[output_index];
-        #pragma unroll 1
-        for (int depth = 0; depth < BK256; ++depth) {
-            value = fmaf(
-                -tile[tile_index256(row, block + depth)],
-                tile[tile_index256(column, block + depth)],
-                value);
+        const int tile_row = first_tile + relative_row;
+        const int tile_column = first_tile + relative_column;
+        float* c_ptr = tile + tile_index256(tile_row << 4, tile_column << 4);
+        const float* high_a =
+            high_panels + relative_row * TILE_VALUES256;
+        const float* high_b =
+            high_panels + relative_column * TILE_VALUES256;
+        const float* residual_a =
+            residual_panels + relative_row * TILE_VALUES256;
+        const float* residual_b =
+            residual_panels + relative_column * TILE_VALUES256;
+
+        wmma::fragment<wmma::accumulator, 16, 16, 8, float> c_fragment;
+        wmma::load_matrix_sync(
+            c_fragment, c_ptr, TILE_STRIDE256, wmma::mem_row_major);
+        #pragma unroll
+        for (int k = 0; k < BK256; k += 8) {
+            wmma::fragment<
+                wmma::matrix_a, 16, 16, 8,
+                wmma::precision::tf32, wmma::row_major> a_high;
+            wmma::fragment<
+                wmma::matrix_b, 16, 16, 8,
+                wmma::precision::tf32, wmma::col_major> b_high;
+            wmma::fragment<
+                wmma::matrix_a, 16, 16, 8,
+                wmma::precision::tf32, wmma::row_major> a_residual;
+            wmma::fragment<
+                wmma::matrix_b, 16, 16, 8,
+                wmma::precision::tf32, wmma::col_major> b_residual;
+            wmma::load_matrix_sync(a_high, high_a + k, TILE_STRIDE256);
+            wmma::load_matrix_sync(b_high, high_b + k, TILE_STRIDE256);
+            wmma::load_matrix_sync(
+                a_residual, residual_a + k, TILE_STRIDE256);
+            wmma::load_matrix_sync(
+                b_residual, residual_b + k, TILE_STRIDE256);
+            #pragma unroll
+            for (int element = 0; element < a_high.num_elements; ++element) {
+                a_high.x[element] = -a_high.x[element];
+                a_residual.x[element] = -a_residual.x[element];
+            }
+            wmma::mma_sync(c_fragment, a_high, b_high, c_fragment);
+            wmma::mma_sync(c_fragment, a_high, b_residual, c_fragment);
+            wmma::mma_sync(c_fragment, a_residual, b_high, c_fragment);
         }
-        tile[output_index] = value;
+        wmma::store_matrix_sync(
+            c_ptr, c_fragment, TILE_STRIDE256, wmma::mem_row_major);
     }
     __syncthreads();
 }
@@ -560,7 +621,7 @@ __device__ __noinline__ void factor256_accurate(
         const int diagonal_row = lane;
         float diagonal_values[BK256];
         if (warp == 0) {
-            #pragma unroll 1
+            #pragma unroll
             for (int column = 0; column < BK256; ++column) {
                 diagonal_values[column] =
                     diagonal_row < BK256 && column <= diagonal_row
@@ -569,7 +630,7 @@ __device__ __noinline__ void factor256_accurate(
                     : 0.0f;
             }
 
-            #pragma unroll 1
+            #pragma unroll
             for (int iteration = 0; iteration < BK256 / 2; ++iteration) {
                 const int k = 2 * iteration;
                 const int q = k + 1;
@@ -606,7 +667,7 @@ __device__ __noinline__ void factor256_accurate(
                 if (diagonal_row < BK256 && diagonal_row > q) {
                     const float scale0 = diagonal_values[k];
                     const float scale1 = diagonal_values[q];
-                    #pragma unroll 1
+                    #pragma unroll
                     for (int column = q + 1; column < BK256; ++column) {
                         if (column <= diagonal_row) {
                             float value = fmaf(
@@ -621,7 +682,7 @@ __device__ __noinline__ void factor256_accurate(
             }
 
             if (diagonal_row < BK256) {
-                #pragma unroll 1
+                #pragma unroll
                 for (int column = 0; column <= diagonal_row; ++column) {
                     tile[tile_index256(
                         block + diagonal_row, block + column)] =
@@ -634,12 +695,12 @@ __device__ __noinline__ void factor256_accurate(
         const int row = block_end + tid;
         if (row < N256) {
             const int row_block_base = tile_index256(row, block);
-            #pragma unroll 1
+            #pragma unroll
             for (int local = 0; local < BK256; ++local) {
                 const int column = block + local;
                 float value = tile[row_block_base + local];
                 const int column_block_base = tile_index256(column, block);
-                #pragma unroll 1
+                #pragma unroll
                 for (int prior = 0; prior < local; ++prior) {
                     value = fmaf(
                         -tile[row_block_base + prior],
@@ -955,7 +1016,7 @@ def _load_cuda256() -> None:
         from torch.utils.cpp_extension import load_inline
 
         _CUDA256 = load_inline(
-            name="chol256_exp043_v35_scalar_accurate",
+            name="chol256_exp043_v33_lazy_compile",
             cpp_sources="void chol256_launch(torch::Tensor, torch::Tensor);",
             cuda_sources=_CUDA256_SOURCE,
             functions=["chol256_launch"],

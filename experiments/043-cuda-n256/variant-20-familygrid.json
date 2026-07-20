@@ -1,0 +1,105 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=3.77; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=4.62; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00391; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00658; batch=64; n=256",
+      "active_backend": false,
+      "counters": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0656; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.232; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {
+        "_CUDA256_ERROR": "\"ImportError('/root/.cache/torch_extensions/py311_cu130/chol256_exp043_v20_compensated_tf32x3/chol256_exp043_v20_compensated_tf32x3.so: cannot open shared object file: No such file or directory')\""
+      }
+    }
+  ],
+  "passed": false
+}

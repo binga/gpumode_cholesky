@@ -1,0 +1,91 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=6.75; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "spectrum",
+      "ok": false,
+      "checker_ok": false,
+      "message": "output contains NaN or Inf",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00391; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": false,
+      "message": "output contains NaN or Inf",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=1.67; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.271; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": false
+}

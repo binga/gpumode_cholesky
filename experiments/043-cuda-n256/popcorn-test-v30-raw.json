@@ -1,0 +1,21 @@
+{
+  "done": true,
+  "file_name": "submission.py",
+  "job": {
+    "error": null,
+    "status": "succeeded"
+  },
+  "leaderboard": "cholesky",
+  "runs": [
+    {
+      "end_time": "2026-07-20T10:23:43.346006Z",
+      "mode": "test",
+      "passed": false,
+      "runner": "B200",
+      "score": null,
+      "secret": false,
+      "start_time": "2026-07-20T10:17:43.269914Z"
+    }
+  ],
+  "submission_id": 889940
+}

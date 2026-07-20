@@ -1,0 +1,25 @@
+{
+  "submission_id": 890037,
+  "mode": "leaderboard",
+  "runner": "B200",
+  "status": "succeeded",
+  "source_sha256": "bc4536c700c95ba34f268d5a7aa6cc200ba9c403b0000ecc67abb15ec262fcb6",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0008254657219594694,
+    "geomean_us": 825.4657219594694
+  },
+  "secret": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "score_seconds": 0.0008249085045342571,
+    "geomean_us": 824.9085045342571
+  },
+  "versus_888996": {
+    "public_latency_reduction_fraction": 0.09940366,
+    "secret_latency_reduction_fraction": 0.04507908
+  }
+}

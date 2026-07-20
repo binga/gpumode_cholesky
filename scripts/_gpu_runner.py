@@ -2810,6 +2810,67 @@ def run_n128phase(filter_ns=None):
     return result
 
 
+def run_n256phase(filter_ns=None):
+    """Experiment 043: internal phases of the packed whole-matrix CTA."""
+    import submission as sub
+
+    if not hasattr(sub, "phase_probe"):
+        return {"mode": "n256phase", "passed": False, "error": "phase_probe missing"}
+
+    spec = next(s for s in BENCH_SPECS if s["batch"] == 64 and s["n"] == 256)
+    data = generate_input(**{k: v for k, v in spec.items() if k != "case"},
+                          case=spec.get("case", "dense"))
+    for _ in range(3):
+        sub.custom_kernel(data)
+    torch.cuda.synchronize()
+
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    start.record()
+    output, timing = sub.phase_probe(data)
+    end.record()
+    torch.cuda.synchronize()
+    wall_us = start.elapsed_time(end) * 1000.0
+    ok, message = check_implementation(data, output)
+
+    stamps = timing.cpu().tolist()
+    names = ("staging", "diagonal", "panel", "trailing", "output")
+    stages = []
+    for index, name in enumerate(names):
+        values = sorted(row[index + 2] / 1000.0 for row in stamps)
+        stages.append({
+            "name": name,
+            "median_us": round(_median(values), 3),
+            "p95_us": round(values[int(0.95 * (len(values) - 1))], 3),
+            "max_us": round(values[-1], 3),
+        })
+    first_start = min(row[0] for row in stamps)
+    last_start = max(row[0] for row in stamps)
+    last_end = max(row[1] for row in stamps)
+    result = {
+        "mode": "n256phase",
+        "device": torch.cuda.get_device_name(0),
+        "wall_us": round(wall_us, 3),
+        "device_span_us": round((last_end - first_start) / 1000.0, 3),
+        "block_start_spread_us": round((last_start - first_start) / 1000.0, 3),
+        "stages": stages,
+        "correctness": {"passed": bool(ok), "message": message},
+        "passed": bool(ok),
+    }
+    print(
+        f"n256phase: wall={result['wall_us']}us device_span={result['device_span_us']}us "
+        f"start_spread={result['block_start_spread_us']}us ok={ok}",
+        flush=True,
+    )
+    for stage in stages:
+        print(
+            f"    {stage['name']}: median={stage['median_us']}us "
+            f"p95={stage['p95_us']}us max={stage['max_us']}us",
+            flush=True,
+        )
+    return result
+
+
 def run_pairedgrid(filter_ns=None):
     specs = BENCH_SPECS
     if filter_ns:
@@ -3015,6 +3076,8 @@ def main():
         result = run_midprobe(filter_ns)
     elif mode == "n128phase":
         result = run_n128phase(filter_ns)
+    elif mode == "n256phase":
+        result = run_n256phase(filter_ns)
     elif mode == "pairedgrid":
         result = run_pairedgrid(filter_ns)
     elif mode == "familygrid":

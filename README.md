@@ -144,7 +144,7 @@ popcorn submissions                                # view your entries
   root-source change or Popcorn submission was made. The remaining campaign
   picks are revised to `1024×64` and `256×128`. See
   `experiments/040-cooperative-1x4096/`.
-- **Ranked submission `#888996`** (exp 042 V5 — current adopted source):
+- **Ranked submission `#888996`** (exp 042 V5 — superseded by exp 043):
   `done`, public geomean **916.5768129471865us** and secret
   **863.8500740634134us**. The old `256×128` graph spent 55.13us in four
   diagonal micros, 32.81us in panel math, 8.90us in copies, 9.13us in the
@@ -157,6 +157,22 @@ popcorn submissions                                # view your entries
   17/17. Ranked `#888996` improves secret by **4.812%** versus `#888867`; public
   drifted **1.904%** slower despite the paired aggregate win. See
   `experiments/042-cuda-n128/`.
+- **Ranked submission `#890037`** (exp 043 V35 — current adopted source):
+  `done`, public geomean **825.4657219594694us** and secret
+  **824.9085045342571us**. A single CTA now owns each ranked `64×256` matrix:
+  packed lower 16×16 shared tiles, FP32 diagonal/panel work, and TF32 WMMA
+  trailing updates replace a 30-operation graph. The exact paired grid measured
+  **225.192→111.608us = 2.0177×**, passed 15/15, held every other shape at
+  parity, and improved aggregate latency **1.04772×**. Six families pass on the
+  active backend; difficult matrices use a rare scalar-FP32 retry. Popcorn test
+  `#890035` passed 17/17. V35 fixed the cold-compile timeout exposed by public
+  probe `#890008`; ranked `#890037` improves `#888996` by **9.940% public /
+  4.508% secret**. Exact SHA-256:
+  `bc4536c700c95ba34f268d5a7aa6cc200ba9c403b0000ecc67abb15ec262fcb6`.
+  A post-rank merge with exp 044 improved the paired aggregate another 1.0130×,
+  but official test `#890068` hit the six-minute compile limit, so it was not
+  ranked and the root source remains exact `#890037`. See
+  `experiments/043-cuda-n256/`.
 - **Ranked submission `#888867`** (exp 041 V3 — best public score): `done`, public
   geomean **899.124686138768us** and secret **905.4166394915869us**. The first
   cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at

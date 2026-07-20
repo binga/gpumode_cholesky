@@ -1,0 +1,12 @@
+{
+  "submission_id": 890035,
+  "mode": "test",
+  "runner": "B200",
+  "status": "succeeded",
+  "passed": true,
+  "cases_passed": 17,
+  "cases_total": 17,
+  "source_sha256": "bc4536c700c95ba34f268d5a7aa6cc200ba9c403b0000ecc67abb15ec262fcb6",
+  "start_time": "2026-07-20T11:16:15.749788Z",
+  "end_time": "2026-07-20T11:17:41.078713Z"
+}

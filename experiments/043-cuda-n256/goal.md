@@ -58,3 +58,16 @@ input families with zero new fallbacks, the revision-4 machine audit, full
 15-shape paired parity, Popcorn test 17/17, and a serial ranked submission. After
 2x, continue only for statistically real same-process gains and submit each
 fully gated improvement.
+
+## Outcome
+
+V35 satisfied the shape goal on the exact full grid at 225.192 -> 111.608us
+(2.0177x), passed all six numerical families and Popcorn 17/17, and was adopted
+as ranked submission `#890037`. Public/secret geometric means are
+825.4657219594694us / 824.9085045342571us, improving frozen `#888996` by
+9.940% / 4.508%. See `notes.md` for the architecture ladder and compile-time
+failure analysis.
+
+A later non-overlapping merge with exp 044 improved the local paired aggregate
+another 1.0130x, but official test `#890068` hit the exact six-minute compile
+limit. It was not ranked, and the root source was restored to exact `#890037`.

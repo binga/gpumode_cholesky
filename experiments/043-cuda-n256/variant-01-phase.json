@@ -1,0 +1,44 @@
+{
+  "mode": "n256phase",
+  "device": "NVIDIA B200",
+  "wall_us": 255.104,
+  "device_span_us": 200.896,
+  "block_start_spread_us": 0.032,
+  "stages": [
+    {
+      "name": "staging",
+      "median_us": 6.72,
+      "p95_us": 6.976,
+      "max_us": 7.168
+    },
+    {
+      "name": "diagonal",
+      "median_us": 47.024,
+      "p95_us": 47.424,
+      "max_us": 47.552
+    },
+    {
+      "name": "panel",
+      "median_us": 10.112,
+      "p95_us": 10.208,
+      "max_us": 10.304
+    },
+    {
+      "name": "trailing",
+      "median_us": 130.576,
+      "p95_us": 131.68,
+      "max_us": 131.968
+    },
+    {
+      "name": "output",
+      "median_us": 4.864,
+      "p95_us": 4.896,
+      "max_us": 4.928
+    }
+  ],
+  "correctness": {
+    "passed": true,
+    "message": "scaled_reconstruction_residual=0.00656; batch=64; n=256"
+  },
+  "passed": true
+}

@@ -136,6 +136,7 @@ def main() -> int:
             "coopprobe",
             "coopphase",
             "n128phase",
+            "n256phase",
         ],
     )
     parser.add_argument(

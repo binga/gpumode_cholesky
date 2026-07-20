@@ -434,6 +434,149 @@ __global__ void cholesky128_block16(const float* input, float* output) {
     }
 }
 
+
+// --- Experiment 044 diagonal micro (compiled into this module so the
+// submission keeps three nvcc invocations; a fourth extension pushed the
+// official runner's six-minute compile budget over the limit).
+constexpr int MICRO_BK = 32;
+constexpr int MICRO_WARPS = 4;
+constexpr int MICRO_THREADS = MICRO_WARPS * 32;
+constexpr unsigned MICRO_FULL = 0xffffffffu;
+
+// Rank-4 warp-synchronous 32x32 diagonal factorization with coalesced
+// shared staging. Chosen from a six-variant probe: 10.26us/launch against
+// 11.25us rank-1, 11.27us rank-2, 12.31us uncoalesced rank-1 and Triton
+// `_micro_potrf_gj32`'s 13.56us, on a 3.5us launch floor.
+__global__ __launch_bounds__(MICRO_THREADS)
+void micro_potrf32_rank4(const float* __restrict__ src, float* __restrict__ work,
+                 float* __restrict__ inv, int batch, int n, int k, int first) {
+    const int warp = threadIdx.x >> 5;
+    const int lane = threadIdx.x & 31;
+    const int matrix = blockIdx.x * MICRO_WARPS + warp;
+    if (matrix >= batch) return;
+
+    __shared__ float staging[MICRO_WARPS][MICRO_BK][MICRO_BK + 1];
+    __shared__ float pivot_s[MICRO_WARPS][4][MICRO_BK];
+    float (*tile)[MICRO_BK + 1] = staging[warp];
+    float (*pivots)[MICRO_BK] = pivot_s[warp];
+
+    const size_t block_base = (size_t)matrix * n * n + (size_t)k * n + k;
+    const float* input = (first ? src : work) + block_base;
+    float* output = work + block_base;
+
+    #pragma unroll
+    for (int row = 0; row < MICRO_BK; ++row) {
+        tile[row][lane] = input[(size_t)row * n + lane];
+    }
+    __syncwarp();
+
+    float values[MICRO_BK];
+    #pragma unroll
+    for (int c = 0; c < MICRO_BK; ++c) values[c] = tile[lane][c];
+
+    float reciprocal_row = 0.0f;
+    #pragma unroll
+    for (int iteration = 0; iteration < MICRO_BK / 4; ++iteration) {
+        const int p0 = 4 * iteration;
+        const int p1 = p0 + 1;
+        const int p2 = p0 + 2;
+        const int p3 = p0 + 3;
+
+        const float rec0 = rsqrtf(__shfl_sync(MICRO_FULL, values[p0], p0));
+        const float s0 = (lane >= p0) ? values[p0] * rec0 : 0.0f;
+        values[p0] = s0;
+        pivots[0][lane] = s0;
+        const float c01 = __shfl_sync(MICRO_FULL, s0, p1);
+        const float c02 = __shfl_sync(MICRO_FULL, s0, p2);
+        const float c03 = __shfl_sync(MICRO_FULL, s0, p3);
+        values[p1] = (lane >= p1) ? fmaf(-s0, c01, values[p1]) : values[p1];
+        values[p2] = (lane >= p2) ? fmaf(-s0, c02, values[p2]) : values[p2];
+        values[p3] = (lane >= p3) ? fmaf(-s0, c03, values[p3]) : values[p3];
+
+        const float rec1 = rsqrtf(__shfl_sync(MICRO_FULL, values[p1], p1));
+        const float s1 = (lane >= p1) ? values[p1] * rec1 : 0.0f;
+        values[p1] = s1;
+        pivots[1][lane] = s1;
+        const float c12 = __shfl_sync(MICRO_FULL, s1, p2);
+        const float c13 = __shfl_sync(MICRO_FULL, s1, p3);
+        values[p2] = (lane >= p2) ? fmaf(-s1, c12, values[p2]) : values[p2];
+        values[p3] = (lane >= p3) ? fmaf(-s1, c13, values[p3]) : values[p3];
+
+        const float rec2 = rsqrtf(__shfl_sync(MICRO_FULL, values[p2], p2));
+        const float s2 = (lane >= p2) ? values[p2] * rec2 : 0.0f;
+        values[p2] = s2;
+        pivots[2][lane] = s2;
+        const float c23 = __shfl_sync(MICRO_FULL, s2, p3);
+        values[p3] = (lane >= p3) ? fmaf(-s2, c23, values[p3]) : values[p3];
+
+        const float rec3 = rsqrtf(__shfl_sync(MICRO_FULL, values[p3], p3));
+        const float s3 = (lane >= p3) ? values[p3] * rec3 : 0.0f;
+        values[p3] = s3;
+        pivots[3][lane] = s3;
+
+        if (lane == p0) reciprocal_row = rec0;
+        if (lane == p1) reciprocal_row = rec1;
+        if (lane == p2) reciprocal_row = rec2;
+        if (lane == p3) reciprocal_row = rec3;
+        __syncwarp();
+
+        #pragma unroll
+        for (int c = 0; c < MICRO_BK; ++c) {
+            if (c > p3) {
+                float value = values[c];
+                if (c <= lane) {
+                    value = fmaf(-s0, pivots[0][c], value);
+                    value = fmaf(-s1, pivots[1][c], value);
+                    value = fmaf(-s2, pivots[2][c], value);
+                    value = fmaf(-s3, pivots[3][c], value);
+                }
+                values[c] = value;
+            }
+        }
+        __syncwarp();
+    }
+
+    #pragma unroll
+    for (int c = 0; c < MICRO_BK; ++c) {
+        tile[lane][c] = (c <= lane) ? values[c] : 0.0f;
+    }
+    pivots[0][lane] = reciprocal_row;
+    __syncwarp();
+    #pragma unroll
+    for (int row = 0; row < MICRO_BK; ++row) {
+        output[(size_t)row * n + lane] = tile[row][lane];
+    }
+
+    float inverse[MICRO_BK];
+    #pragma unroll
+    for (int r = 0; r < MICRO_BK; ++r) {
+        float accumulator = (r == lane) ? 1.0f : 0.0f;
+        #pragma unroll
+        for (int p = 0; p < MICRO_BK; ++p) {
+            if (p < r) accumulator = fmaf(-tile[r][p], inverse[p], accumulator);
+        }
+        inverse[r] = (r >= lane) ? accumulator * pivots[0][r] : 0.0f;
+    }
+    float* inverse_out = inv + (size_t)matrix * MICRO_BK * MICRO_BK + lane;
+    #pragma unroll
+    for (int r = 0; r < MICRO_BK; ++r) inverse_out[r * MICRO_BK] = inverse[r];
+}
+
+void micro32_launch(
+    torch::Tensor src,
+    torch::Tensor work,
+    torch::Tensor inv,
+    int64_t n,
+    int64_t k,
+    int64_t first) {
+    const int batch = (int)work.size(0);
+    const int blocks = (batch + MICRO_WARPS - 1) / MICRO_WARPS;
+    micro_potrf32_rank4<<<dim3(blocks), dim3(MICRO_THREADS)>>>(
+        src.data_ptr<float>(), work.data_ptr<float>(),
+        inv.data_ptr<float>(), batch, (int)n, (int)k, (int)first);
+    cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+}
 void chol128_launch(torch::Tensor input, torch::Tensor output) {
     static bool configured = false;
     if (!configured) {
@@ -457,10 +600,14 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol128_exp042_v5_final",
-            cpp_sources="void chol128_launch(torch::Tensor, torch::Tensor);",
+            name="chol128_exp042_v5_with_exp044_micro",
+            cpp_sources=(
+                "void chol128_launch(torch::Tensor, torch::Tensor);\n"
+                "void micro32_launch(torch::Tensor, torch::Tensor, "
+                "torch::Tensor, int64_t, int64_t, int64_t);"
+            ),
             cuda_sources=_CUDA128_SOURCE,
-            functions=["chol128_launch"],
+            functions=["chol128_launch", "micro32_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
@@ -477,11 +624,41 @@ def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
 
 
 # ---------------------------------------------------------------------------
+# Experiment 044: warp-synchronous CUDA diagonal micro-factorization.
+#
+# `_micro_potrf_gj32` costs a batch-independent ~13.5us per launch on B200 --
+# 57.7% of 16x512, 62.6% of 4x1024 and 52.1% of 8x2048 device time -- because
+# its 32-step serial chain pays a Triton block rendezvous per pivot. One warp
+# per matrix keeps the same chain warp-synchronous: lane r owns row r in
+# registers, the pivot column is broadcast through a 32-float shared slot, and
+# the triangular inverse is solved column-per-lane out of the finished factor.
+# The contract (factor the 32x32 block at (k, k) in place, publish L^-1 into
+# `dinv`) is identical, so the surrounding split32 schedule is unchanged.
+# ---------------------------------------------------------------------------
+_MICRO32_HITS = 0
+# The diagonal micro ships inside the experiment-042 extension (one nvcc
+# invocation for both kernels) so the submission still compiles in three.
+_MICRO32_ERROR = _CUDA128_ERROR
+_MICRO32 = _CUDA128
+
+# Shapes whose split32 schedule uses the CUDA diagonal micro-factorization.
+# Only the eager-mode split32 shapes are enrolled. The kernel uses a plain
+# <<<grid, block>>> launch with no queue argument, which is correct in eager
+# mode but is not capturable into the CUDA graphs the remaining split32 shapes
+# replay -- measured 0.38-0.52x there, through the finiteness fallback. Naming
+# the current work queue explicitly would make capture work but is rejected by
+# popcorn's source policy, so those shapes keep the Triton diagonal micro.
+_MICRO32_SHAPES = {
+    (640, 512),
+    (60, 1024),
+}
+
+# ---------------------------------------------------------------------------
 # Experiment 043: cuSOLVER-free packed-lower CUDA Cholesky for 64x256.
 #
 # One CTA owns each matrix, but the rank-16 trailing Schur tiles use warp-level
 # TF32 tensor-core MMA instead of scalar shared-memory dot products. Lower
-# 16x16 tiles are packed contiguously in shared memory (139,264 bytes), which
+# 16x16 tiles are packed contiguously in shared memory (174,080 bytes), which
 # is both WMMA-loadable and within the B200 per-block budget. Diagonal and panel
 # arithmetic remain FP32.
 # ---------------------------------------------------------------------------
@@ -2004,25 +2181,35 @@ if _HAVE_TRITON:
         mode for the bandwidth-bound shapes). The mirrored zero-fill in the
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
+        global _MICRO32_HITS
         batch, n, _ = work.shape
         tile = _SPLIT32_TILE
         ft = src is not None
         if not ft:
             src = work
+        cuda_micro = (
+            _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
+        )
         j = 0
         for nb in _nb_schedule(batch, n):
             panel_end = min(j + nb, n)
             for k in range(j, panel_end, 32):
-                _micro_potrf_gj32[(batch,)](
-                    work,
-                    dinv,
-                    src,
-                    n=n,
-                    k=k,
-                    FIRST=ft and k == 0,
-                    RECIPROCAL_SOLVE=fp16_trailing,
-                    num_warps=1,
-                )
+                if cuda_micro:
+                    _MICRO32_HITS += 1
+                    _MICRO32.micro32_launch(
+                        src, work, dinv, n, k, 1 if (ft and k == 0) else 0
+                    )
+                else:
+                    _micro_potrf_gj32[(batch,)](
+                        work,
+                        dinv,
+                        src,
+                        n=n,
+                        k=k,
+                        FIRST=ft and k == 0,
+                        RECIPROCAL_SOLVE=fp16_trailing,
+                        num_warps=1,
+                    )
                 remaining = n - k - 32
                 if remaining <= 0:
                     break

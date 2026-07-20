@@ -1,0 +1,449 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=17.9; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00858; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00391; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "lowrank",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00828; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00739; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 64,
+      "n": 256,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.551; batch=64; n=256",
+      "active_backend": true,
+      "counters": {
+        "_CUDA256_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=2.51; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=2.87; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00195; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00493; batch=16; n=512",
+      "active_backend": false,
+      "counters": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.229; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0953; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=2.59; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "spectrum",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00485; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00195; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00543; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.247; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 640,
+      "n": 512,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.127; batch=640; n=512",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 16,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=9.31; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00121; batch=4; n=1024",
+      "active_backend": false,
+      "counters": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7.99; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.804; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=9.59; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "spectrum",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7.82; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00387; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=7.86; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.786; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_CTA_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": false
+}
