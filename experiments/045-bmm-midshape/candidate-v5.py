@@ -1131,12 +1131,9 @@ _MICRO32 = _CUDA128
 # 53 TFLOP/s while the same product through cuBLAS reaches 221 TFLOP/s. Both
 # updates accumulate in place on a strided view (ldc = n), so they need no
 # clone, no copy-back and no final `tril_`.
-# Empty: measured 0.566x (fp32 SIMT) / 0.897x (tf32) at 640x512. cuBLAS wins
-# the trailing product (285 TFLOP/s vs Triton's 53) but loses the inner update
-# (26 TFLOP/s -- K=32, N<=96 is too skinny to fill a tensor-core tile), and the
-# first-touch `out=` form materialises the accumulator (2 x 180us). See
-# notes.md; the trailing-only split remains open.
-_BMM_SCHUR_SHAPES = set()
+_BMM_SCHUR_SHAPES = {
+    (640, 512),
+}
 _BMM_SCHUR_HITS = 0
 
 
@@ -2188,6 +2185,13 @@ if _HAVE_TRITON:
         batch, n, _ = work.shape
         cuda_micro = _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
         bmm_schur = (batch, n) in _BMM_SCHUR_SHAPES
+        previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+        if bmm_schur:
+            # The Schur products are the shapes' shipped `trailing_prec`
+            # (tf32). Without this the cuBLAS call drops to an fp32 SIMT
+            # kernel -- measured 0.566x at 640x512, with a needlessly exact
+            # 0.005/20 residual.
+            torch.backends.cuda.matmul.allow_tf32 = True
         tile = _SPLIT32_TILE
         ft = src is not None
         if not ft:
@@ -2306,6 +2310,8 @@ if _HAVE_TRITON:
                     num_stages=3,
                 )
             j = panel_end
+        if bmm_schur:
+            torch.backends.cuda.matmul.allow_tf32 = previous_tf32
 
     _SPLIT32_GRAPHS = {}
     _SPLIT32_DINV = {}

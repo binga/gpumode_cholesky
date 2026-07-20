@@ -69,6 +69,14 @@ Current adopted source: **`#890037` = 825.4657219594694μs public /
 non-overlapping exp 043 + exp 044 integration improved the paired grid 1.0130x,
 but official test `#890068` hit the six-minute compile limit; it was not ranked,
 and the root source remains exact `#890037`.
+Current adopted source: **`#890089` = 810.246μs public (Session 41, exp 045
+= exp 044 carried onto the 64x256 winner `#890037`)**. Previously: **`#889994`
+= 852.746μs public / 847.396μs secret (Session 40)**. Previously: **`#888996` = 916.5768129471865μs public /
+863.8500740634134μs secret** (Session 39). `#888867` remains the best public
+score at 899.124686138768μs; `#888996` is adopted because its same-process full
+grid improves 1.04787x and its secret score improves 4.812%. Experiments 039,
+041, and 042 replace all three campaign shapes with cuSOLVER-free CUDA kernels;
+every stage-specific control exceeds 2x.
 `nb` = block size.
 
 | Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
@@ -181,6 +189,52 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-20 — Session 41: exp 045 cuBLAS Schur updates — ranked #890089, architecture rejected
+
+Targets `640x512` / `60x1024` / `8x2048` against the concurrent session's
+ranked `#890037`, which did not contain experiment 044. `shapediag` showed the
+three Triton GEMM kernels are **84.6% of device time at 640x512** and run at
+**47-53 TFLOP/s**, with the shape 8.3x above its memory floor — so the
+arithmetic looked like the lever.
+
+It was not. A full torch-level blocked factorization measured **0.5285x**,
+drowning in a redundant `tril_` (392us), a `clone` the Triton first-touch route
+avoids (216us), 398us of strided slicing and an fp32 SIMT inner update (610us
+of `magma_sgemmEx`, from leaving `allow_tf32` unset). The surgical version —
+every Triton kernel kept, only the two Schur updates swapped to in-place
+`baddbmm_` on strided views — reached **0.8972x** and no further. Per-kernel:
+
+- **Trailing: cuBLAS wins.** M=N=384, K=128, batch 640 → **285 TFLOP/s**
+  against Triton's 53.
+- **Inner: cuBLAS loses.** M=480, N≤96, K=32 → **26 TFLOP/s**; the tile is too
+  skinny to fill a tensor-core fragment.
+- **First touch costs two 180us materialising copies**: `baddbmm(src, ...,
+  out=work)` copies input into out before the GEMM, while the Triton kernels
+  read `src` and write `work` in one kernel for free.
+
+Best composition of measured parts is ~1253us at `640x512` = **1.22x**. The
+binding constraint is the panel work (apply + inner = 757us), which must stay
+**tf32x3**: exp 044 v11/v12 isolated the n=512 residual blow-up (2.59 → 17.7 /
+20) to the *panels* specifically. `8x2048` was left alone — its `_trailing_nb`
+already runs at ~380 TFLOP/s, and its 52.1% diagonal micro is blocked by
+CUDA-graph capture exactly as in exp 044.
+
+What shipped is experiment 044 carried onto the new baseline: full grid
+**1.013544x CI [1.012948, 1.014140]**, 15/15, `640x512` **1.0987x**,
+`60x1024` **1.1140x**, residuals byte-identical, test 17/17 in 102s. Ranked
+`#890089` = **810.246us public**, improving `#890037` (825.466) by **1.84%**.
+Exact ranked SHA-256:
+`5e807d47cb8969662bcb078c27d3e41288519ea78151e9fa733a1dce93706e37`.
+
+Open path to 2x on these shapes: a 128-wide block inverse (one CTA builds
+`L11^-1`, measured 57.5us/block and batch-independent in exp 044) so the panel
+becomes a single K=128 bmm and the inner update disappears — estimated ~1.77x
+at `640x512`, still short of 2x.
+
+Evidence: `experiments/045-bmm-midshape/`.
 
 ---
 

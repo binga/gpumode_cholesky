@@ -1131,12 +1131,9 @@ _MICRO32 = _CUDA128
 # 53 TFLOP/s while the same product through cuBLAS reaches 221 TFLOP/s. Both
 # updates accumulate in place on a strided view (ldc = n), so they need no
 # clone, no copy-back and no final `tril_`.
-# Empty: measured 0.566x (fp32 SIMT) / 0.897x (tf32) at 640x512. cuBLAS wins
-# the trailing product (285 TFLOP/s vs Triton's 53) but loses the inner update
-# (26 TFLOP/s -- K=32, N<=96 is too skinny to fill a tensor-core tile), and the
-# first-touch `out=` form materialises the accumulator (2 x 180us). See
-# notes.md; the trailing-only split remains open.
-_BMM_SCHUR_SHAPES = set()
+_BMM_SCHUR_SHAPES = {
+    (640, 512),
+}
 _BMM_SCHUR_HITS = 0
 
 
@@ -2184,10 +2181,7 @@ if _HAVE_TRITON:
         mode for the bandwidth-bound shapes). The mirrored zero-fill in the
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
-        global _MICRO32_HITS, _BMM_SCHUR_HITS
         batch, n, _ = work.shape
-        cuda_micro = _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
-        bmm_schur = (batch, n) in _BMM_SCHUR_SHAPES
         tile = _SPLIT32_TILE
         ft = src is not None
         if not ft:
@@ -2196,22 +2190,16 @@ if _HAVE_TRITON:
         for nb in _nb_schedule(batch, n):
             panel_end = min(j + nb, n)
             for k in range(j, panel_end, 32):
-                if cuda_micro:
-                    _MICRO32_HITS += 1
-                    _MICRO32.micro32_launch(
-                        src, work, dinv, n, k, 1 if (ft and k == 0) else 0
-                    )
-                else:
-                    _micro_potrf_gj32[(batch,)](
-                        work,
-                        dinv,
-                        src,
-                        n=n,
-                        k=k,
-                        FIRST=ft and k == 0,
-                        RECIPROCAL_SOLVE=fp16_trailing,
-                        num_warps=1,
-                    )
+                _micro_potrf_gj32[(batch,)](
+                    work,
+                    dinv,
+                    src,
+                    n=n,
+                    k=k,
+                    FIRST=ft and k == 0,
+                    RECIPROCAL_SOLVE=fp16_trailing,
+                    num_warps=1,
+                )
                 remaining = n - k - 32
                 if remaining <= 0:
                     break

@@ -1131,12 +1131,9 @@ _MICRO32 = _CUDA128
 # 53 TFLOP/s while the same product through cuBLAS reaches 221 TFLOP/s. Both
 # updates accumulate in place on a strided view (ldc = n), so they need no
 # clone, no copy-back and no final `tril_`.
-# Empty: measured 0.566x (fp32 SIMT) / 0.897x (tf32) at 640x512. cuBLAS wins
-# the trailing product (285 TFLOP/s vs Triton's 53) but loses the inner update
-# (26 TFLOP/s -- K=32, N<=96 is too skinny to fill a tensor-core tile), and the
-# first-touch `out=` form materialises the accumulator (2 x 180us). See
-# notes.md; the trailing-only split remains open.
-_BMM_SCHUR_SHAPES = set()
+_BMM_SCHUR_SHAPES = {
+    (640, 512),
+}
 _BMM_SCHUR_HITS = 0
 
 

@@ -434,6 +434,7 @@ __global__ void cholesky128_block16(const float* input, float* output) {
     }
 }
 
+
 // --- Experiment 044 diagonal micro (compiled into this module so the
 // submission keeps three nvcc invocations; a fourth extension pushed the
 // official runner's six-minute compile budget over the limit).
@@ -623,522 +624,22 @@ def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
 
 
 # ---------------------------------------------------------------------------
-# Experiment 043: cuSOLVER-free packed-lower CUDA Cholesky for 64x256.
+# Experiment 044: warp-synchronous CUDA diagonal micro-factorization.
 #
-# One CTA owns each matrix, but the rank-16 trailing Schur tiles use warp-level
-# TF32 tensor-core MMA instead of scalar shared-memory dot products. Lower
-# 16x16 tiles are packed contiguously in shared memory (139,264 bytes), which
-# is both WMMA-loadable and within the B200 per-block budget. Diagonal and panel
-# arithmetic remain FP32.
+# `_micro_potrf_gj32` costs a batch-independent ~13.5us per launch on B200 --
+# 57.7% of 16x512, 62.6% of 4x1024 and 52.1% of 8x2048 device time -- because
+# its 32-step serial chain pays a Triton block rendezvous per pivot. One warp
+# per matrix keeps the same chain warp-synchronous: lane r owns row r in
+# registers, the pivot column is broadcast through a 32-float shared slot, and
+# the triangular inverse is solved column-per-lane out of the finished factor.
+# The contract (factor the 32x32 block at (k, k) in place, publish L^-1 into
+# `dinv`) is identical, so the surrounding split32 schedule is unchanged.
 # ---------------------------------------------------------------------------
-_CUDA256_HITS = 0
-_CUDA256_ERROR = None
-_CUDA256 = None
-
-_CUDA256_SOURCE = r"""
-#include <torch/extension.h>
-#include <cuda_runtime.h>
-#include <mma.h>
-
-constexpr int N256 = 256;
-constexpr int BK256 = 16;
-constexpr int THREADS256 = 256;
-constexpr int WARPS256 = THREADS256 / 32;
-constexpr int TILE_STRIDE256 = 20;
-constexpr int TILE_VALUES256 = BK256 * TILE_STRIDE256;
-constexpr int TILES_PER_DIM256 = N256 / BK256;
-constexpr int TRI_TILES256 = TILES_PER_DIM256 * (TILES_PER_DIM256 + 1) / 2;
-constexpr int SHARED_VALUES256 =
-    TRI_TILES256 * TILE_VALUES256;
-constexpr int SHARED_BYTES256 = SHARED_VALUES256 * sizeof(float);
-
-__device__ __forceinline__ int tile_index256(int row, int column) {
-    const int tile_row = row >> 4;
-    const int tile_column = column >> 4;
-    const int tile = ((tile_row * (tile_row + 1)) >> 1) + tile_column;
-    return tile * TILE_VALUES256 + (row & 15) * TILE_STRIDE256 + (column & 15);
-}
-
-__device__ __noinline__ void accurate_trailing256(
-        float* tile,
-        int block,
-        int first_tile,
-        int remaining_tiles) {
-    const int tid = threadIdx.x;
-    const int first_row = first_tile << 4;
-    const int remaining = remaining_tiles << 4;
-    const int pair_count = remaining * (remaining + 1) / 2;
-    for (int pair = tid; pair < pair_count; pair += THREADS256) {
-        const int relative_row = (int)(
-            (sqrtf(8.0f * (float)pair + 1.0f) - 1.0f) * 0.5f);
-        const int relative_column =
-            pair - relative_row * (relative_row + 1) / 2;
-        const int row = first_row + relative_row;
-        const int column = first_row + relative_column;
-        const int output_index = tile_index256(row, column);
-        float value = tile[output_index];
-        #pragma unroll 1
-        for (int depth = 0; depth < BK256; ++depth) {
-            value = fmaf(
-                -tile[tile_index256(row, block + depth)],
-                tile[tile_index256(column, block + depth)],
-                value);
-        }
-        tile[output_index] = value;
-    }
-    __syncthreads();
-}
-
-__device__ __noinline__ void factor256_accurate(
-        float* tile,
-        float* reciprocal0,
-        float* reciprocal1,
-        float* inverse_diag,
-        float* pivot0,
-        float* pivot1) {
-    const int tid = threadIdx.x;
-    const int warp = tid >> 5;
-    const int lane = tid & 31;
-
-    #pragma unroll 1
-    for (int block = 0; block < N256; block += BK256) {
-        const int block_end = block + BK256;
-        const int diagonal_row = lane;
-        float diagonal_values[BK256];
-        if (warp == 0) {
-            #pragma unroll 1
-            for (int column = 0; column < BK256; ++column) {
-                diagonal_values[column] =
-                    diagonal_row < BK256 && column <= diagonal_row
-                    ? tile[tile_index256(
-                          block + diagonal_row, block + column)]
-                    : 0.0f;
-            }
-
-            #pragma unroll 1
-            for (int iteration = 0; iteration < BK256 / 2; ++iteration) {
-                const int k = 2 * iteration;
-                const int q = k + 1;
-                if (diagonal_row == k) {
-                    *reciprocal0 = rsqrtf(diagonal_values[k]);
-                    inverse_diag[k] = *reciprocal0;
-                }
-                __syncwarp();
-
-                if (diagonal_row < BK256 && diagonal_row >= k) {
-                    diagonal_values[k] *= *reciprocal0;
-                    pivot0[diagonal_row] = diagonal_values[k];
-                }
-                if (diagonal_row == q) {
-                    diagonal_values[q] = fmaf(
-                        -diagonal_values[k], diagonal_values[k],
-                        diagonal_values[q]);
-                    *reciprocal1 = rsqrtf(diagonal_values[q]);
-                    inverse_diag[q] = *reciprocal1;
-                }
-                __syncwarp();
-
-                if (diagonal_row < BK256 && diagonal_row >= q) {
-                    if (diagonal_row != q) {
-                        diagonal_values[q] = fmaf(
-                            -diagonal_values[k], pivot0[q],
-                            diagonal_values[q]);
-                    }
-                    diagonal_values[q] *= *reciprocal1;
-                    pivot1[diagonal_row] = diagonal_values[q];
-                }
-                __syncwarp();
-
-                if (diagonal_row < BK256 && diagonal_row > q) {
-                    const float scale0 = diagonal_values[k];
-                    const float scale1 = diagonal_values[q];
-                    #pragma unroll 1
-                    for (int column = q + 1; column < BK256; ++column) {
-                        if (column <= diagonal_row) {
-                            float value = fmaf(
-                                -scale0, pivot0[column],
-                                diagonal_values[column]);
-                            diagonal_values[column] = fmaf(
-                                -scale1, pivot1[column], value);
-                        }
-                    }
-                }
-                __syncwarp();
-            }
-
-            if (diagonal_row < BK256) {
-                #pragma unroll 1
-                for (int column = 0; column <= diagonal_row; ++column) {
-                    tile[tile_index256(
-                        block + diagonal_row, block + column)] =
-                        diagonal_values[column];
-                }
-            }
-        }
-        __syncthreads();
-
-        const int row = block_end + tid;
-        if (row < N256) {
-            const int row_block_base = tile_index256(row, block);
-            #pragma unroll 1
-            for (int local = 0; local < BK256; ++local) {
-                const int column = block + local;
-                float value = tile[row_block_base + local];
-                const int column_block_base = tile_index256(column, block);
-                #pragma unroll 1
-                for (int prior = 0; prior < local; ++prior) {
-                    value = fmaf(
-                        -tile[row_block_base + prior],
-                        tile[column_block_base + prior], value);
-                }
-                tile[row_block_base + local] = value * inverse_diag[local];
-            }
-        }
-        __syncthreads();
-
-        const int first_tile = block_end >> 4;
-        const int remaining_tiles = TILES_PER_DIM256 - first_tile;
-        accurate_trailing256(tile, block, first_tile, remaining_tiles);
-    }
-}
-
-__global__ __launch_bounds__(THREADS256, 1)
-void cholesky256_wmma16(const float* input, float* output) {
-    namespace wmma = nvcuda::wmma;
-    const int tid = threadIdx.x;
-    const int warp = tid >> 5;
-    const int lane = tid & 31;
-    const size_t base = (size_t)blockIdx.x * N256 * N256;
-    extern __shared__ float tile[];
-    __shared__ float reciprocal0;
-    __shared__ float reciprocal1;
-    __shared__ float inverse_diag[BK256];
-    __shared__ float pivot0[BK256];
-    __shared__ float pivot1[BK256];
-    __shared__ int accurate_required;
-
-    int staging_tile = 0;
-    #pragma unroll 1
-    for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-        for (int tile_column = 0; tile_column <= tile_row;
-             ++tile_column, ++staging_tile) {
-            if (tid < BK256 * BK256) {
-                const int local_row = tid >> 4;
-                const int local_column = tid & 15;
-                const int row = (tile_row << 4) + local_row;
-                const int column = (tile_column << 4) + local_column;
-                tile[staging_tile * TILE_VALUES256
-                     + local_row * TILE_STRIDE256 + local_column] =
-                    (tile_row != tile_column || local_column <= local_row)
-                    ? input[base + (size_t)row * N256 + column]
-                    : 0.0f;
-            }
-        }
-    }
-    __syncthreads();
-
-    float reference_diagonal = 0.0f;
-    if (warp == 0) {
-        for (int diagonal = lane; diagonal < N256; diagonal += 32) {
-            reference_diagonal = fmaxf(
-                reference_diagonal,
-                tile[tile_index256(diagonal, diagonal)]);
-        }
-        #pragma unroll
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            reference_diagonal = fmaxf(
-                reference_diagonal,
-                __shfl_down_sync(0xffffffffu, reference_diagonal, offset));
-        }
-        reference_diagonal = __shfl_sync(
-            0xffffffffu, reference_diagonal, 0);
-        if (lane == 0) accurate_required = 0;
-        __syncwarp();
-    }
-
-    {
-        #pragma unroll 1
-        for (int block = 0; block < N256; block += BK256) {
-            const int block_end = block + BK256;
-            const int diagonal_row = lane;
-            float diagonal_values[BK256];
-            if (warp == 0) {
-                #pragma unroll
-                for (int column = 0; column < BK256; ++column) {
-                    diagonal_values[column] =
-                        diagonal_row < BK256 && column <= diagonal_row
-                        ? tile[tile_index256(
-                              block + diagonal_row, block + column)]
-                        : 0.0f;
-                }
-
-                #pragma unroll
-                for (int iteration = 0; iteration < BK256 / 2; ++iteration) {
-                    const int k = 2 * iteration;
-                    const int q = k + 1;
-                    if (diagonal_row == k) {
-                        if (!(diagonal_values[k]
-                                > reference_diagonal * 1.0e-2f)) {
-                            accurate_required = 1;
-                        }
-                        reciprocal0 = rsqrtf(diagonal_values[k]);
-                        inverse_diag[k] = reciprocal0;
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row >= k) {
-                        diagonal_values[k] *= reciprocal0;
-                        pivot0[diagonal_row] = diagonal_values[k];
-                    }
-                    if (diagonal_row == q) {
-                        diagonal_values[q] = fmaf(
-                            -diagonal_values[k], diagonal_values[k],
-                            diagonal_values[q]);
-                        if (!(diagonal_values[q]
-                                > reference_diagonal * 1.0e-2f)) {
-                            accurate_required = 1;
-                        }
-                        reciprocal1 = rsqrtf(diagonal_values[q]);
-                        inverse_diag[q] = reciprocal1;
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row >= q) {
-                        if (diagonal_row != q) {
-                            diagonal_values[q] = fmaf(
-                                -diagonal_values[k], pivot0[q],
-                                diagonal_values[q]);
-                        }
-                        diagonal_values[q] *= reciprocal1;
-                        pivot1[diagonal_row] = diagonal_values[q];
-                    }
-                    __syncwarp();
-
-                    if (diagonal_row < BK256 && diagonal_row > q) {
-                        const float scale0 = diagonal_values[k];
-                        const float scale1 = diagonal_values[q];
-                        #pragma unroll
-                        for (int column = q + 1; column < BK256; ++column) {
-                            if (column <= diagonal_row) {
-                                float value = fmaf(
-                                    -scale0, pivot0[column],
-                                    diagonal_values[column]);
-                                diagonal_values[column] = fmaf(
-                                    -scale1, pivot1[column], value);
-                            }
-                        }
-                    }
-                    __syncwarp();
-                }
-
-                if (diagonal_row < BK256) {
-                    #pragma unroll
-                    for (int column = 0; column <= diagonal_row; ++column) {
-                        tile[tile_index256(
-                            block + diagonal_row, block + column)] =
-                            diagonal_values[column];
-                    }
-                }
-            }
-            __syncthreads();
-
-            const int row = block_end + tid;
-            if (row < N256) {
-                const int row_block_base = tile_index256(row, block);
-                #pragma unroll
-                for (int local = 0; local < BK256; ++local) {
-                    const int column = block + local;
-                    float value = tile[row_block_base + local];
-                    const int column_block_base = tile_index256(column, block);
-                    #pragma unroll
-                    for (int prior = 0; prior < local; ++prior) {
-                        value = fmaf(
-                            -tile[row_block_base + prior],
-                            tile[column_block_base + prior],
-                            value);
-                    }
-                    tile[row_block_base + local] =
-                        value * inverse_diag[local];
-                }
-            }
-            __syncthreads();
-
-            const int first_tile = block_end >> 4;
-            const int remaining_tiles = TILES_PER_DIM256 - first_tile;
-            const int pair_count =
-                remaining_tiles * (remaining_tiles + 1) / 2;
-            for (int pair = warp; pair < pair_count; pair += WARPS256) {
-                const int relative_row = (int)(
-                    (sqrtf(8.0f * (float)pair + 1.0f) - 1.0f) * 0.5f);
-                const int relative_column =
-                    pair - relative_row * (relative_row + 1) / 2;
-                const int tile_row = first_tile + relative_row;
-                const int tile_column = first_tile + relative_column;
-                float* c_ptr = tile + tile_index256(
-                    tile_row << 4, tile_column << 4);
-                const float* a_ptr = tile + tile_index256(
-                    tile_row << 4, block);
-                const float* b_ptr = tile + tile_index256(
-                    tile_column << 4, block);
-                wmma::fragment<
-                    wmma::accumulator, 16, 16, 8, float> c_fragment;
-                wmma::load_matrix_sync(
-                    c_fragment, c_ptr,
-                    TILE_STRIDE256, wmma::mem_row_major);
-                #pragma unroll
-                for (int k = 0; k < BK256; k += 8) {
-                    wmma::fragment<
-                        wmma::matrix_a, 16, 16, 8,
-                        wmma::precision::tf32,
-                        wmma::row_major> a_fragment;
-                    wmma::fragment<
-                        wmma::matrix_b, 16, 16, 8,
-                        wmma::precision::tf32,
-                        wmma::col_major> b_fragment;
-                    wmma::load_matrix_sync(
-                        a_fragment, a_ptr + k, TILE_STRIDE256);
-                    wmma::load_matrix_sync(
-                        b_fragment, b_ptr + k, TILE_STRIDE256);
-                    #pragma unroll
-                    for (int element = 0;
-                         element < a_fragment.num_elements; ++element) {
-                        a_fragment.x[element] = -a_fragment.x[element];
-                    }
-                    wmma::mma_sync(
-                        c_fragment, a_fragment, b_fragment, c_fragment);
-                }
-                wmma::store_matrix_sync(
-                    c_ptr, c_fragment,
-                    TILE_STRIDE256, wmma::mem_row_major);
-            }
-            __syncthreads();
-        }
-    }
-
-    if (accurate_required) {
-        int restaging_tile = 0;
-        #pragma unroll 1
-        for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-            for (int tile_column = 0; tile_column <= tile_row;
-                 ++tile_column, ++restaging_tile) {
-                if (tid < BK256 * BK256) {
-                    const int local_row = tid >> 4;
-                    const int local_column = tid & 15;
-                    const int row = (tile_row << 4) + local_row;
-                    const int column = (tile_column << 4) + local_column;
-                    tile[restaging_tile * TILE_VALUES256
-                         + local_row * TILE_STRIDE256 + local_column] =
-                        (tile_row != tile_column || local_column <= local_row)
-                        ? input[base + (size_t)row * N256 + column]
-                        : 0.0f;
-                }
-            }
-        }
-        __syncthreads();
-        factor256_accurate(
-            tile,
-            &reciprocal0,
-            &reciprocal1,
-            inverse_diag,
-            pivot0,
-            pivot1);
-    }
-
-    int output_tile = 0;
-    #pragma unroll 1
-    for (int tile_row = 0; tile_row < TILES_PER_DIM256; ++tile_row) {
-        for (int tile_column = 0; tile_column <= tile_row;
-             ++tile_column, ++output_tile) {
-            if (tid < BK256 * BK256) {
-                const int local_row = tid >> 4;
-                const int local_column = tid & 15;
-                const int row = (tile_row << 4) + local_row;
-                const int column = (tile_column << 4) + local_column;
-                if (tile_row == tile_column) {
-                    output[base + (size_t)row * N256 + column] =
-                        local_column <= local_row
-                        ? tile[output_tile * TILE_VALUES256
-                               + local_row * TILE_STRIDE256 + local_column]
-                        : 0.0f;
-                } else {
-                    output[base + (size_t)row * N256 + column] =
-                        tile[output_tile * TILE_VALUES256
-                             + local_row * TILE_STRIDE256 + local_column];
-                    const int upper_row = (tile_column << 4) + local_row;
-                    const int upper_column = (tile_row << 4) + local_column;
-                    output[base + (size_t)upper_row * N256 + upper_column] = 0.0f;
-                }
-            }
-        }
-    }
-}
-
-void chol256_launch(torch::Tensor input, torch::Tensor output) {
-    const int batch = (int)input.size(0);
-    static bool configured = false;
-    if (!configured) {
-        cudaError_t attr = cudaFuncSetAttribute(
-            cholesky256_wmma16,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            SHARED_BYTES256);
-        TORCH_CHECK(attr == cudaSuccess, cudaGetErrorString(attr));
-        configured = true;
-    }
-    cholesky256_wmma16<<<dim3(batch), dim3(THREADS256), SHARED_BYTES256>>>(
-        input.data_ptr<float>(), output.data_ptr<float>());
-    cudaError_t status = cudaGetLastError();
-    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
-}
-"""
-
-def _load_cuda256() -> None:
-    global _CUDA256, _CUDA256_ERROR
-    if _CUDA256 is not None or _CUDA256_ERROR is not None:
-        return
-    if not torch.cuda.is_available():
-        return
-    try:
-        from torch.utils.cpp_extension import load_inline
-
-        _CUDA256 = load_inline(
-            name="chol256_exp043_v35_scalar_accurate",
-            cpp_sources="void chol256_launch(torch::Tensor, torch::Tensor);",
-            cuda_sources=_CUDA256_SOURCE,
-            functions=["chol256_launch"],
-            extra_cuda_cflags=["-O2"],
-            verbose=False,
-        )
-    except Exception as exc:
-        _CUDA256_ERROR = repr(exc)
-
-
-def _cuda_cholesky256(data: torch.Tensor) -> torch.Tensor:
-    global _CUDA256_HITS
-    out = torch.empty_like(data)
-    _CUDA256.chol256_launch(data, out)
-    _CUDA256_HITS += 1
-    return out
-
 _MICRO32_HITS = 0
 # The diagonal micro ships inside the experiment-042 extension (one nvcc
 # invocation for both kernels) so the submission still compiles in three.
 _MICRO32_ERROR = _CUDA128_ERROR
 _MICRO32 = _CUDA128
-
-# Experiment 045: shapes whose split32 schedule hands its two Schur updates
-# (`_panel_inner32*` and `_trailing_nb`) to cuBLAS batched GEMM instead of
-# Triton. Measured on B200 at 640x512, the Triton trailing kernel runs at
-# 53 TFLOP/s while the same product through cuBLAS reaches 221 TFLOP/s. Both
-# updates accumulate in place on a strided view (ldc = n), so they need no
-# clone, no copy-back and no final `tril_`.
-# Empty: measured 0.566x (fp32 SIMT) / 0.897x (tf32) at 640x512. cuBLAS wins
-# the trailing product (285 TFLOP/s vs Triton's 53) but loses the inner update
-# (26 TFLOP/s -- K=32, N<=96 is too skinny to fill a tensor-core tile), and the
-# first-touch `out=` form materialises the accumulator (2 x 180us). See
-# notes.md; the trailing-only split remains open.
-_BMM_SCHUR_SHAPES = set()
-_BMM_SCHUR_HITS = 0
-
 
 # Shapes whose split32 schedule uses the CUDA diagonal micro-factorization.
 # Only the eager-mode split32 shapes are enrolled. The kernel uses a plain
@@ -2184,14 +1685,15 @@ if _HAVE_TRITON:
         mode for the bandwidth-bound shapes). The mirrored zero-fill in the
         panel kernel plus the zeroed diagonal-block upper make a separate
         clear pass unnecessary in both modes."""
-        global _MICRO32_HITS, _BMM_SCHUR_HITS
+        global _MICRO32_HITS
         batch, n, _ = work.shape
-        cuda_micro = _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
-        bmm_schur = (batch, n) in _BMM_SCHUR_SHAPES
         tile = _SPLIT32_TILE
         ft = src is not None
         if not ft:
             src = work
+        cuda_micro = (
+            _MICRO32 is not None and (batch, n) in _MICRO32_SHAPES
+        )
         j = 0
         for nb in _nb_schedule(batch, n):
             panel_end = min(j + nb, n)
@@ -2228,20 +1730,7 @@ if _HAVE_TRITON:
                     num_warps=4,
                 )
                 width = panel_end - (k + 32)
-                if width > 0 and bmm_schur:
-                    _BMM_SCHUR_HITS += 1
-                    below = k + 32
-                    factor = work[:, below:, k:below]
-                    update = factor[:, :width, :].transpose(1, 2)
-                    target = work[:, below:, below:panel_end]
-                    if ft and k == 0:
-                        torch.baddbmm(
-                            src[:, below:, below:panel_end], factor, update,
-                            beta=1.0, alpha=-1.0, out=target,
-                        )
-                    else:
-                        target.baddbmm_(factor, update, beta=1.0, alpha=-1.0)
-                elif width > 0:
+                if width > 0:
                     if (batch, n) in _PANEL_INNER_SUBTILE64_SHAPES:
                         ntiles_c = triton.cdiv(width, 64)
                         _panel_inner32_subtile64[
@@ -2275,21 +1764,7 @@ if _HAVE_TRITON:
                             num_warps=4,
                         )
             rem_out = n - panel_end
-            if rem_out > 0 and bmm_schur:
-                _BMM_SCHUR_HITS += 1
-                block = work[:, panel_end:, j:panel_end]
-                target = work[:, panel_end:, panel_end:]
-                if ft and j == 0:
-                    torch.baddbmm(
-                        src[:, panel_end:, panel_end:], block,
-                        block.transpose(1, 2), beta=1.0, alpha=-1.0,
-                        out=target,
-                    )
-                else:
-                    target.baddbmm_(
-                        block, block.transpose(1, 2), beta=1.0, alpha=-1.0
-                    )
-            elif rem_out > 0:
+            if rem_out > 0:
                 tr = triton.cdiv(rem_out, trailing_tile)
                 _trailing_nb[(tr * (tr + 1) // 2, batch)](
                     work,
@@ -3134,9 +2609,89 @@ def _left_looking_large(
 
 
 
+
+# ---------------------------------------------------------------------------
+# Experiment 045: cuBLAS batched-GEMM blocked factorization for the
+# throughput-bound mid shapes.
+#
+# At 640x512 the three Triton kernels that carry the panel and trailing work
+# are 84.6% of device time and run at 47-53 TFLOP/s -- 2-5% of the B200's tf32
+# tensor-core peak. They were written for the latency-bound small-batch shapes
+# (grid = row-tiles x batch, tiny tiles) and do not scale to batch 640. Each
+# one maps exactly onto a batched GEMM, so hand the arithmetic to cuBLAS:
+#
+#   panel   L[i, k:k+32] = A[i, k:k+32] @ Dinv^T          -> bmm
+#   inner   A[i, c] -= L[i, k:k+32] @ L[c, k:k+32]^T      -> baddbmm_
+#   trail   A[i, c] -= L21 @ L21^T                        -> baddbmm_
+#
+# The trailing update keeps tf32 (the shipped `trailing_prec` for these
+# shapes); the panel products run in full fp32, which is *more* accurate than
+# the shipped tf32x3 3-pass emulation and still far cheaper than a Triton
+# kernel at 2% of peak. Trailing updates write through `baddbmm_` on a strided
+# view so cuBLAS accumulates in place (ldc = n) with no copy back.
+# ---------------------------------------------------------------------------
+_BMM_HITS = 0
+_BMM_FALLBACKS = 0
+_BMM_ERROR = None
+_BMM_NB = 128
+_BMM_SHAPES = {
+    (640, 512),
+}
+_BMM_DINV = {}
+
+
+def _bmm_mid_factor(data: torch.Tensor) -> torch.Tensor:
+    """Right-looking blocked Cholesky whose panel and trailing updates are
+    cuBLAS batched GEMMs and whose 32x32 diagonal blocks are the experiment-044
+    warp-synchronous CUDA micro."""
+    batch, n, _ = data.shape
+    work = data.contiguous().clone()
+    dinv = _BMM_DINV.get(batch)
+    if dinv is None:
+        dinv = torch.empty(batch, 32, 32, device=data.device,
+                           dtype=torch.float32)
+        _BMM_DINV[batch] = dinv
+
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        for j in range(0, n, _BMM_NB):
+            panel_end = min(j + _BMM_NB, n)
+            for k in range(j, panel_end, 32):
+                _MICRO32.micro32_launch(work, work, dinv, n, k, 0)
+                below = k + 32
+                remaining = n - below
+                if remaining <= 0:
+                    break
+                torch.backends.cuda.matmul.allow_tf32 = False
+                panel = torch.bmm(
+                    work[:, below:, k:below], dinv.transpose(1, 2)
+                )
+                work[:, below:, k:below] = panel
+                work[:, k:below, below:] = 0.0
+                width = panel_end - below
+                if width > 0:
+                    work[:, below:, below:panel_end].baddbmm_(
+                        panel,
+                        panel[:, :width, :].transpose(1, 2),
+                        beta=1.0,
+                        alpha=-1.0,
+                    )
+            rem_out = n - panel_end
+            if rem_out > 0:
+                torch.backends.cuda.matmul.allow_tf32 = True
+                block = work[:, panel_end:, j:panel_end]
+                work[:, panel_end:, panel_end:].baddbmm_(
+                    block, block.transpose(1, 2), beta=1.0, alpha=-1.0
+                )
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    return work.tril_()
+
+
 def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
     global _LARGE_FP8_HITS, _LARGE_FP8_FALLBACKS, _LARGE_FP8_ERROR
+    global _BMM_HITS, _BMM_FALLBACKS, _BMM_ERROR
     global _FUSED_CTA_HITS, _FUSED_CTA_FALLBACKS, _FUSED_CTA_ERROR
 
     batch, n, _ = data.shape
@@ -3166,15 +2721,23 @@ def custom_kernel(data: input_t) -> output_t:
     ):
         return _cuda_cholesky128(data)
 
+    # Experiment 045: cuBLAS batched-GEMM blocked factorization for the
+    # throughput-bound mid shapes. Same finiteness guard as the split32 route.
     if (
         is_f32_cuda
-        and batch == 64
-        and n == 256
+        and _MICRO32 is not None
+        and (batch, n) in _BMM_SHAPES
         and data.is_contiguous()
     ):
-        _load_cuda256()
-        if _CUDA256 is not None:
-            return _cuda_cholesky256(data)
+        try:
+            l = _bmm_mid_factor(data)
+            if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
+                _BMM_HITS += 1
+                return l
+            _BMM_FALLBACKS += 1
+        except Exception as exc:
+            _BMM_ERROR = repr(exc)
+            _BMM_FALLBACKS += 1
 
     # Experiment 015 round 4: two-level blocked tensor-core potrf with
     # per-shape graph replay for the mid shapes. On any numerical failure
