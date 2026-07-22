@@ -67,6 +67,15 @@ popcorn submissions                                # view your entries
   lost. Experiment 048 made no source change from its then-current `#890659`;
   the repository now carries exp 047's independently ranked `#890798`. See
   `experiments/048-4x1024-2x/` and `journal.md` Session 44.
+- **Experiment 050 cooperative `4×1024` is rejected; root remains `#890798`.**
+  V16 consolidated the CUDA32/64/128/micro/cooperative kernels into one JIT
+  extension, cutting a clean build to **56.157s** and fixing the earlier
+  six-minute service timeout. Modal paired evidence reached **1.44757×** at
+  `4×1024`; the full grid passed 15/15 at **1.021085×**, and Popcorn test
+  `#897104` passed 17/17. Ranked `#897112` improved secret
+  **847.836→780.510us** but regressed public **801.977→812.135us**, so it is
+  not adopted under the two-sided rule. See `experiments/050-coop-nb128/` and
+  `journal.md` Session 45.
 - **Ranked submission `#876988`** (cuSOLVER baseline): `done`, 17/17 on B200, geomean ≈ **2080μs**.
 - **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.
 - **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.

@@ -1,0 +1,21 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_import_seconds": 1.474665214,
+  "submission_import_seconds": 80.611614992,
+  "runner_init_seconds": 83.27948372099999,
+  "load_inline_timings": [
+    {
+      "name": "chol32_exp039_final",
+      "seconds": 26.404899954999998
+    },
+    {
+      "name": "chol64_exp041_v3_final",
+      "seconds": 26.207505514999998
+    },
+    {
+      "name": "chol128_exp042_v5_with_exp044_micro_exp050_v14_o2_subu8",
+      "seconds": 27.851054862000005
+    }
+  ]
+}

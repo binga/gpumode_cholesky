@@ -1,0 +1,29 @@
+{
+  "submission_id": 897112,
+  "leaderboard": "cholesky",
+  "gpu": "B200",
+  "mode": "leaderboard",
+  "source": "candidate-v16.py",
+  "source_sha256": "11750bbd765d4ebd6f900de7a5811fd3be56a4af5ba5ebecd89022c79d242b60",
+  "status": "succeeded",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "geomean_seconds": 0.0008121345767048786,
+    "geomean_microseconds": 812.1345767048786
+  },
+  "secret": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "geomean_seconds": 0.0007805098149328348,
+    "geomean_microseconds": 780.5098149328348
+  },
+  "incumbent": {
+    "submission_id": 890798,
+    "public_geomean_microseconds": 801.9771791503684,
+    "secret_geomean_microseconds": 847.8361641640636
+  },
+  "decision": "rejected_public_regression_secret_improvement"
+}

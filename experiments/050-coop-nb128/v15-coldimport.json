@@ -1,0 +1,13 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_import_seconds": 1.399182824,
+  "submission_import_seconds": 9.474768182999998,
+  "runner_init_seconds": 11.919857831,
+  "load_inline_timings": [
+    {
+      "name": "chol3264128_exp050_v15_combined_o3",
+      "seconds": 9.325444739999998
+    }
+  ]
+}

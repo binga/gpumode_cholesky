@@ -1,0 +1,40 @@
+{
+  "mode": "microprobe",
+  "device": "NVIDIA B200",
+  "found_kernel": true,
+  "variants": [
+    {
+      "num_warps": 1,
+      "n_regs": 236,
+      "n_spills": 0,
+      "shared": 512,
+      "chain32_us": 482.1,
+      "per_call_us": 15.065
+    },
+    {
+      "num_warps": 2,
+      "n_regs": 137,
+      "n_spills": 0,
+      "shared": 1024,
+      "chain32_us": 657.5,
+      "per_call_us": 20.546
+    },
+    {
+      "num_warps": 4,
+      "n_regs": 102,
+      "n_spills": 0,
+      "shared": 2048,
+      "chain32_us": 723.0,
+      "per_call_us": 22.593
+    },
+    {
+      "num_warps": 8,
+      "n_regs": 80,
+      "n_spills": 2,
+      "shared": 4096,
+      "chain32_us": 1051.2,
+      "per_call_us": 32.849
+    }
+  ],
+  "passed": true
+}

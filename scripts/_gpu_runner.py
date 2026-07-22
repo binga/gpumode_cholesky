@@ -13,6 +13,8 @@ import os
 import sys
 import time
 
+_RUNNER_START = time.perf_counter()
+
 # BF16x9 FP32 emulation (exp 007): cuBLAS 12.9+/CUDA 13 emulates a true FP32 GEMM
 # as 9 BF16 products on Blackwell BF16 tensor cores (~3-4x native FP32, >=FP32
 # accuracy). The env var must be set BEFORE the cuBLAS handle is created (first
@@ -32,10 +34,37 @@ if _EMU:
 sys.path.insert(0, "/root/reference")
 sys.path.insert(0, "/root")
 
+_TORCH_IMPORT_START = time.perf_counter()
 import torch  # noqa: E402
+_TORCH_IMPORT_SECONDS = time.perf_counter() - _TORCH_IMPORT_START
 
 from reference import check_implementation, generate_input  # noqa: E402
+
+# Attribute cold-import wall time to each JIT extension without modifying the
+# submission. `from torch.utils.cpp_extension import load_inline` performed by
+# the submission observes this wrapper, while the compiled source stays exact.
+import torch.utils.cpp_extension as _cpp_extension  # noqa: E402
+
+_LOAD_INLINE_TIMINGS = []
+_ORIGINAL_LOAD_INLINE = _cpp_extension.load_inline
+
+
+def _timed_load_inline(*args, **kwargs):
+    name = kwargs.get("name", args[0] if args else "unknown")
+    started = time.perf_counter()
+    try:
+        return _ORIGINAL_LOAD_INLINE(*args, **kwargs)
+    finally:
+        _LOAD_INLINE_TIMINGS.append(
+            {"name": name, "seconds": time.perf_counter() - started}
+        )
+
+
+_cpp_extension.load_inline = _timed_load_inline
+_SUBMISSION_IMPORT_START = time.perf_counter()
 from submission import custom_kernel  # noqa: E402
+_SUBMISSION_IMPORT_SECONDS = time.perf_counter() - _SUBMISSION_IMPORT_START
+_RUNNER_INIT_SECONDS = time.perf_counter() - _RUNNER_START
 
 TEST_SPECS = [
     {"batch": 16, "n": 32, "cond": 2, "seed": 53124},
@@ -3038,7 +3067,24 @@ def main():
     _err = getattr(_sub, "_CUDA_LOAD_ERROR", None)
     if _err:
         print("CUDA_LOAD_ERROR:\n" + _err, flush=True)
-    if mode == "benchmark":
+    if mode == "coldimport":
+        load_errors = _module_errors(_sub)
+        readiness = {
+            name: getattr(_sub, name, None) is not None
+            for name in ("_CUDA32", "_CUDA64", "_CUDA128")
+            if hasattr(_sub, name)
+        }
+        result = {
+            "mode": "coldimport",
+            "passed": bool(not load_errors and all(readiness.values())),
+            "torch_import_seconds": _TORCH_IMPORT_SECONDS,
+            "submission_import_seconds": _SUBMISSION_IMPORT_SECONDS,
+            "runner_init_seconds": _RUNNER_INIT_SECONDS,
+            "load_inline_timings": _LOAD_INLINE_TIMINGS,
+            "readiness": readiness,
+            "load_errors": load_errors,
+        }
+    elif mode == "benchmark":
         result = run_benchmark(filter_ns)
     elif mode == "probe":
         result = run_probe(filter_ns)

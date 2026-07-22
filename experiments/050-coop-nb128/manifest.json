@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "experiment": 50,
+  "shape": "4x1024",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "frontier": {
+    "source": "integrated-v8.py",
+    "source_sha256": "46e5e86531660eea24e60f98b90b60d0761f4337b92aa04b32c64678e61548ff",
+    "paired_evidence": "integrated-paired.json",
+    "paired_evidence_sha256": "96f6f03db9d1f2bdf1424acc09e0a5f035cdf91a87ad8397064877427ca25064",
+    "family_evidence": "integrated-familygrid.json",
+    "family_evidence_sha256": "c61498a31a32ded32a60f0ee9d8ca7d82b45f3a1115c64178ffc14a7c7bf4674",
+    "paired_shape_speedup": 1.4085896146195183,
+    "paired_grid_speedup": 1.0229892995166414,
+    "classification": "PROMOTABLE_FRONTIER_COMPILE_BUDGET_FAILURE"
+  },
+  "popcorn": [
+    {"id": 893978, "mode": "test", "status": "passed"},
+    {"id": 893983, "mode": "leaderboard", "status": "public_test_timeout_secret_780.334us"},
+    {"id": 893995, "mode": "ranked_retry", "status": "both_test_splits_timeout"},
+    {"id": 896863, "mode": "v10_test", "status": "compile_budget_failure_360s"},
+    {"id": 897104, "mode": "v16_test", "status": "passed_17_of_17"},
+    {"id": 897112, "mode": "v16_leaderboard", "status": "rejected_public_812.135us_secret_780.510us"}
+  ],
+  "compile_fix_variants": [
+    {
+      "id": "V10",
+      "source": "candidate-v10.py",
+      "source_sha256": "30c6d8902324cb22f1abc0a601f303332af4491188a1b948f888ffccc42c3403",
+      "coldimport_evidence": "v10-coldimport.json",
+      "coldimport_evidence_sha256": "20d5064e9b0a14472bef3b00d71ea1e01e6cc7b29aeb62f0be3f47af9aefc540",
+      "paired_evidence": "v10-paired-1024.json",
+      "paired_evidence_sha256": "21f9302df479ce91bc70005182a839cd440270c2acf4d8fd5434b01a21677912",
+      "family_evidence": "v10-familygrid-1024.json",
+      "family_evidence_sha256": "c61498a31a32ded32a60f0ee9d8ca7d82b45f3a1115c64178ffc14a7c7bf4674",
+      "full_grid_evidence": "v10-fullgrid.json",
+      "full_grid_evidence_sha256": "9f5b822131078ee4396f6ecf354e4add29a2ecb104d1b87ba909dbdcdcdb9b1a",
+      "cold_import_seconds": 88.02930669,
+      "paired_shape_speedup": 1.4448920083215713,
+      "family_checker_passes": "12/12",
+      "expected_safety_fallbacks": ["4x1024 spectrum", "4x1024 lowrank"],
+      "full_grid_speedup": 1.0234221578825797,
+      "classification": "PROMOTABLE_FRONTIER_COMPILE_BUDGET_FAILURE"
+    },
+    {
+      "id": "V11",
+      "source": "candidate-v11.py",
+      "source_sha256": "47279de0c07f2b911ddb070ea262e154a753b792cc399335b11d7f1cac6c5ddf",
+      "coldimport_evidence": "v11-coldimport.json",
+      "coldimport_evidence_sha256": "b494055a2466768060e06a2a210ac8f5cc2590d82a401c56f6e1dbfad0fcb1cf",
+      "paired_evidence": "v11-paired-1024.json",
+      "paired_evidence_sha256": "c6f82821309739cab02a70a4db8c5c928972364dadb049493e788d401497534b",
+      "cold_import_seconds": 79.624956045,
+      "paired_shape_speedup": 1.4051326388701382,
+      "classification": "COMPILE_FRONTIER_PENDING_STRONGER_VARIANT"
+    },
+    {
+      "id": "V12",
+      "source": "candidate-v12.py",
+      "source_sha256": "1a0594695dea4c73d3078bab6051b0407256e7f7dc0537ef071d6f0164eb30c6",
+      "coldimport_evidence": "v12-coldimport.json",
+      "coldimport_evidence_sha256": "c4d0f4088bb88f9bb55dd3f5e8f84816eacd303ee8da4fb5e3d0d8fc8710a185",
+      "cold_import_seconds": 82.134899531,
+      "classification": "REJECTED_NO_COMPILE_IMPROVEMENT"
+    },
+    {
+      "id": "V13",
+      "source": "candidate-v13.py",
+      "source_sha256": "ab1b161106d4ceb797cc3d766b418af572da344b84ef14debf8db05932befeac",
+      "coldimport_evidence": "v13-coldimport.json",
+      "coldimport_evidence_sha256": "7ea78b7bb4fdabecf37d160daf58164dc4f0cf24036050b054600c97cddd59ed",
+      "cold_import_seconds": 120.23281064199999,
+      "classification": "REJECTED_NVCC_THREADS_REGRESSION"
+    },
+    {
+      "id": "V14",
+      "source": "candidate-v14.py",
+      "source_sha256": "27be14b1eb846a8fb0b25a5a3d09627a4daad94a8451c452f760a2c8f8424e85",
+      "coldimport_evidence": "v14-coldimport.json",
+      "coldimport_evidence_sha256": "274e943fc53c9a5f836c287f0f5409ab50133614d1c15efd2c317869f5a9fec3",
+      "cold_import_seconds": 80.611614992,
+      "compile_decomposition_seconds": {"CUDA32": 26.404899954999998, "CUDA64": 26.207505514999998, "CUDA128_COOP": 27.851054862000005},
+      "classification": "REJECTED_FIXED_STARTUP_DOMINATES"
+    },
+    {
+      "id": "V15",
+      "source": "candidate-v15.py",
+      "source_sha256": "3e5e5d24497988df6ae65c7f5bf9448f142cfd71f621bd99d6bb7459da7fc59a",
+      "coldimport_evidence": "v15-coldimport-diagnostic.json",
+      "coldimport_evidence_sha256": "c1354fc91144a00a87487f8ded468631bebe882f81ecc2edbb6a72939f399011",
+      "classification": "INVALID_COMPILE_DUPLICATE_CONSTANT_N"
+    },
+    {
+      "id": "V16",
+      "source": "candidate-v16.py",
+      "source_sha256": "11750bbd765d4ebd6f900de7a5811fd3be56a4af5ba5ebecd89022c79d242b60",
+      "coldimport_evidence": "v16-coldimport.json",
+      "coldimport_evidence_sha256": "2b97e8ae17a993e331c73f85034374d5aa7afa6ec1e398e20b5853038ad393dc",
+      "paired_evidence": "v16-paired-1024.json",
+      "paired_evidence_sha256": "075831868461aadc658bcde1a2480a9b7c47efa38d99687aea80b7b9cd0f1207",
+      "paired_small_evidence": "v16-paired-small.json",
+      "paired_small_evidence_sha256": "c3ece6e31bda64a39413c0c8ca9fe3afdb6f8749f9b1d531134bd43725dd3eae",
+      "family_evidence": "v16-familygrid-1024.json",
+      "family_evidence_sha256": "c61498a31a32ded32a60f0ee9d8ca7d82b45f3a1115c64178ffc14a7c7bf4674",
+      "full_grid_evidence": "v16-fullgrid.json",
+      "full_grid_evidence_sha256": "d6980d03f49f157262363350d4c1f8c32312c64feb7328dee474c74b4b835cef",
+      "cold_import_seconds": 56.583363967,
+      "combined_extension_seconds": 56.157318384999996,
+      "extension_readiness": {"_CUDA32": true, "_CUDA64": true, "_CUDA128": true},
+      "paired_shape_speedup": 1.4475685485808008,
+      "paired_small_geomean_speedup": 0.9994187992679859,
+      "family_checker_passes": "12/12",
+      "expected_safety_fallbacks": ["4x1024 spectrum", "4x1024 lowrank", "60x1024 lowrank"],
+      "full_grid_speedup": 1.0210847010281465,
+      "full_grid_ci95": [1.020413284869078, 1.0217565589686632],
+      "popcorn_test_submission": 897104,
+      "popcorn_test_evidence": "popcorn-897104.json",
+      "popcorn_test_evidence_sha256": "cdf4c77c9f6b534df8c87325c7712335bd1af3fb8c7252143a6f027d88880030",
+      "popcorn_ranked_submission": 897112,
+      "popcorn_ranked_evidence": "popcorn-897112.json",
+      "popcorn_ranked_evidence_sha256": "7c2c09d3b4d388d0d1b2f53f47fa60f68041964447665a2d48f76d4295900f8d",
+      "popcorn_public_geomean_us": 812.1345767048786,
+      "popcorn_secret_geomean_us": 780.5098149328348,
+      "classification": "REJECTED_PUBLIC_REGRESSION_SECRET_IMPROVEMENT"
+    }
+  ],
+  "root_source_changed": false
+}

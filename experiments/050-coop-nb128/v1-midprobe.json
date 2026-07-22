@@ -1,0 +1,45 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "correctness 4x1024 dense",
+      "us": 0.0,
+      "rel": 3.5722450845907636e-07,
+      "hits": 1,
+      "fallbacks": 0,
+      "ok": true
+    },
+    {
+      "name": "custom_kernel end-to-end",
+      "us": 1089.9988810221355,
+      "ok": true
+    },
+    {
+      "name": "bare coop kernel (in-place, garbage after iter 1)",
+      "us": 1041.3909276326497,
+      "ok": true
+    },
+    {
+      "name": "phase_diag",
+      "us": 814.528,
+      "ok": true
+    },
+    {
+      "name": "phase_panel",
+      "us": 125.6,
+      "ok": true
+    },
+    {
+      "name": "phase_trailing",
+      "us": 95.52,
+      "ok": true
+    },
+    {
+      "name": "phase_cleanup",
+      "us": 2.464,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

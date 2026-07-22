@@ -1,0 +1,15 @@
+{
+  "submission_id": 897104,
+  "leaderboard": "cholesky",
+  "gpu": "B200",
+  "mode": "test",
+  "source": "candidate-v16.py",
+  "source_sha256": "11750bbd765d4ebd6f900de7a5811fd3be56a4af5ba5ebecd89022c79d242b60",
+  "status": "succeeded",
+  "passed": true,
+  "checker_passes": 17,
+  "checker_total": 17,
+  "start_time": "2026-07-22T21:58:41.506418Z",
+  "end_time": "2026-07-22T21:59:45.916879Z",
+  "duration_seconds": 64.410461
+}

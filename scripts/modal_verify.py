@@ -114,6 +114,7 @@ def main() -> int:
         nargs="?",
         default="verify",
         choices=[
+            "coldimport",
             "verify",
             "benchmark",
             "probe",

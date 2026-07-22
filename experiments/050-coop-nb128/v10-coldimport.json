@@ -1,0 +1,7 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_import_seconds": 3.067716111,
+  "submission_import_seconds": 88.02930669,
+  "runner_init_seconds": 91.099446656
+}

@@ -67,6 +67,9 @@ Current adopted source: **`#890798` = 801.977μs public / 847.836μs secret
 (Session 43, exp 047)**. It improves `#890659` by 0.504% public on a paired
 grid of 1.012106x. Exact SHA-256:
 `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
+Experiment 050's cooperative `4×1024` V16 is not adopted: ranked `#897112`
+improved secret to `780.510μs` but regressed public to `812.135μs` (Session
+45). Root remains byte-exact `#890798`.
 Previously: **`#890659` = 806.037μs public / 806.396μs secret (Session 42,
 exp 046)**.
 Previously: **`#890089` = 810.246μs public (Session 41, exp 045
@@ -87,7 +90,7 @@ every stage-specific control exceeds 2x.
 | 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cooperative + cluster/DSM persistent paths rejected (S44/exp048, best dense 1.167× and family-invalid) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
+| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cluster/DSM persistent paths rejected (S44/exp048); ✗ cooperative NB128 V16 (S45/exp050: 1.403× Modal, secret +7.94%, public −1.27%) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + **✓ fused resident panel + merged diag step** (S43, 1.092×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
 | 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19); ✗ fused resident panel (S43, 0.907× — needs uniform NB=128, loses exp 032's NB=256) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -189,6 +192,45 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-23 — Session 45: exp 050 cooperative `4×1024` compile rescue → secret win, public reject
+
+Experiment 050 recovered an NB=128 cooperative-grid Cholesky path that replaces
+the dependent split32 launch chain at `4×1024`. The arithmetic frontier was
+real: same-process B200 paired evidence reached `1.44757x` on the target with
+`_COOP1024_HITS=1`, zero new fallbacks, and the full 15-shape grid improved
+`1.021085x` (CI95 `[1.020413, 1.021757]`, 15/15 correct). All 12 dense,
+spectrum, diagonal, lowrank, rowscale, and tridiagonal rows passed the unchanged
+checker; spectrum/lowrank retained the shipped finite-diagonal safety fallback.
+
+The first exact source was service-bound: Popcorn `#896863` timed out at
+`360.067s`. Compile decomposition then showed that fixed NVCC/PyBind startup,
+not the cooperative template body, dominated three eager extensions. V16
+consolidated CUDA32, CUDA64, CUDA128, micro32, and cooperative kernels into one
+extension while retaining their exact algorithms and `-O3` code generation.
+The clean combined build took `56.157s`; all three readiness checks passed and
+no load error remained. The repackaged 32/64/128 ranked rows were correct and
+at parity in the dedicated paired gate.
+
+Popcorn test `#897104` passed 17/17 in `64.410s`. The unchanged source ranked
+once as `#897112`:
+
+| Split | Incumbent `#890798` | V16 `#897112` | Decision |
+|---|---:|---:|---|
+| Public | 801.977μs | 812.135μs | 1.27% regression |
+| Secret | 847.836μs | 780.510μs | 7.94% improvement |
+
+The public regression rejects V16 under the two-sided adoption rule. Root
+`submission.py` remains byte-exact `#890798`; unchanged V16 will not be
+reranked. The key reusable result is the compile packaging fix plus a
+secret-positive cooperative frontier that needs a larger public margin or a
+non-overlapping second shape before another qualified promotion.
+
+Artifacts and exact candidates are in `experiments/050-coop-nb128/`. The
+isolated branch is `worktree-exp050-compilefix`; commit and remote publication
+are pending at this checkpoint.
 
 ---
 
