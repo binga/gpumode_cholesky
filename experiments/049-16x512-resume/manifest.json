@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "experiment": 49,
+  "baseline": {
+    "source": "submission.py",
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "candidate": {
+    "source": "candidate-v5-overlay.py",
+    "source_sha256": "8ee43d64aae8e454287eeb109fa8a81ba2f36c10e9cda7582ec475eeea4a6e06",
+    "evidence": "variant-05-paired.json",
+    "evidence_sha256": "cc3febf143454c24eb760cdcf654f0107b128590043c87be35caa356b65179cd",
+    "baseline_us": 397.6159989833832,
+    "candidate_us": 423.6319959163666,
+    "speedup": 0.9384464058532115,
+    "classification": "REJECTED_REGRESSION"
+  },
+  "root_source_changed": false
+}

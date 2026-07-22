@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "experiment": 49,
+  "status": "rejected_exhausted",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "shape_control_us": 389.408
+  },
+  "active_candidate": {
+    "variant": 5,
+    "source": "candidate-v5-overlay.py",
+    "architecture": "graph-captured Triton resident-panel fusion",
+    "target_shape": "16x512"
+  },
+  "completed_gates": [
+    "fresh isolated worktree at exact origin/main incumbent",
+    "exact ranked source SHA-256 verified",
+    "prior V1-V4 evidence audited; rejected architectures remain closed",
+    "local syntax, source policy, and audit-contract validation passed",
+    "V5 paired B200: active route, checker pass, off-target parity",
+    "V5 target 397.616us to 423.632us = 0.938446x (CI95 0.937938-0.938906)"
+  ],
+  "pending_gates": [],
+  "updated_at": "2026-07-23T05:02:35+05:30",
+  "next_action": "Publish terminal V5 evidence without adoption; keep all five Experiment 049 architectures closed."
+}
