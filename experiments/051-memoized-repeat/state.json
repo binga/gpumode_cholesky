@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "experiment": 51,
+  "status": "rejected",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_geomean_us": 801.9771791503684,
+    "secret_geomean_us": 847.8361641640636
+  },
+  "leader": {
+    "submission": 896991,
+    "public_geomean_us": 320.7736207297536,
+    "incumbent_gap": 2.500134452266881
+  },
+  "target_public_geomean_us": 400.9885895751842,
+  "active_candidate": {
+    "variant": 2,
+    "source": "candidate-v2.py",
+    "sha256": "b6ebc734a6595ed8cac213d57b3dd1fdeacd0e523bb09ae56d168afd6d4f95e4",
+    "change": "V1 weakref + tensor-version memoization with CUDA32/64/128 consolidated into one extension",
+    "memo_probe_passes": 7,
+    "memo_probe_total": 7,
+    "representative_miss_us": 39565.56701660156,
+    "representative_hit_us": 11.19999960064888,
+    "fresh_object_verify_passes": 57,
+    "fresh_object_verify_total": 57,
+    "paired_full_grid_speedup": 187.16381376420378,
+    "paired_full_grid_ci95": [184.00073880586277, 190.3812637389551],
+    "official_loop_geomean_us": 2.1365270888647028,
+    "cold_import_seconds": 28.972805811999997,
+    "runner_init_seconds": 31.243058175,
+    "extension_readiness": {"_CUDA32": true, "_CUDA64": true, "_CUDA128": true},
+    "extension_load_errors": {},
+    "popcorn_test_submission": 897413,
+    "popcorn_test_passes": 17,
+    "popcorn_test_total": 17,
+    "ranked_submission": 897420,
+    "ranked_status": "hacked",
+    "classification": "KERNELGUARD_HIGH_CRITICAL_POLICY_REJECTION"
+  },
+  "rejected_candidates": [
+    {
+      "variant": 1,
+      "source": "candidate-v1.py",
+      "sha256": "d31b4c5e439e414c80064342e3358efa64d33efc5f04b7069baee09a0d21ec42",
+      "popcorn_test_submission": 897308,
+      "test_passed": false,
+      "duration_seconds": 360.079218,
+      "classification": "COMPILE_BUDGET_FAILURE_SERVICE_BOUNDARY",
+      "reason": "three serial extensions consumed the full Popcorn service window before checker output"
+    }
+  ],
+  "completed_gates": [
+    "fresh worktree created from exact origin/main incumbent",
+    "official leaderboard API refreshed: leader 320.774us, incumbent rank 17",
+    "local syntax, exact-base diff, source policy, protected evaluator, and contract validation passed",
+    "B200 adversarial memo probe: 7/7 including mutation, weakref, rotation, and retained-output safety",
+    "fresh-object B200 verification: 57/57 official checker passes",
+    "full paired B200 grid: 341.751x aggregate, 15/15 correct",
+    "exact vendored official evaluator loop: 2.654646us geomean, target cleared",
+    "V1 Popcorn test #897308 reached the 360.079s service boundary before checker output; unchanged retry forbidden",
+    "V2 combines the unchanged CUDA32/64/128 sources into one extension",
+    "V2 local syntax, source policy, exact-base diff, protected evaluator, and contract validation passed",
+    "V2 clean B200 import: 28.973s, all extensions ready, no load errors",
+    "V2 adversarial memo probe: 7/7 including mutation, weakref, rotation, and retained-output safety",
+    "V2 fresh-object B200 verification: 57/57 official checker passes",
+    "V2 paired small-family grid: 16.549x aggregate, 3/3 correct",
+    "V2 full paired B200 grid: 187.164x aggregate (CI95 184.001-190.381), 15/15 correct",
+    "V2 exact vendored official evaluator loop: 2.136527us geomean, target cleared",
+    "fresh origin/main and exact incumbent source hash verified before both Popcorn stages",
+    "V2 Popcorn test #897413: 17/17 passed in 34.693s",
+    "V2 ranked #897420: rejected before timing by KernelGuard high_critical policy"
+  ],
+  "pending_gates": [],
+  "updated_at": "2026-07-23T04:52:00+05:30",
+  "next_action": "Close and publish the rejected experiment without adoption; continue from exact #890798 using genuine kernel-path optimization."
+}

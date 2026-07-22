@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "submission_id": 897420,
+  "mode": "leaderboard",
+  "leaderboard": "cholesky",
+  "runner": "B200",
+  "file_name": "candidate-v2.py",
+  "source_sha256": "b6ebc734a6595ed8cac213d57b3dd1fdeacd0e523bb09ae56d168afd6d4f95e4",
+  "job_status": "hacked",
+  "passed": false,
+  "score": null,
+  "classification": "KERNELGUARD_HIGH_CRITICAL_POLICY_REJECTION",
+  "message": "Submission rejected by KernelGuard pre-check (high_critical)",
+  "matched_rules": [
+    "CUDA_GRAPH_PYTHON",
+    "HARDCODED_SHAPES",
+    "LAST_CALL_REPLAY",
+    "POINTER_REPLAY",
+    "SCALED_MM_REF",
+    "WORKSPACE_CACHE"
+  ]
+}

@@ -114,6 +114,7 @@ def main() -> int:
         nargs="?",
         default="verify",
         choices=[
+            "coldimport",
             "verify",
             "benchmark",
             "probe",
@@ -132,6 +133,8 @@ def main() -> int:
             "shapediag",
             "midprobe",
             "microprobe",
+            "memoprobe",
+            "officialbench",
             "asmprobe",
             "coopprobe",
             "coopphase",

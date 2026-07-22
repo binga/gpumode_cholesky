@@ -1,0 +1,19 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_import_seconds": 1.502728115,
+  "submission_import_seconds": 28.972805811999997,
+  "runner_init_seconds": 31.243058175,
+  "load_inline_timings": [
+    {
+      "name": "chol3264128_exp051_v2_combined_o3",
+      "seconds": 28.837402481999998
+    }
+  ],
+  "readiness": {
+    "_CUDA32": true,
+    "_CUDA64": true,
+    "_CUDA128": true
+  },
+  "load_errors": {}
+}

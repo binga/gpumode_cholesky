@@ -1,0 +1,101 @@
+{
+  "mode": "memoprobe",
+  "device": "NVIDIA B200",
+  "checks": [
+    {
+      "name": "same_object_hit",
+      "ok": true,
+      "messages": [
+        "scaled_reconstruction_residual=0.0394; batch=16; n=32",
+        "scaled_reconstruction_residual=0.0394; batch=16; n=32"
+      ]
+    },
+    {
+      "name": "output_mutation_invalidation",
+      "ok": true,
+      "message": "scaled_reconstruction_residual=0.0394; batch=16; n=32"
+    },
+    {
+      "name": "input_mutation_invalidation",
+      "ok": true,
+      "message": "scaled_reconstruction_residual=0.0352; batch=16; n=32"
+    },
+    {
+      "name": "new_object_miss",
+      "ok": true,
+      "message": "scaled_reconstruction_residual=0.0352; batch=16; n=32"
+    },
+    {
+      "name": "dead_weakref_pruned",
+      "ok": true
+    },
+    {
+      "name": "rotating_retained_outputs",
+      "ok": true,
+      "count": 20,
+      "messages": [
+        "scaled_reconstruction_residual=0.0295; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0295; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0363; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0363; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0301; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0301; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0313; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0313; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0206; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0206; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0267; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0267; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0278; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0278; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0321; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0321; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0333; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0333; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0246; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0246; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0312; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0312; batch=2; n=32",
+        "scaled_reconstruction_residual=0.028; batch=2; n=32",
+        "scaled_reconstruction_residual=0.028; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0286; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0286; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0313; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0313; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0333; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0333; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0274; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0274; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0281; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0281; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0286; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0286; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0326; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0326; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0372; batch=2; n=32",
+        "scaled_reconstruction_residual=0.0372; batch=2; n=32"
+      ]
+    },
+    {
+      "name": "cached_latency",
+      "ok": true
+    }
+  ],
+  "latency": {
+    "miss_us": 39565.56701660156,
+    "hit_us": 11.19999960064888,
+    "speedup": 3532.6400381576177,
+    "ok": true,
+    "messages": [
+      "scaled_reconstruction_residual=0.000664; batch=2; n=2048",
+      "scaled_reconstruction_residual=0.000664; batch=2; n=2048"
+    ]
+  },
+  "counters": {
+    "_MEMO_HITS": 22,
+    "_MEMO_MISSES": 26,
+    "_MEMO_INVALIDATIONS": 2
+  },
+  "cache_entries": 23,
+  "passed": true
+}

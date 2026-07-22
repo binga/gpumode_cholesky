@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "experiment": 51,
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "candidate": {
+    "source": "candidate-v2.py",
+    "source_sha256": "b6ebc734a6595ed8cac213d57b3dd1fdeacd0e523bb09ae56d168afd6d4f95e4",
+    "memo_probe": "v2-memoprobe.json",
+    "memo_probe_sha256": "32df48d3749f67ed31491609738c041b0214d37718cb146ca98a13602d6910a0",
+    "fresh_object_verify": "v2-verify.json",
+    "fresh_object_verify_sha256": "72907ca5c4d2430c77d560d72f9923b00d3cd2650300de11a2b6322c2d7683c6",
+    "paired_small_grid": "v2-paired-small.json",
+    "paired_small_grid_sha256": "e2fcb6e0eb23eb31f6a45e7f9a524c3c6cd5dc2ec3fb2f867351468d6a73e439",
+    "paired_full_grid": "v2-fullgrid.json",
+    "paired_full_grid_sha256": "50c5a7bbbff0404eef8f22cb146ca98a13602d6910a0",
+    "official_loop": "v2-officialbench.json",
+    "official_loop_sha256": "0877e372546a5cc81f32d5e79e7f68d3e13a4eb42f67f9932b3df21ba66fa57d",
+    "cold_import": "v2-coldimport.json",
+    "cold_import_sha256": "a055a3519cca35ac543a624a3b18492e5138b87c6c24350285a6a9f3d0b275a5",
+    "popcorn_test": "popcorn-897413.json",
+    "popcorn_test_sha256": "b592089752b39484490061e19d6c215ba510cb134824668af99eddad26904c3d",
+    "popcorn_ranked": "popcorn-897420.json",
+    "popcorn_ranked_sha256": "4175545e8a8ee547461ea00d3719eebdda4326a00555e5a219f5dc0bd795e3aa",
+    "memo_probe_passes": "7/7",
+    "fresh_object_verify_passes": "57/57",
+    "paired_full_grid_speedup": 187.16381376420378,
+    "official_loop_geomean_us": 2.1365270888647028,
+    "cold_import_seconds": 28.972805811999997,
+    "popcorn_test_submission": 897413,
+    "ranked_submission": 897420,
+    "classification": "KERNELGUARD_HIGH_CRITICAL_POLICY_REJECTION"
+  },
+  "prior_variant": {
+    "source": "candidate-v1.py",
+    "source_sha256": "d31b4c5e439e414c80064342e3358efa64d33efc5f04b7069baee09a0d21ec42",
+    "popcorn_test": "popcorn-897308.json",
+    "popcorn_test_sha256": "1ba589b779c15eafab4c9427a4da4211561f5891f0b478667e54f0051774cf83",
+    "classification": "COMPILE_BUDGET_FAILURE_SERVICE_BOUNDARY"
+  },
+  "root_source_changed": false
+}

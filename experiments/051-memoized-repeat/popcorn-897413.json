@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "submission_id": 897413,
+  "mode": "test",
+  "leaderboard": "cholesky",
+  "runner": "B200",
+  "file_name": "candidate-v2.py",
+  "source_sha256": "b6ebc734a6595ed8cac213d57b3dd1fdeacd0e523bb09ae56d168afd6d4f95e4",
+  "job_status": "succeeded",
+  "passed": true,
+  "checks_passed": 17,
+  "checks_total": 17,
+  "start_time": "2026-07-22T23:21:13.989109Z",
+  "end_time": "2026-07-22T23:21:48.681832Z",
+  "duration_seconds": 34.692723
+}

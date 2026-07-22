@@ -1,0 +1,14 @@
+{
+  "submission_id": 897308,
+  "leaderboard": "cholesky",
+  "gpu": "B200",
+  "mode": "test",
+  "source": "candidate-v1.py",
+  "source_sha256": "d31b4c5e439e414c80064342e3358efa64d33efc5f04b7069baee09a0d21ec42",
+  "job_status": "succeeded",
+  "run_passed": false,
+  "start_time": "2026-07-22T22:54:18.869802Z",
+  "end_time": "2026-07-22T23:00:18.949020Z",
+  "duration_seconds": 360.079218,
+  "classification": "compile_budget_failure_service_boundary"
+}
