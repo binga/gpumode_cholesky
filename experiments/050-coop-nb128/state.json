@@ -113,6 +113,12 @@
     "popcorn_v16_test_pass": 897104,
     "popcorn_v16_ranked_rejected": 897112
   },
+  "publication": {
+    "experiment_commit": "d4b781e",
+    "branch": "worktree-exp050-compilefix",
+    "remote": "origin/worktree-exp050-compilefix",
+    "verified": true
+  },
   "consumed": {
     "serious_architecture_variants": 8,
     "compile_fix_variants": 7,

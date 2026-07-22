@@ -229,8 +229,9 @@ secret-positive cooperative frontier that needs a larger public margin or a
 non-overlapping second shape before another qualified promotion.
 
 Artifacts and exact candidates are in `experiments/050-coop-nb128/`. The
-isolated branch is `worktree-exp050-compilefix`; commit and remote publication
-are pending at this checkpoint.
+experiment commit is `d4b781e` on isolated branch
+`worktree-exp050-compilefix`, pushed and verified on GitHub. This rejected
+experiment is published without changing root `submission.py` or `origin/main`.
 
 ---
 
