@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "experiment": 49,
+  "shape": "16x512",
+  "baseline": {
+    "submission": 890798,
+    "source": "baseline-890798.py",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "paired_control_us": 389.408,
+    "profile": "baseline-shapediag.json"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "architecture": "full-resident cluster16 DSM",
+      "candidate": "candidate-v1.py",
+      "candidate_sha256": "0e6b0f8cbf948a6d6486fdcfb4b0222b391cc30f3f6d37d7ac05617cd0e45182",
+      "evidence": "variant-01b-paired.json",
+      "evidence_sha256": "9032411c25cb994df064a6f677618fd8715bcb79b9582a2c52c8797972ebe351",
+      "baseline_us": 398.464,
+      "candidate_us": 953.344,
+      "speedup": 0.41787,
+      "checker_residual": 9.45,
+      "classification": "REJECTED"
+    },
+    {
+      "id": "V2",
+      "architecture": "one persistent 512-thread CTA per matrix",
+      "candidate": "candidate-v2.py",
+      "candidate_sha256": "f6a38b10db16ed8df8d9fd601a0b147db9fd45af16f42283539e8504b87e3b4b",
+      "evidence": "variant-02-paired.json",
+      "evidence_sha256": "de377d83394fbe9e5b75640ac05442ab719f47f9609b3b684419f1fbbd448c11",
+      "baseline_us": 387.8,
+      "candidate_us": 1296.976,
+      "speedup": 0.29898,
+      "checker_residual": 9.45,
+      "classification": "REJECTED"
+    },
+    {
+      "id": "V3",
+      "architecture": "occupancy-gated atomic CTA groups",
+      "candidate": "candidate-v3.py",
+      "candidate_sha256": "9637c53756c5d164c87e11327d27fcaddf39becfb068fbe43b02d4361c89b68c",
+      "evidence": "variant-03-paired.json",
+      "evidence_sha256": "cfb800c915a7bfe2c1efe3b77092b13f820b80cb66b1eb647008a28e92eb34ff",
+      "baseline_us": 399.576,
+      "candidate_us": 572.896,
+      "speedup": 0.69735,
+      "checker_residual": 9.45,
+      "classification": "REJECTED"
+    },
+    {
+      "id": "V4",
+      "architecture": "four occupancy-gated rank-128 superpanels",
+      "candidate": "candidate-v4.py",
+      "candidate_sha256": "4bdb4733ca7a810fd075a5050e210281a1dc3ce45f9e800959bace0c7f49a251",
+      "evidence": "variant-04-paired.json",
+      "evidence_sha256": "9962ed7e6a197292b1241b64063ec109db37c979a8fb85a859412963922a4cbb",
+      "baseline_us": 386.776,
+      "candidate_us": 2080.584,
+      "speedup": 0.18587,
+      "checker_residual": 8.17,
+      "classification": "REJECTED"
+    },
+    {
+      "id": "V5",
+      "architecture": "graph-captured Triton resident-panel fusion",
+      "candidate": "candidate-v5.py",
+      "candidate_sha256": "477ef4f643dcc83591557e34601421910e052d1633a3f81160dde3b069938cef",
+      "evidence": null,
+      "classification": "UNMEASURED_EXTERNAL_BLOCKER"
+    }
+  ],
+  "root_source_changed": false,
+  "popcorn_submissions": [],
+  "leaderboard_submissions": []
+}

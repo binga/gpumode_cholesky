@@ -1,0 +1,208 @@
+{
+  "mode": "shapediag",
+  "device": "NVIDIA B200",
+  "shapes": [
+    {
+      "spec": "batch=16 n=512",
+      "batch": 16,
+      "n": 512,
+      "wall_us": 389.6,
+      "device_us": 361.2,
+      "idle_us": 28.5,
+      "idle_pct": 7.3,
+      "kernel_launches": 53,
+      "us_per_launch_wall": 7.352,
+      "kernels": [
+        {
+          "kernel": "_micro_potrf_gj32",
+          "us": 207.03,
+          "calls": 16,
+          "us_per_call": 12.94,
+          "pct_device": 57.3
+        },
+        {
+          "kernel": "_panel_apply32",
+          "us": 60.17,
+          "calls": 15,
+          "us_per_call": 4.011,
+          "pct_device": 16.7
+        },
+        {
+          "kernel": "_panel_inner32_subtile64",
+          "us": 44.94,
+          "calls": 12,
+          "us_per_call": 3.745,
+          "pct_device": 12.4
+        },
+        {
+          "kernel": "_trailing_nb",
+          "us": 26.75,
+          "calls": 3,
+          "us_per_call": 8.918,
+          "pct_device": 7.4
+        },
+        {
+          "kernel": "Memcpy DtoD (Device -> Device)",
+          "us": 7.55,
+          "calls": 1,
+          "us_per_call": 7.551,
+          "pct_device": 2.1
+        },
+        {
+          "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp",
+          "us": 3.46,
+          "calls": 1,
+          "us_per_call": 3.462,
+          "pct_device": 1.0
+        },
+        {
+          "kernel": "Memcpy DtoH (Device -> Pinned)",
+          "us": 3.31,
+          "calls": 1,
+          "us_per_call": 3.314,
+          "pct_device": 0.9
+        },
+        {
+          "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::",
+          "us": 2.91,
+          "calls": 1,
+          "us_per_call": 2.91,
+          "pct_device": 0.8
+        },
+        {
+          "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp",
+          "us": 2.35,
+          "calls": 1,
+          "us_per_call": 2.347,
+          "pct_device": 0.6
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFu",
+          "us": 1.49,
+          "calls": 1,
+          "us_per_call": 1.487,
+          "pct_device": 0.4
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFu",
+          "us": 1.19,
+          "calls": 1,
+          "us_per_call": 1.189,
+          "pct_device": 0.3
+        }
+      ]
+    },
+    {
+      "spec": "batch=640 n=512",
+      "batch": 640,
+      "n": 512,
+      "wall_us": 1354.3,
+      "device_us": 1127.4,
+      "idle_us": 226.9,
+      "idle_pct": 16.8,
+      "kernel_launches": 53,
+      "us_per_launch_wall": 25.553,
+      "kernels": [
+        {
+          "kernel": "_panel_fused128",
+          "us": 358.25,
+          "calls": 3,
+          "us_per_call": 119.416,
+          "pct_device": 31.8
+        },
+        {
+          "kernel": "_trailing_nb",
+          "us": 195.04,
+          "calls": 1,
+          "us_per_call": 195.039,
+          "pct_device": 17.3
+        },
+        {
+          "kernel": "micro_potrf32_rank4(float const*, float*, float*, int, int, int, int)",
+          "us": 169.42,
+          "calls": 16,
+          "us_per_call": 10.589,
+          "pct_device": 15.0
+        },
+        {
+          "kernel": "_panel_inner32_subtile64",
+          "us": 155.97,
+          "calls": 12,
+          "us_per_call": 12.997,
+          "pct_device": 13.8
+        },
+        {
+          "kernel": "_panel_apply32",
+          "us": 105.37,
+          "calls": 12,
+          "us_per_call": 8.781,
+          "pct_device": 9.3
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25",
+          "us": 85.59,
+          "calls": 1,
+          "us_per_call": 85.589,
+          "pct_device": 7.6
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12",
+          "us": 27.51,
+          "calls": 1,
+          "us_per_call": 27.509,
+          "pct_device": 2.4
+        },
+        {
+          "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp",
+          "us": 10.1,
+          "calls": 1,
+          "us_per_call": 10.102,
+          "pct_device": 0.9
+        },
+        {
+          "kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::",
+          "us": 5.98,
+          "calls": 1,
+          "us_per_call": 5.984,
+          "pct_device": 0.5
+        },
+        {
+          "kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp",
+          "us": 5.22,
+          "calls": 1,
+          "us_per_call": 5.216,
+          "pct_device": 0.5
+        },
+        {
+          "kernel": "Memcpy DtoH (Device -> Pinned)",
+          "us": 3.46,
+          "calls": 1,
+          "us_per_call": 3.456,
+          "pct_device": 0.3
+        },
+        {
+          "kernel": "Memset (Device)",
+          "us": 1.91,
+          "calls": 1,
+          "us_per_call": 1.909,
+          "pct_device": 0.2
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFu",
+          "us": 1.87,
+          "calls": 1,
+          "us_per_call": 1.867,
+          "pct_device": 0.2
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFu",
+          "us": 1.75,
+          "calls": 1,
+          "us_per_call": 1.75,
+          "pct_device": 0.2
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

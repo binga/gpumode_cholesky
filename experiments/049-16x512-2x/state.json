@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "experiment": 49,
+  "status": "blocked_external_control",
+  "goal": {
+    "shape": "16x512",
+    "research_target_speedup": 2.0,
+    "goal_baseline_submission": 890659,
+    "goal_baseline_sha256": "59558b501fb32d403667fd85a338ece7bb196f352a93685f7934bab8526d5e52"
+  },
+  "incumbent": {
+    "submission": 890798,
+    "commit": "f90ef90",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_geomean_us": 801.977,
+    "secret_geomean_us": 847.836,
+    "shape_control_us": 389.408,
+    "shape_target_us": 194.704
+  },
+  "active": {
+    "shape": "16x512",
+    "variant": 5,
+    "hypothesis": "Graph-captured Triton resident-panel fusion can remove repeated panel traffic without replacing the ranked diagonal chain.",
+    "worktree": "/Users/phani/projects/gpumode_cholesky",
+    "lease": "experiments/.leases/049-16x512.json"
+  },
+  "completed_gates": [
+    "exact incumbent snapshot hash",
+    "fresh B200 constituent profile",
+    "V1 active paired dense after mechanical compile repair",
+    "V2 active paired dense",
+    "V3 active paired dense with occupancy gate",
+    "V4 active paired dense with occupancy gate",
+    "V5 local syntax, snapshot, whitespace, and source-policy gates"
+  ],
+  "pending_gates": [
+    "fetch origin/main and verify incumbent commit/hash",
+    "V5 paired same-process Modal B200",
+    "V5 six-family correctness if faster",
+    "full 15-shape paired grid if promotable",
+    "cold-build service-budget proof",
+    "Popcorn 17/17 test",
+    "leaderboard submission only if the user's 2x threshold is achieved"
+  ],
+  "remote_jobs": {
+    "modal_active": false,
+    "popcorn_active": false,
+    "artifact_job_ids_available": false
+  },
+  "consumed": {
+    "valid_serious_variants": 4,
+    "unmeasured_variants": 1,
+    "mechanical_compile_repairs": 1,
+    "ranked_submissions": 0
+  },
+  "blocker": {
+    "kind": "approval_review_usage_limit",
+    "message": "Automatic approval review failed: You've hit your usage limit... try again at Jul 27th, 2026 2:10 PM. The same control rejected both the V5 remote gate and the required pre-commit git fetch.",
+    "reported_reset": "2026-07-27T14:10:00+05:30"
+  },
+  "updated_at": "2026-07-21T02:53:25+05:30",
+  "next_action": "After the external control resets, fetch origin/main and verify the incumbent commit and ranked-source hash, then run one shape-filtered paired B200 gate for candidate-v5.py against baseline-890798.py."
+}
