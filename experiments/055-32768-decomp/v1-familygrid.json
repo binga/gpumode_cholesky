@@ -1,0 +1,103 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=5.26; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_TARGET_HITS": 1,
+        "_RECINV1024_BASE_HITS": 28
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "spectrum",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000544; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_BASE_HITS": 28,
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=6.1e-05; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_TARGET_HITS": 1,
+        "_RECINV1024_BASE_HITS": 28
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000494; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_BASE_HITS": 28,
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "rowscale",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=4.26e-05; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_BASE_HITS": 28,
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_RECINV1024_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 32768,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00633; batch=1; n=32768",
+      "active_backend": true,
+      "counters": {
+        "_RECINV1024_TARGET_HITS": 1,
+        "_RECINV1024_BASE_HITS": 28
+      },
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": false
+}

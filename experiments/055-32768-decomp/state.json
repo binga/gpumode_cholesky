@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "experiment": 55,
+  "status": "exhausted",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "completed_gates": [
+    "fresh isolated worktree at exact origin/main incumbent",
+    "ranked source SHA-256 frozen",
+    "B200 shapediag: wall 42543.3us, device 41349.7us, idle 2.8%, 870 launches",
+    "decomposition: POTRF 27.0%, recursive TRSM 21.8%, elementwise 12.6%, MXFP8+quantization about 8.5%"
+  ],
+  "pending_gates": [
+  ],
+  "ranked_result": {
+    "submission": 897763,
+    "public_us": 905.1046888354715,
+    "secret_us": 810.8688396579844,
+    "public_improved": false,
+    "secret_improved": true,
+    "adopted": false
+  },
+  "updated_at": "2026-07-23T07:45:00+05:30",
+  "next_action": "Close and publish evidence without adoption; continue from #890798 in a new isolated experiment."
+}

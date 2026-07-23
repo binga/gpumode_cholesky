@@ -1,0 +1,99 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.213; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "spectrum",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.107; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LEFT_16384_HITS": 1,
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "diagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000122; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "lowrank",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000822; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LEFT_16384_HITS": 1,
+        "_LEFT_LARGE_FALLBACKS": 1,
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_LEFT_LARGE_FALLBACKS": 1,
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "rowscale",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.124; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 1,
+      "n": 16384,
+      "case": "tridiagonal",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0135; batch=1; n=16384",
+      "active_backend": true,
+      "counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    }
+  ],
+  "passed": false
+}

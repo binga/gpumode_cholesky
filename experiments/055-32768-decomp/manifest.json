@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "experiment": 55,
+  "baseline": {
+    "source": "experiments/047-fused-panel/ranked-890798.py",
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_us": 801.9771791503684,
+    "secret_us": 847.8361641640636
+  },
+  "candidate": {
+    "source": "submission.py",
+    "sha256": "7593b3a3f5e79749d2cbc37f4093fdce44197a440755a0141e43f2909e46a93b",
+    "change": "recursive triangular-inverse default base 512 to 1024",
+    "classification": "PROMOTABLE_FRONTIER",
+    "target_results": [
+      {"shape": "1x16384", "speedup": 1.0319134453128245, "baseline_us": 15115.055561065674, "candidate_us": 14651.328086853027},
+      {"shape": "1x32768", "speedup": 1.0211662512676973, "baseline_us": 42535.12001037598, "candidate_us": 41650.28762817383}
+    ],
+    "fullgrid": {
+      "evidence": "exact-fullgrid.json",
+      "sha256": "01495557a0bb472bd4341bfad0b462b32cc09dd4b65afc7f7e677b0432b5a0bc",
+      "speedup": 1.0037218811139883,
+      "ci95": [1.003149284599791, 1.0042948044656494],
+      "passed_shapes": 15
+    },
+    "families": {
+      "evidence": "exact-familygrid.json",
+      "sha256": "526a8d490acac6c04d8ceed7f9e0f7ed93347984bee3893ddb09fc70f2389490",
+      "checker_passed": 12,
+      "unexpected_fallbacks": 0,
+      "note": "Safety fallback families exactly match incumbent controls."
+    },
+    "cold_build": {
+      "evidence": "coldimport.json",
+      "sha256": "13f9d9603a51e378f1f1d08a3b4f1b4a35e07ad2eeefa1aabf99907dc71107bd",
+      "submission_import_seconds": 133.49060547099998,
+      "budget_seconds": 288,
+      "passed": true
+    }
+  },
+  "compile_fix": {
+    "source_sha256": "ae8af22c9cae7e072136fa29a66a0d4f821619ed30d1c21e390a4802442c922a",
+    "change": "combine CUDA32, CUDA64, CUDA128, and micro32 into one unchanged -O3 translation unit",
+    "forbidden_memoization_present": false,
+    "cold_build": {
+      "evidence": "compilefix-coldimport.json",
+      "sha256": "eef5b2bb5d561e2499eb692a1b2f65e7736e64436408902528ac608e1900e3f0",
+      "submission_import_seconds": 27.728787228999998,
+      "passed": true
+    },
+    "verify": {
+      "evidence": "compilefix-verify.json",
+      "sha256": "72907ca5c4d2430c77d560d72f9923b00d3cd2650300de11a2b6322c2d7683c6",
+      "passed": 57,
+      "failures": 0
+    },
+    "fullgrid": {
+      "evidence": "compilefix-fullgrid.json",
+      "sha256": "9b4b91dec9d6a85d3e64707c337d1d3932b4432e879ad9f9fc273a68a505c20f",
+      "speedup": 1.0032345293671856,
+      "ci95": [1.0025214673774243, 1.003948098535514],
+      "passed_shapes": 15
+    },
+    "status": "PROMOTION_GATES_PASSED"
+  },
+  "popcorn": {
+    "failed_test_submission": 897729,
+    "failed_test_evidence": "popcorn-test-897729.json",
+    "failed_test_evidence_sha256": "182d668db5f09aa0f307c1c2f2aff4b525a56e4b1b5c79ef393312c3fbe013b8",
+    "failed_test_result": "failed at exact six-minute compile budget",
+    "test_submission": 897759,
+    "test_evidence": "popcorn-test-897759.json",
+    "test_evidence_sha256": "70be541870893f88a1af447e90c484d362d5822607566de6b90b732c112e98ad",
+    "test_result": "17/17 passed after combined-extension repair",
+    "ranked_submission": 897763,
+    "ranked_evidence": "popcorn-ranked-897763.json",
+    "ranked_evidence_sha256": "503da26f1d49b0183ccad49a6724adb36d2ed5957b87ba2c032fc7c79355521f",
+    "ranked_public_us": 905.1046888354715,
+    "ranked_secret_us": 810.8688396579844,
+    "public_improved": false,
+    "secret_improved": true
+  },
+  "adopted": false
+}

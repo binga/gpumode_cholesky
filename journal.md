@@ -140,7 +140,7 @@ leave losing shapes on their current ranked route.
 | 3 | Reciprocal multiply replacing divides | `4×1024` **1.007×**; `8×2048` **1.005×** (S19) | None | **COMPLETED, REJECTED at `60×1024`.** Two correct probes measured `1.007×` then `0.994×`; below route noise, so no LB run. |
 | 4 | Dynamic E4M3 panel products with fused quantization | `1×32768` **1.373×**, then another **1.084×** from fused amax/quantization (S12/S14) | None | **COMPLETED, REJECTED at `1×16384`.** S24 passed 6/6 but measured `0.997×`; ~1.17ms quantization overhead erased the gain. |
 | 5 | FP8 or MXFP8 trailing Schur updates | FP8 wins at `1×32768`; FP16 trailing wins on five split32 shapes | MXFP8/refined variants remain | **FP8 ARCHITECTURE REJECTED.** S25 native tile-local E4M3 at `8×2048` was incorrect/fallback-only (0.513× invalid timing); no LB run. |
-| 6 | Recursive triangular inversion | `1×16384` **1.055×**; `1×32768` **1.028×** (S16a/S17) | None | **COMPLETED, REJECTED at `1×8192`.** Clean `nb=2048` isolation passed 6/6 but measured `0.954×` (S26). |
+| 6 | Recursive triangular inversion | `1×16384` **1.055×**; `1×32768` **1.028×** (S16a/S17) | None | **BASE RETUNED, NOT ADOPTED (S44/exp055).** Base 512→1024 reproduced at `1.0296×` / `1.0206×`, grid `1.003235×`; ranked #897763 improved secret 4.36% but regressed public 12.86%. `1×8192` remains rejected at `0.954×` (S26). |
 | 7 | First-touch eager execution | Strongest at `640×512`; also shipped at `60×1024` (S17) | None | **COMPLETED, REJECTED at `8×2048`.** S27 passed 6/6 but measured `0.336×`; `4×1024` has less copy traffic and was closed by the stronger negative proxy. |
 | 8 | Graph-captured per-matrix loop | Graph replay wins at `1024×64`, `256×128`, and blocked mid shapes | Ineligible | **NOT BUILT:** would create a new cuSOLVER-based fast path for `2×2048`/`2×4096`, prohibited by the standing owner boundary. |
 
@@ -195,6 +195,28 @@ which *grows with n* → the huge shapes have the most numerical headroom).
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
 
 ---
+
+## 2026-07-23 — Session 44: exp 055 inverse-base retune → ranked #897763, not adopted
+
+Re-profiled the exact `#890798` `1x32768` path after the MXFP8 and fused-panel
+integrations: `42,543.3us` wall, `41,349.7us` device, 2.8% idle, 870 launches.
+POTRF consumed 27.0% and recursive inverse/TRSM 21.8%; MXFP8 GEMM plus
+quantization was only about 8.5%. Recursive-inverse base 1024 beat base 512 at
+both affected shapes: `1x16384` `1.0296x`, `1x32768` `1.0206x`.
+
+The exact candidate passed all 12 changed-shape family checks with the same
+pre-existing safety fallbacks as the incumbent, and the paired grid passed
+15/15 at `1.003235x`, CI `[1.002521,1.003948]`. Initial Popcorn test #897729
+failed at exactly the six-minute compile budget. The concrete repair combined
+the unchanged CUDA32/64/128/micro32 sources into one translation unit, reduced
+cold import from `133.49s` to `27.73s`, and passed Modal 57/57 plus Popcorn test
+#897759 17/17.
+
+Ranked #897763 completed at **905.104689us public / 810.868840us secret**.
+Secret improved 4.36%, but public regressed 12.86%; the both-splits adoption
+rule rejects it. Root remains exact #890798 (`f90ef90`, `fd3072b…`). Evidence
+is under `experiments/055-32768-decomp/`; the isolated branch is published
+separately because no losing candidate is landed on main.
 
 ## 2026-07-21 — Session 43: exp 047 fused resident panel → ranked #890798
 

@@ -192,6 +192,13 @@ popcorn submissions                                # view your entries
   **2x is not reached on any of the three target shapes.** Exact SHA-256:
   `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`. See
   `experiments/047-fused-panel/`.
+- **Ranked submission `#897763`** (exp 055 — recursive-inverse base retune):
+  **not adopted**. Exact paired grid `1.003235x` with `1x16384` `1.0296x` and
+  `1x32768` `1.0206x`; compile consolidation reduced cold import
+  `133.49→27.73s`, and test `#897759` passed 17/17. Ranked result was mixed at
+  **905.104689us public / 810.868840us secret**: public regressed 12.86% while
+  secret improved 4.36%. The both-splits policy keeps `#890798` as current.
+  See `experiments/055-32768-decomp/`.
 - **Ranked submission `#888867`** (exp 041 V3 — best public score): `done`, public
   geomean **899.124686138768us** and secret **905.4166394915869us**. The first
   cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at

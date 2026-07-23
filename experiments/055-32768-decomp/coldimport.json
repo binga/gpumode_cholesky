@@ -1,0 +1,27 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_import_seconds": 2.486704031,
+  "submission_import_seconds": 133.49060547099998,
+  "runner_init_seconds": 137.635765715,
+  "load_inline_timings": [
+    {
+      "name": "chol32_exp039_final",
+      "seconds": 49.788007527000005
+    },
+    {
+      "name": "chol64_exp041_v3_final",
+      "seconds": 42.85183007
+    },
+    {
+      "name": "chol128_exp042_v5_with_exp044_micro",
+      "seconds": 40.614697768
+    }
+  ],
+  "readiness": {
+    "_CUDA32": true,
+    "_CUDA64": true,
+    "_CUDA128": true
+  },
+  "load_errors": {}
+}

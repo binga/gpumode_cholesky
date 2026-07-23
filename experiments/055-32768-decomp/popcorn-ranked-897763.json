@@ -1,0 +1,19 @@
+{
+  "done": true,
+  "file_name": "submission.py",
+  "leaderboard": "cholesky",
+  "submission_id": 897763,
+  "job": {"error": null, "status": "succeeded"},
+  "scores": {
+    "public": 0.0009051046888354715,
+    "secret": 0.0008108688396579844
+  },
+  "runs": [
+    {"mode": "test", "runner": "B200", "secret": true, "passed": true, "score": null, "start_time": "2026-07-23T01:36:15.070483Z", "end_time": "2026-07-23T01:37:08.271375Z"},
+    {"mode": "benchmark", "runner": "B200", "secret": true, "passed": true, "score": null, "start_time": "2026-07-23T01:37:08.271563Z", "end_time": "2026-07-23T01:38:23.363561Z"},
+    {"mode": "leaderboard", "runner": "B200", "secret": true, "passed": true, "score": 0.0008108688396579844, "start_time": "2026-07-23T01:38:23.363740Z", "end_time": "2026-07-23T01:38:40.255517Z"},
+    {"mode": "test", "runner": "B200", "secret": false, "passed": true, "score": null, "start_time": "2026-07-23T01:36:09.325617Z", "end_time": "2026-07-23T01:37:21.541385Z"},
+    {"mode": "benchmark", "runner": "B200", "secret": false, "passed": true, "score": null, "start_time": "2026-07-23T01:37:21.541882Z", "end_time": "2026-07-23T01:40:19.942718Z"},
+    {"mode": "leaderboard", "runner": "B200", "secret": false, "passed": true, "score": 0.0009051046888354715, "start_time": "2026-07-23T01:40:19.944212Z", "end_time": "2026-07-23T01:42:47.736967Z"}
+  ]
+}

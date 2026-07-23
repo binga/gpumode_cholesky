@@ -171,20 +171,8 @@ void chol32_launch(torch::Tensor src, torch::Tensor dst) {
 }
 """
 
-if torch.cuda.is_available():
-    try:
-        from torch.utils.cpp_extension import load_inline
-
-        _CUDA32 = load_inline(
-            name="chol32_exp039_final",
-            cpp_sources="void chol32_launch(torch::Tensor, torch::Tensor);",
-            cuda_sources=_CUDA32_SOURCE,
-            functions=["chol32_launch"],
-            extra_cuda_cflags=["-O3"],
-            verbose=False,
-        )
-    except Exception as exc:
-        _CUDA32_ERROR = repr(exc)
+# Loaded together with CUDA64 and CUDA128 below to remove two fixed compiler
+# startup costs. The CUDA32 kernel source and -O3 code generation are unchanged.
 
 
 def _cuda_cholesky32(data: torch.Tensor) -> torch.Tensor:
@@ -211,18 +199,18 @@ _CUDA64_SOURCE = r"""
 #include <torch/extension.h>
 #include <cuda_runtime.h>
 
-constexpr int N = 64;
+constexpr int N64 = 64;
 
 __global__ void cholesky64_rank2(const float* input, float* output) {
     const int row = threadIdx.x;
-    const size_t base = (size_t)blockIdx.x * N * N;
+    const size_t base = (size_t)blockIdx.x * N64 * N64;
     __shared__ float tile[64][65];
     __shared__ float pivot0[64];
     __shared__ float pivot1[64];
     __shared__ float reciprocal0;
     __shared__ float reciprocal1;
 
-    for (int linear = row; linear < N * N; linear += 64) {
+    for (int linear = row; linear < N64 * N64; linear += 64) {
         tile[linear >> 6][linear & 63] = input[base + linear];
     }
     __syncthreads();
@@ -277,7 +265,7 @@ __global__ void cholesky64_rank2(const float* input, float* output) {
         tile[row][column] = column <= row ? values[column] : 0.0f;
     }
     __syncthreads();
-    for (int linear = row; linear < N * N; linear += 64) {
+    for (int linear = row; linear < N64 * N64; linear += 64) {
         output[base + linear] = tile[linear >> 6][linear & 63];
     }
 }
@@ -291,20 +279,8 @@ void chol64_launch(torch::Tensor input, torch::Tensor output) {
 }
 """
 
-if torch.cuda.is_available():
-    try:
-        from torch.utils.cpp_extension import load_inline
-
-        _CUDA64 = load_inline(
-            name="chol64_exp041_v3_final",
-            cpp_sources="void chol64_launch(torch::Tensor, torch::Tensor);",
-            cuda_sources=_CUDA64_SOURCE,
-            functions=["chol64_launch"],
-            extra_cuda_cflags=["-O3"],
-            verbose=False,
-        )
-    except Exception as exc:
-        _CUDA64_ERROR = repr(exc)
+# Loaded together with CUDA32 and CUDA128 below. N64 is a source-only rename
+# that resolves the combined translation unit's constant-name collision.
 
 
 def _cuda_cholesky64(data: torch.Tensor) -> torch.Tensor:
@@ -599,19 +575,29 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol128_exp042_v5_with_exp044_micro",
+            name="chol3264128_exp055_combined_o3",
             cpp_sources=(
+                "void chol32_launch(torch::Tensor, torch::Tensor);\n"
+                "void chol64_launch(torch::Tensor, torch::Tensor);\n"
                 "void chol128_launch(torch::Tensor, torch::Tensor);\n"
                 "void micro32_launch(torch::Tensor, torch::Tensor, "
                 "torch::Tensor, int64_t, int64_t, int64_t);"
             ),
-            cuda_sources=_CUDA128_SOURCE,
-            functions=["chol128_launch", "micro32_launch"],
+            cuda_sources=(
+                _CUDA32_SOURCE + "\n" + _CUDA64_SOURCE + "\n" +
+                _CUDA128_SOURCE
+            ),
+            functions=["chol32_launch", "chol64_launch", "chol128_launch",
+                       "micro32_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
+        _CUDA32 = _CUDA128
+        _CUDA64 = _CUDA128
     except Exception as exc:
         _CUDA128_ERROR = repr(exc)
+        _CUDA32_ERROR = _CUDA128_ERROR
+        _CUDA64_ERROR = _CUDA128_ERROR
 
 
 def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
@@ -3284,7 +3270,7 @@ _LARGE_CFG = {
 }
 
 
-def _tri_inv_recursive(lower: torch.Tensor, base: int = 512) -> torch.Tensor:
+def _tri_inv_recursive(lower: torch.Tensor, base: int = 1024) -> torch.Tensor:
     """Explicit inverse of a lower-triangular factor by recursive 2x2
     blocking: inv([[A,0],[B,C]]) = [[Ai,0],[-Ci@B@Ai, Ci]]. The combines are
     plain GEMMs (TF32 tensor cores under the caller's allow_tf32), replacing
