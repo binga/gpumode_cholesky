@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "experiment": 52,
+  "status": "rejected_exhausted",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_geomean_us": 801.9771791503684,
+    "secret_geomean_us": 847.8361641640636
+  },
+  "active_candidate": {
+    "variant": 4,
+    "source": "candidate-v4-standalone.py",
+    "target_shape": "1x16384",
+    "change": "clip-safe MXFP8 for K<8192 and TF32 for the three second-half panel products"
+  },
+  "completed_gates": [
+    "fresh isolated worktree at exact origin/main incumbent",
+    "exact ranked source SHA-256 verified",
+    "V1 local and audit-contract gates passed",
+    "V1 paired B200: 1.001591x but dense residual 13.7/20; rejected",
+    "V2 paired B200: 1.031050x and residual improved to 9.03/20, still above 8/20 margin",
+    "V3 paired B200: 1.026446x and residual 8.85/20 with one final TF32 product; rejected",
+    "V4 standalone paired B200: 1.013583x, dense residual 7.85/20, exact route counters positive",
+    "V4 family gate: dense/diagonal/tridiagonal active, spectrum/lowrank/rowscale fall back; rejected",
+    "incumbent 1x16384 profile: 15075.2us wall, 14403.6us device, 4.5% idle, 449 launches",
+    "profile bottleneck: POTRF 5051.1us (35.1%) plus triangular solve 4364.9us (30.3%)"
+  ],
+  "pending_gates": [],
+  "updated_at": "2026-07-23T05:41:09+05:30",
+  "next_action": "Publish terminal evidence without adoption; target the dominant POTRF/triangular-solve stack in a fresh experiment."
+}

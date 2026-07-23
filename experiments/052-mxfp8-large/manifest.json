@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "experiment": 52,
+  "baseline": {
+    "source": "submission.py",
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "source": "candidate-v1-8192.py",
+      "source_sha256": "1435ae7f0af2d13d7de6b0180173463ebf323ff2cb462607623f5728d9443b2d",
+      "evidence": "v1-paired.json",
+      "baseline_us": 5787.2960567474365,
+      "candidate_us": 5778.808116912842,
+      "speedup": 1.0015908314894189,
+      "dense_residual": 13.7,
+      "classification": "REJECTED_UNSAFE_IMMATERIAL"
+    },
+    {
+      "id": "V2",
+      "source": "candidate-v2-16384-clipfix.py",
+      "source_sha256": "b804f94c0307a8eceeec9a0d07c398d907d0ef38c1ba3cecdb091c21bd01dedb",
+      "evidence": "v2-paired.json",
+      "baseline_us": 15122.30396270752,
+      "candidate_us": 14666.848182678223,
+      "speedup": 1.0310501201036766,
+      "dense_residual": 9.03,
+      "classification": "REJECTED_SAFETY_MARGIN"
+    },
+    {
+      "id": "V3",
+      "source": "candidate-v3-16384-hybrid.py",
+      "source_sha256": "22b03f0db3ce9ca663e90d75df6abbbed39e536947b7964d50d2e5a182813c61",
+      "evidence": "v3-paired.json",
+      "baseline_us": 15097.296237945557,
+      "candidate_us": 14701.99966430664,
+      "speedup": 1.0264457234494133,
+      "dense_residual": 8.85,
+      "classification": "REJECTED_SAFETY_MARGIN"
+    },
+    {
+      "id": "V4",
+      "diagnostic_source": "candidate-v4-16384-hybrid-half.py",
+      "diagnostic_source_sha256": "bc2d9cf52a6910002af8e3ba72f1e921118483c98e2a151f4d3cfd03208e7c88",
+      "source": "candidate-v4-standalone.py",
+      "source_sha256": "0d6ad8bed85a1e1a3aa5c7e83ae55c2fb354bcff7507d16728eb5a05fb6ecca1",
+      "paired_evidence": "v4-standalone-paired.json",
+      "paired_evidence_sha256": "2620be9541f9ecce0eb131aeb69240a793698a76818d4ad6dd2f159d8067e250",
+      "family_evidence": "v4-family.json",
+      "family_evidence_sha256": "9d7fe1e267c9399b41cd7b607730eb29604b1c69a1867a4b81ac3ad2b1fb9023",
+      "baseline_us": 15150.15983581543,
+      "candidate_us": 14950.639724731445,
+      "speedup": 1.013583459853706,
+      "dense_residual": 7.85,
+      "families_active_without_fallback": "3/6",
+      "classification": "REJECTED_FAMILY_FALLBACK"
+    }
+  ],
+  "profile": {
+    "evidence": "baseline-16384-shapediag.json",
+    "evidence_sha256": "fe1a8ba9dbd50a5a355651738e848ac001f6c9c94e04f1e576cf783d1902e2f0",
+    "wall_us": 15075.2,
+    "device_us": 14403.6,
+    "potrf_us": 5051.12,
+    "triangular_solve_us": 4364.87
+  },
+  "root_source_changed": false
+}
