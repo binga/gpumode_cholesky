@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp054_large_nb",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "batch=1,n=16384 left-looking panel width",
+  "status": "released",
+  "created_at": "2026-07-23T06:07:00+05:30",
+  "last_heartbeat": "2026-07-23T06:20:00+05:30",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp054-large-nb",
+  "owner_note": "Released after publishing rejection evidence at 78cc6a2318dfa744e24bd95a5eb0c122dffc7067."
+}

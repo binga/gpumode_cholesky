@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp053_recinv_base",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "batch=1,n=16384 recursive inverse and diagonal POTRF",
+  "status": "released",
+  "created_at": "2026-07-23T05:45:00+05:30",
+  "last_heartbeat": "2026-07-23T06:06:00+05:30",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp053-recinv-base",
+  "owner_note": "Released after publishing rejection evidence at 10ad9ca74f0d62a43c6091a7c26579011a9f5d31."
+}

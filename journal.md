@@ -2443,6 +2443,49 @@ Rebuilt on this experiment's fused 128-wide diagonal, a vectorised panel and a
 rank-128 WMMA trailing update, the model gives ~508us at `4x1024` (1.41x) and
 ~250us at `16x512` (1.63x); lookahead overlap is what closes the rest.
 
+### Round 2 — compile blocker solved, then rejected on the full grid
+
+The 360s failures were bisected rather than guessed at. `probe-v5-nodispatch.py`
+(kernel compiled, never launched) still failed at 360s, and Modal timed
+`load_inline` at 42.3s base vs 41.1s with the new kernel — so it was build time,
+but not *this* kernel's. The exact ranked `submission.py` passed in 91s
+(`#898670`), and `probe-rename-only.py` — the ranked source with **nothing
+changed but the `load_inline` extension name** — failed at 360s (`#898675`).
+
+**The official runner caches builds by extension name.** The incumbent's 91s
+test is a cache hit; a cold build of its **four** `load_inline` calls, i.e. four
+compiles of the expensive `torch/extension.h` glue, does not fit the budget.
+That, not "a fourth extension", is what exp 044 hit.
+
+Fix: concatenate every CUDA source into **one** extension (only collision was
+`_CUDA64_SOURCE`'s `N`, renamed `N64`). V6 — new name, cold build, *plus*
+`diag128_potrf` — passes Popcorn **17/17 in 36 seconds** (`#898689`). This is
+the most reusable result of the session; it removes the constraint that shaped
+exps 042/043/044 and makes future CUDA work shippable at all.
+
+V6 then failed the real gates:
+
+- **Six families: clean.** 36/36 official-checker passes, worst residual
+  9.59/20, zero errors.
+- **Full 15-shape paired grid: `geomean 0.9865` CI [0.9853, 0.9878]** — a 1.35%
+  regression. The twelve unchanged shapes are flat (0.9996–1.0052, `64x256`
+  included, so the merge's `-O2 -> -O3` is harmless). The whole loss is on the
+  three enrolled shapes, and each one **reversed** against its own subset probe:
+  `16x512` 1.0858 -> **0.9794**, `4x1024` 1.0288 -> **0.9252**, `2x2048`
+  1.0118 -> **0.8920**. The baselines barely moved; the *candidate* got 10-14%
+  slower once the other twelve shapes shared its process.
+
+**Standing lesson: a subset paired probe systematically overstates an
+eager-mode candidate.** Eager allocates per call and is bound by Python-side
+dispatch, so it is sensitive to allocator and interpreter state that CUDA-graph
+replay is immune to. The measured ~7.6us/launch tax is a floor, not the cost in
+the scoring environment. Only the full 15-shape paired grid may be trusted for
+anything that leaves graph replay — the first four measurements here were all
+subset probes and all pointed the wrong way.
+
+Nothing was ranked. The repository keeps `#890798`.
+
 Artifacts: `experiments/050-fused-diag128/` — `baseline-890798.py`,
-`candidate-v1..v4.py`, `variant-01-paired.json`, `variant-01-shapediag.json`,
-`variant-04-paired.json`, `notes.md`, `state.json`.
+`candidate-v1..v6.py`, `probe-v5-nodispatch.py`, `probe-rename-only.py`,
+`variant-01-paired.json`, `variant-01-shapediag.json`, `variant-04-paired.json`,
+`variant-06-fullgrid.json`, `variant-06-familygrid.json`, `notes.md`, `state.json`.

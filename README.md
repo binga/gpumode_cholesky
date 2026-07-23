@@ -86,8 +86,17 @@ popcorn submissions                                # view your entries
   the **~7.6μs eager-launch tax** (a `<<<grid, block>>>` launch cannot enter a
   CUDA graph, so at `4×1024` a −32% *device*-time win became only −8% of wall),
   and the **six-minute compile budget** (popcorn tests `#898552` and `#898531`
-  both failed at exactly 360s). The gain is under the 0.42%/2.6% leaderboard
-  noise floor, so no ranked slot was spent and the repository keeps `#890798`.
+  both failed at exactly 360s). **The compile blocker was then root-caused and
+  fixed:** the runner caches builds by `load_inline` extension name — the ranked
+  source with *only* its extension name changed also died at 360s (`#898675`) —
+  so all four CUDA sources were merged into one extension, and that cold build
+  plus the new kernel passes **17/17 in 36s** (`#898689`). On the real gates the
+  candidate was still **rejected**: six families clean (36/36, worst residual
+  9.59/20) but the **full 15-shape paired grid geomean is 0.9865**, because all
+  three enrolled shapes reverse once the other twelve share the process
+  (`16x512` 1.0858→0.9794, `4x1024` 1.0288→0.9252, `2x2048` 1.0118→0.8920).
+  Standing lesson: a subset paired probe systematically overstates an eager-mode
+  candidate. Nothing ranked; the repository keeps `#890798`.
   See `experiments/050-fused-diag128/` and `journal.md` Session 46.
 - **Ranked submission `#876988`** (cuSOLVER baseline): `done`, 17/17 on B200, geomean ≈ **2080μs**.
 - **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.

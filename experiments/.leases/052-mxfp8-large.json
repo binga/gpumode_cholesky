@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp052_mxfp8_large",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "batch=1,n=8192 and batch=1,n=16384 MXFP8 panel path",
+  "status": "released",
+  "created_at": "2026-07-23T05:06:00+05:30",
+  "last_heartbeat": "2026-07-23T05:41:09+05:30",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp052-mxfp8-large",
+  "result": "V1 unsafe/immaterial; V2/V3 missed 8/20; V4 1.013583x and 7.85/20 dense but only 3/6 families active without fallback. No adoption.",
+  "owner_note": "MXFP8 panel precision is closed at 8192/16384; the measured dominant 16384 target is POTRF plus triangular solve."
+}

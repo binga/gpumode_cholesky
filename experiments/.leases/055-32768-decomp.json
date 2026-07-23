@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp055_32768_decomp",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "batch=1,n=32768 exact incumbent latency decomposition",
+  "status": "released",
+  "created_at": "2026-07-23T06:22:00+05:30",
+  "last_heartbeat": "2026-07-23T07:55:00+05:30",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp055-32768-decomp",
+  "owner_note": "Released after publishing mixed ranked rejection evidence at 2db63000277481442b6cbb4265615dfe30f12e1a."
+}

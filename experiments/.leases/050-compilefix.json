@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp050_compilefix",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "integration compile budget for batch=4,n=1024",
+  "status": "released",
+  "created_at": "2026-07-23T01:43:44+05:30",
+  "last_heartbeat": "2026-07-23T03:43:00+05:30",
+  "released_at": "2026-07-23T03:43:00+05:30",
+  "result": "V16 passed 17/17 and improved secret, but public regressed; rejected and published on origin/worktree-exp050-compilefix at 98b83957.",
+  "owner_note": "Preserve the locked exp050-midshape-2x worktree and the published .codex/worktrees/exp050-compilefix evidence branch."
+}

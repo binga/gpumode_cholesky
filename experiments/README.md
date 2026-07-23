@@ -78,6 +78,8 @@ and auditable.
 | 048 | bounded `4×1024` persistent CUDA search against ranked `#890659`: resident graph panel, whole-grid cooperative kernel, rank-4 diagonal, cluster/DSM, dual-warp panel scheduling, and FP16 WMMA trailing update | best dense V2 719.712→616.768us = **1.166791×**, but low-rank produces NaN/Inf; all other variants 0.734–1.145×; baseline profile 674.6us wall / 664.1us device, diagonal micro 411.73us (62.0%) | — | **exhausted: no 2×, no correctness-valid frontier, no submission; current repo winner is #890798 from exp 047** |
 | 049 | `16×512` constituent profile plus full-resident cluster16/DSM, one-CTA persistent, occupancy-gated atomic CTA groups, rank-128 superpanels, and a pending graph-captured fused-panel overlay | exact `#890798` profile 389.6us wall / 361.2us device; diagonal micro 207.03us (57.3%). V1–V4 all active/correct but regress: 0.418×, 0.299×, **0.697× best**, 0.186×. V5 passes local gates but is unmeasured because external approval review denied more compute until 2026-07-27 14:10 | — | **paused, not exhausted; no root/Popcorn/leaderboard change** |
 - `050-fused-diag128/` — fused 128x128 diagonal-block CUDA kernel (`diag128_potrf`).
-  FRONTIER, NOT PROMOTABLE: paired 1.0858x `16x512` / 1.0288x `4x1024`, 1.0133x
-  aggregate over six probed shapes, correct and residual-improving, but blocked by
-  the ~7.6us eager-launch tax and popcorn's 360s compile budget. Nothing ranked.
+  REJECTED on the full 15-shape paired grid (geomean 0.9865): all three enrolled
+  shapes reverse their subset-probe wins once the other twelve share the process.
+  Banks two reusable results — the single merged CUDA extension (cold build 36s vs
+  >360s, popcorn 17/17 #898689) without which no new CUDA can ship, and
+  `diag128_potrf` itself. Nothing ranked.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "experiment": 50,
-  "status": "frontier_not_promotable",
+  "status": "rejected_on_full_grid",
   "goal": {
     "scope": "aggregate geomean",
     "user_target": "2.00x overall geomean vs the ranked incumbent",
@@ -48,6 +48,11 @@
       "id": "L4",
       "what": "recover 352us / 215us launch idle at 640x512 / 60x1024",
       "state": "designed only"
+    },
+    {
+      "id": "L5",
+      "what": "merge all four load_inline extensions into one (_CUDA_ALL_SOURCE); the runner caches builds by extension name and a cold four-extension build exceeds the 360s budget",
+      "state": "SOLVED: v6 cold build + diag128 passes popcorn 17/17 in 36s (#898689)"
     }
   ],
   "completed_gates": [
@@ -57,7 +62,12 @@
     "v1 paired same-process B200 (variant-01-paired.json)",
     "v1 candidate shapediag (variant-01-shapediag.json)",
     "v4 paired same-process B200 (variant-04-paired.json)",
-    "popcorn test #898552 (v1) and #898531 (v4): both COMPILE_BUDGET_FAILURE at exactly 360s"
+    "popcorn test #898552 (v1) and #898531 (v4): both COMPILE_BUDGET_FAILURE at exactly 360s",
+    "compile bisect: probe-v5-nodispatch (360s), Modal load_inline timing (42.3s base vs 41.1s with diag128), exact ranked source #898670 (passed 91s), probe-rename-only #898675 (360s)",
+    "root cause: popcorn build cache is keyed by load_inline extension name; cold four-extension build exceeds 360s",
+    "v6 single merged extension: popcorn test #898689 PASSED 17/17 in 36s (cold build)",
+    "v6 six-family correctness: 36/36 official-checker pass, max residual 9.59/20, zero errors",
+    "v6 FULL 15-shape paired grid: geomean 0.9865 CI [0.9853,0.9878] -- REGRESSION"
   ],
   "pending_gates": [],
   "remote_jobs": {
@@ -70,7 +80,7 @@
     "popcorn_tests": 2,
     "transient_modal_retries": 1
   },
-  "next_action": "Build the persistent/cooperative single-kernel path (2 launches, one compile unit) reusing diag128_potrf as its diagonal phase; see notes.md.",
+  "next_action": "Eager mode is not viable for these shapes -- its cost is far higher inside the full 15-shape process than in a subset probe. Reuse the merged extension (cold build 36s) as the base for a persistent/cooperative single-launch kernel, which is the only design with no eager tax.",
   "blockers": [
     {
       "kind": "eager_launch_tax",
@@ -85,5 +95,10 @@
       "detail": "hit mid-run; owner raised it and the run was repeated."
     }
   ],
-  "verdict": "FRONTIER, NOT PROMOTABLE: +1.33% over six probed shapes is under the 0.42%/2.6% leaderboard noise floor and the candidate fails the compile gate. No ranked slot spent; repository keeps #890798."
+  "verdict": "REJECTED. The merged single extension is performance-neutral (all 12 unchanged shapes 0.9996-1.0052) and fixes the cold-build blocker, but the three diag128 eager shapes REVERSED between the subset probe and the full grid: 16x512 1.0858->0.9794, 4x1024 1.0288->0.9252, 2x2048 1.0118->0.8920. Full-grid geomean 0.9865. Nothing ranked; repository keeps #890798.",
+  "lessons": [
+    "Subset paired probes systematically OVERSTATE eager-mode candidates. Only the full 15-shape paired grid is trustworthy for anything that leaves CUDA-graph replay.",
+    "popcorn build cache is keyed by load_inline extension name; merge all CUDA into one extension or no new CUDA can ship.",
+    "popcorn's source scanner is a literal substring match, including inside comments."
+  ]
 }

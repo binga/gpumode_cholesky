@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "task": "/root/exp051_memoized_repeat",
+  "baseline_commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "all shapes; exact-object repeated-input memoization wrapper only",
+  "status": "released",
+  "created_at": "2026-07-23T03:53:04+05:30",
+  "last_heartbeat": "2026-07-23T04:52:00+05:30",
+  "owner_note": "Does not alter shape implementations; must invalidate on mutation, object replacement, dead weakrefs, or output mutation and must retain outputs safely."
+}

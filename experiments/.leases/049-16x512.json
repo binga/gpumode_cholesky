@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task": "/root/shape_16x512",
+  "baseline_commit": "f90ef90",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": "batch=16,n=512",
+  "status": "released",
+  "created_at": "2026-07-21T02:53:25+05:30",
+  "last_heartbeat": "2026-07-23T05:02:35+05:30",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp049-resume",
+  "result": "V5 active route regressed 16x512 from 397.616us to 423.632us (0.938446x); all five architectures rejected, no source or Popcorn action.",
+  "owner_note": "Experiment 049 is exhausted; do not reopen cluster/DSM, persistent CTA, atomic groups, rank-128 superpanels, or fused-panel enrollment without a materially new mechanism."
+}
