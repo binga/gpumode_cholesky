@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "experiment": 53,
+  "baseline": {
+    "source": "submission.py",
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "source": "candidate-v1-base1024.py",
+      "source_sha256": "94f3673f190867d475a6d820b30c097cb171b35b20b7e56dcdd646ce26795067",
+      "evidence": "v1-paired.json",
+      "baseline_us": 15099.95174407959,
+      "candidate_us": 14700.38366317749,
+      "speedup": 1.0270360585552425,
+      "classification": "DENSE_ONLY_DIAGNOSTIC"
+    },
+    {
+      "id": "V2",
+      "source": "candidate-v2-base2048.py",
+      "source_sha256": "cf3c4484e39ed84a4dc704fa50a694cf86ab8bb188a4856884495296ace55a1e",
+      "evidence": "v2-paired.json",
+      "family_evidence": "v2-familygrid.json",
+      "family_evidence_sha256": "31331c61cf06ff2b16aec4b8202d5d99ab2df7d251a33cb7b1df13c6e7611be9",
+      "baseline_us": 15142.496109008789,
+      "candidate_us": 14619.200229644775,
+      "speedup": 1.0359337742833203,
+      "classification": "REJECTED_ROBUSTNESS_FALLBACK"
+    },
+    {
+      "id": "V3",
+      "source": "candidate-v3-splitdiag.py",
+      "source_sha256": "e7fff5e2861a89051ce05fe41d2130b13017ab0e276b5b9df74a92594b63e0f5",
+      "evidence": "v3-paired.json",
+      "evidence_sha256": "e8cb5ef02af3942bb4ace2baefdf718727575a6c2b70f0563807b2a7895d2458",
+      "baseline_us": 15182.144165039062,
+      "candidate_us": 19709.07211303711,
+      "speedup": 0.7703124773183215,
+      "classification": "REJECTED_REGRESSION"
+    }
+  ],
+  "root_source_changed": false
+}

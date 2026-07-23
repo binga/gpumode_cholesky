@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "experiment": 53,
+  "status": "exhausted",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "shape_wall_us": 15075.2,
+    "potrf_us": 5051.12,
+    "triangular_solve_us": 4364.87
+  },
+  "active_candidate": {
+    "variant": null,
+    "source": null,
+    "target_shape": null,
+    "change": null
+  },
+  "completed_gates": [
+    "fresh isolated worktree at exact origin/main incumbent",
+    "exact ranked source SHA-256 verified",
+    "bottleneck selected from B200 profiler decomposition",
+    "V1 base1024 paired B200: 1.027036x, identical residual, no fallback",
+    "V2 base2048 paired B200: 1.035934x, identical residual, seven direct solves",
+    "V3 split32 diagonal paired B200: 0.770312x, correct and eight block hits; rejected",
+    "V2 six-family B200: dense/diagonal/rowscale/tridiagonal active; spectrum/lowrank fell back; rejected"
+  ],
+  "pending_gates": [],
+  "updated_at": "2026-07-23T06:04:00+05:30",
+  "next_action": "Experiment closed without promotion; sweep the 16384 left-looking block size in a new isolated experiment."
+}
