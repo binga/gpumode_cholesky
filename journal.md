@@ -85,7 +85,7 @@ every stage-specific control exceeds 2x.
 | 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
-| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64) | ✗ CUDA micro blocked: not graph-capturable (S40b) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
+| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64); fused resident panel locally gated but B200-pending (S45/exp049) | ✗ full-resident cluster, one-CTA persistent, atomic CTA groups, and rank-128 superpanels (S45; best 0.697×) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
 | 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cooperative + cluster/DSM persistent paths rejected (S44/exp048, best dense 1.167× and family-invalid) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + **✓ fused resident panel + merged diag step** (S43, 1.092×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
@@ -189,6 +189,64 @@ which *grows with n* → the huge shapes have the most numerical headroom).
 7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
    cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
    (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+
+---
+
+## 2026-07-21 — Session 45: exp 049 `16×512` persistent search paused by external control
+
+Experiment 049 resumed the requested serial 2× campaign from exact ranked
+`#890798` (`fd3072…4c1`). Its paired full grid supplies the strict control
+`389.408us` and target `194.704us`. A fresh B200 constituent profile measured
+**389.6us wall / 361.2us device / 28.5us idle over 53 launches**:
+
+| constituent | latency | calls | device share |
+|---|---:|---:|---:|
+| `_micro_potrf_gj32` diagonal chain | 207.03us | 16 | 57.3% |
+| panel apply | 60.17us | 15 | 16.7% |
+| panel-inner update | 44.94us | 12 | 12.4% |
+| trailing update | 26.75us | 3 | 7.4% |
+| input D2D copy | 7.55us | 1 | 2.1% |
+| finite/cleanup/reduction/D2H gates | 14.76us | 6 | 4.1% |
+
+The complete factorization is only 0.716 GFLOP (about 1.59us at the campaign's
+450 TFLOP/s model), and one full read plus write is 33.55 MB (about 4.36us at
+7.7 TB/s). This is dependency/residual latency. Holding non-micro work and idle
+fixed leaves only **12.03us for all 16 diagonal steps** at the 2× target, so a
+drop-in micro replacement cannot succeed.
+
+Four materially distinct persistent architectures produced active-backend,
+zero-fallback paired evidence against the exact source; all passed the official
+dense checker and all regressed:
+
+| variant | architecture | control | candidate | speedup | dominant phase |
+|---|---|---:|---:|---:|---|
+| V1 | full-resident cluster16/DSM per matrix | 398.464us | 953.344us | 0.41787× | TF32x3 trailing 504.0us; cluster span 796.1us |
+| V2 | one persistent 512-thread CTA/matrix | 387.800us | 1296.976us | 0.29898× | trailing 857.3us; only 16 CTAs use the GPU |
+| V3 | 16 occupancy-gated atomic CTAs/matrix | 399.576us | **572.896us** | **0.69735×** | 408.9us wait across 49 barriers |
+| V4 | four atomic rank-128 superpanels | 386.776us | 2080.584us | 0.18587× | scalar panel 1552.9us; barrier wait 1893.4us |
+
+V1 initially fell back because nvcc did not define `__float_to_tf32`; that
+timing was invalid and is preserved separately. Explicit round-to-nearest-even
+TF32 conversion repaired the mechanical compile defect before the valid retry.
+V3 proved resident capacity 740 CTAs for its 256-CTA grid; V4 proved 444. Their
+poor results are therefore algorithmic, not fallback or deadlock artifacts.
+Dense residuals were 9.45/20 for V1–V3 and 8.17/20 for V4: officially valid but
+too close to the preferred 8/20 promotion margin to skip a family gate had any
+path been fast.
+
+V5 is a minimal graph-preserving overlay that enrolls only `16×512` in ranked
+experiment 047's `_panel_fused128` path. It passes local syntax, exact-snapshot,
+whitespace, and source-policy gates, but has **no B200 evidence**. The remote
+gate was denied before execution with: `Automatic approval review failed:
+You've hit your usage limit... try again at Jul 27th, 2026 2:10 PM.` Per the
+repository policy, no retry or circumvention followed. V5 is unmeasured,
+experiment 049 is **paused rather than exhausted**, and no family/full-grid,
+Popcorn, root-source, or leaderboard action occurred. Exact ranked `#890798`
+remains authoritative.
+
+Evidence: `experiments/049-16x512-2x/`. Next action after the control resets:
+run one paired B200 V5 gate against exact `#890798`; if it is a real frontier,
+run all six families before any integration decision.
 
 ---
 
@@ -2292,3 +2350,99 @@ kernel work can be validated on the exact hardware without burning ranked quota.
 2. Re-benchmark on Modal (`modal_verify.py benchmark`) before each ranked submission.
 3. Tune high-batch mid-size shapes (`640×512`, `8×2048`, `2×4096`) for occupancy.
 4. Leave `n ≥ 8192` on cuSOLVER.
+
+---
+
+## Session 46 — 2026-07-23 — Experiment 050: fused 128x128 diagonal block
+
+**Goal (user):** close the gap to the leader, 2.00x overall geomean, submitting
+incremental wins as they appear. Frozen baseline: ranked `#890798`
+(801.977us public / 847.836us secret, SHA-256 `fd3072b5…44c1`).
+
+**Verdict: FRONTIER, NOT PROMOTABLE. No ranked slot spent; root keeps `#890798`.**
+
+### Board
+
+viridale 317.5us, zhongmingee 320.8, Olek 452.6, aj2kcc 489.0,
+Sebastian Kimberk 496.5, Ravi Theja 504.3 (`grind_1.py` — the 112.6us
+`sc2cap_hffull16_1.py` entry has left the board), josusanmartin 524.3,
+**binga 802.0 (rank 17)**. 2x would be ~401us ≈ rank 3.
+
+### Fresh full-grid profile of the exact incumbent
+
+`results/inc-890798-shapediag.json` (local geomean 846.6us). Three findings
+drove the experiment:
+
+1. `2x2048`, `1x4096` and `2x4096` are **still on cuSOLVER**, 87–91% of each
+   shape in one `getrf_wo_pivot`, factored *serially* (611.8us per 2048,
+   1387.3us per 4096, independent of batch).
+2. The Triton 32x32 diagonal micro is 57%/62%/54% of `16x512`/`4x1024`/`8x2048`
+   at a flat 13.1us per call.
+3. `640x512` and `60x1024` burn 352us and 215us of their wall clock in launch
+   idle.
+
+### Lever
+
+`diag128_potrf` — one CUDA CTA (8 warps, 70.8KB shared) factors a whole 128x128
+diagonal block and publishes the four 32x32 triangular inverses, replacing the
+seven-launch Triton chain (4x micro + 4x apply + 3x inner). The serial 32-pivot
+chains stay warp-synchronous on warp 0 (exp 044: ~134ns/pivot for one warp vs
+~324ns/pivot for an eight-warp `__syncthreads` chain, which is why exp 044's own
+fused-block probes lost); the other seven warps join only for the panel and
+Schur phases, so a block costs 16 `__syncthreads`, not 128.
+
+### Results
+
+| shape | control | candidate | ratio |
+|---|---:|---:|---:|
+| `16x512` (v1) | 408.3us | 375.9us | **1.0858x** |
+| `4x1024` (v1) | 714.0us | 694.1us | **1.0288x** |
+| `640x512` (control) | 1287.4us | 1287.0us | 1.0011x |
+| `60x1024` (control) | 1191.4us | 1189.7us | 1.0016x |
+| `2x2048` (v4) | 1359.1us | 1343.4us | 1.0118x |
+| `8x2048` (v4) | 1571.2us | 1614.2us | 0.9735x |
+| v4 aggregate over six probed shapes | — | — | **1.0133x** |
+
+Correct everywhere, and the residual *improves* (`16x512` 2.59→2.54, `4x1024`
+9.25→8.10 against a 20 tolerance). Backend proven by `_DIAG128_HITS`, zero new
+fallbacks, off-target shapes inside the A-vs-A noise floor.
+
+### The two blockers, both measured
+
+**Eager-launch tax ~7.6us/launch.** At `4x1024` the fusion cut *device* time
+670.7→458.3us (−32%) but wall only 706.7→648.5us (−8%): idle grew 36→190us
+across ~25 eager launches. `custom_kernel`'s closing
+`torch.isfinite(...).all().item()` drains the GPU every call, so the next
+call's Python-side Triton dispatch is fully exposed. Graph replay costs
+~0.4us/launch instead, but a `<<<grid, block>>>` launch cannot be captured and
+naming the current work queue is refused by popcorn's source policy. Hence a
+CUDA kernel costs ~7.6us × launch_count — which is exactly why `8x2048`
+(49 launches) regressed while its device time fell.
+
+**Six-minute compile budget.** Popcorn tests `#898552` (v1) and `#898531` (v4)
+both failed at *exactly* 360s — the service timeout, not arithmetic. One extra
+kernel in the existing extension breaks a cold build; the incumbent's 94s test
+benefits from a warm extension cache. Same wall exp 044 hit at three→four
+`load_inline` modules.
+
+Also worth recording: popcorn's source scanner is a **literal substring match**
+— the first v4 submission was rejected ("work on another stream") because the
+word appeared in one of my own CUDA *comments*.
+
+### Standing conclusion
+
+The diagonal chain is irreducible at ~200ns/pivot for a lone warp (54.1us per
+128-pivot block, identical at batch 4 and 16). For the leaders to sit ~7.5x off
+the hardware floor everywhere, `4x1024` must run near 36us — **~35ns/pivot** —
+which is only possible if the pivot chain never leaves registers and all
+panel/trailing work overlaps it inside one launch. That persistent/cooperative
+kernel is the only design that removes both blockers at once (2 launches, one
+compile unit). Exp 048 V2 already measured **1.167x** with a crude version
+(bulk barriers, TILE=32, a scalar panel solve costing 46% of the kernel).
+Rebuilt on this experiment's fused 128-wide diagonal, a vectorised panel and a
+rank-128 WMMA trailing update, the model gives ~508us at `4x1024` (1.41x) and
+~250us at `16x512` (1.63x); lookahead overlap is what closes the rest.
+
+Artifacts: `experiments/050-fused-diag128/` — `baseline-890798.py`,
+`candidate-v1..v4.py`, `variant-01-paired.json`, `variant-01-shapediag.json`,
+`variant-04-paired.json`, `notes.md`, `state.json`.

@@ -1,0 +1,19 @@
+{
+  "task": "experiment-050-fused-diag128",
+  "owner": "claude-code-session-5ca0240a",
+  "baseline_commit": "ab8a967",
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "target_region": [
+    "16x512",
+    "4x1024",
+    "8x2048",
+    "2x2048",
+    "1x4096",
+    "2x4096"
+  ],
+  "created": "2026-07-23T11:22:00+05:30",
+  "heartbeat": "2026-07-23T12:55:00+05:30",
+  "status": "released",
+  "released_at": "2026-07-23T12:55:00+05:30",
+  "result": "FRONTIER NOT PROMOTABLE. diag128_potrf correct and residual-improving; paired 1.0858x 16x512 / 1.0288x 4x1024, v4 aggregate 1.0133x over six shapes (8x2048 0.9735x). Blocked by the ~7.6us eager-launch tax and popcorn 360s compile budget (tests #898552, #898531). No source or leaderboard change."
+}

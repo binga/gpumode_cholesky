@@ -67,6 +67,28 @@ popcorn submissions                                # view your entries
   lost. Experiment 048 made no source change from its then-current `#890659`;
   the repository now carries exp 047's independently ranked `#890798`. See
   `experiments/048-4x1024-2x/` and `journal.md` Session 44.
+- **Experiment 049 (`16×512`) is paused by an external execution-control
+  limit:** the exact `#890798` path profiles at 389.6us wall / 361.2us device,
+  with 207.03us (57.3%) in the diagonal micro chain. Four active, correct
+  persistent architectures all regressed (best: atomic CTA groups at
+  399.576→572.896us, 0.69735×). A graph-captured fused-panel overlay passes
+  local gates but has no B200 evidence because approval review denied the next
+  remote run until July 27, 2026 at 2:10 PM. It remains unmeasured; no source or
+  leaderboard change was made. See `experiments/049-16x512-2x/` and
+  `journal.md` Session 45.
+- **Experiment 050 (fused 128×128 diagonal block) is a frontier, not
+  promotable — nothing submitted.** `diag128_potrf`, one CUDA CTA that factors a
+  whole 128×128 diagonal block in shared memory and publishes its four 32×32
+  triangular inverses, replaces the shipped seven-launch Triton chain. It is
+  correct and *improves* the residual (`16×512` 2.59→2.54, `4×1024` 9.25→8.10),
+  and paired B200 gives **1.0858× at `16×512`** and **1.0288× at `4×1024`**,
+  aggregating to 1.0133× over six probed shapes. Two measured blockers stop it:
+  the **~7.6μs eager-launch tax** (a `<<<grid, block>>>` launch cannot enter a
+  CUDA graph, so at `4×1024` a −32% *device*-time win became only −8% of wall),
+  and the **six-minute compile budget** (popcorn tests `#898552` and `#898531`
+  both failed at exactly 360s). The gain is under the 0.42%/2.6% leaderboard
+  noise floor, so no ranked slot was spent and the repository keeps `#890798`.
+  See `experiments/050-fused-diag128/` and `journal.md` Session 46.
 - **Ranked submission `#876988`** (cuSOLVER baseline): `done`, 17/17 on B200, geomean ≈ **2080μs**.
 - **Ranked submission `#877091`** (custom Triton kernel for `n=32`): `done`, 17/17 on B200. The `4096×32` shape dropped **113μs → 63.7μs (−44%)**; all other shapes stay on cuSOLVER. Geomean ≈ **2062μs**.
 - **Ranked submission `#877941`** (exp 004 — small-batch/large-n per-matrix loop): `done`, 17/17 on B200. Avoids the slow batched `cusolverDnSpotrfBatched` path for few-but-large matrices: **2×4096 13400μs→3200μs (4.19×)**, 2×2048 3840→1357 (2.83×), 4×1024 1395→1297. Ranked geomean ≈ **1746μs — beats the board leader (~1924μs) by ~9%** and the prior best by ~15%. (Known minor own-goal: 8×2048 5010→5370.) See `journal.md` Session 4 and `experiments/004-small-batch-large-n/`.

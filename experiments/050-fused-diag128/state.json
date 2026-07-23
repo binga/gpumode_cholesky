@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "experiment": 50,
+  "status": "frontier_not_promotable",
+  "goal": {
+    "scope": "aggregate geomean",
+    "user_target": "2.00x overall geomean vs the ranked incumbent",
+    "goal_baseline_submission": 890798,
+    "goal_baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "goal_baseline_public_us": 801.977,
+    "target_public_us": 400.99
+  },
+  "incumbent": {
+    "submission": 890798,
+    "commit": "ab8a967",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_geomean_us": 801.977,
+    "secret_geomean_us": 847.836,
+    "local_fullgrid_geomean_us": 846.59
+  },
+  "hypothesis": "The seven-launch Triton chain per 128-wide diagonal block is the universal mid-shape bottleneck. One CUDA CTA can factor the whole 128x128 block in shared memory (warp-synchronous 32-pivot chains, block-parallel panel/Schur phases), collapsing 7 launches to 1. The kernel is not CUDA-graph capturable under popcorn's no-work-queue source policy, so enrolled shapes move to eager mode -- which the fusion pays for by cutting launch count ~5x.",
+  "levers": [
+    {
+      "id": "L1",
+      "what": "diag128_potrf fused 128x128 diagonal block CUDA kernel",
+      "shapes": [
+        "16x512",
+        "4x1024"
+      ],
+      "state": "measured: 1.0858x 16x512 / 1.0288x 4x1024"
+    },
+    {
+      "id": "L2",
+      "what": "extend L1 to 8x2048 and route 2x2048 / 1x4096 / 2x4096 off cuSOLVER onto split32",
+      "state": "measured (v4): aggregate 1.0133x over six shapes; 8x2048 regressed 0.9735x"
+    },
+    {
+      "id": "L3",
+      "what": "replace cuSOLVER diagonal blocks + TRSM inside the large-n left-looking path",
+      "shapes": [
+        "1x8192",
+        "1x16384",
+        "1x32768"
+      ],
+      "state": "designed only"
+    },
+    {
+      "id": "L4",
+      "what": "recover 352us / 215us launch idle at 640x512 / 60x1024",
+      "state": "designed only"
+    }
+  ],
+  "completed_gates": [
+    "fresh full-grid B200 shapediag of the exact incumbent (results/inc-890798-shapediag.json)",
+    "exact incumbent snapshot hash verified",
+    "v1 and v2 python compile gates",
+    "v1 paired same-process B200 (variant-01-paired.json)",
+    "v1 candidate shapediag (variant-01-shapediag.json)",
+    "v4 paired same-process B200 (variant-04-paired.json)",
+    "popcorn test #898552 (v1) and #898531 (v4): both COMPILE_BUDGET_FAILURE at exactly 360s"
+  ],
+  "pending_gates": [],
+  "remote_jobs": {
+    "modal_active": true,
+    "popcorn_active": false
+  },
+  "consumed": {
+    "valid_serious_variants": 2,
+    "ranked_submissions": 0,
+    "popcorn_tests": 2,
+    "transient_modal_retries": 1
+  },
+  "next_action": "Build the persistent/cooperative single-kernel path (2 launches, one compile unit) reusing diag128_potrf as its diagonal phase; see notes.md.",
+  "blockers": [
+    {
+      "kind": "eager_launch_tax",
+      "detail": "~7.6us per eager launch, exposed by the closing .item() finiteness gate; CUDA kernels cannot enter a CUDA graph because popcorn forbids naming a work queue."
+    },
+    {
+      "kind": "compile_budget",
+      "detail": "popcorn test failed at exactly 360s for both variants; one extra kernel in the existing extension breaks a cold build."
+    },
+    {
+      "kind": "modal_spend_limit",
+      "detail": "hit mid-run; owner raised it and the run was repeated."
+    }
+  ],
+  "verdict": "FRONTIER, NOT PROMOTABLE: +1.33% over six probed shapes is under the 0.42%/2.6% leaderboard noise floor and the candidate fails the compile gate. No ranked slot spent; repository keeps #890798."
+}
