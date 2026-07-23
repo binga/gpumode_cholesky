@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "experiment": 54,
+  "baseline": {
+    "source": "submission.py",
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "source": "candidate-v1-nb1024.py",
+      "source_sha256": "82b9534174652d0ec370a30f13544a6a728596db891a882db93a61b035d117e1",
+      "nb": 1024,
+      "evidence": "v1-paired.json",
+      "evidence_sha256": "d36a9c0ad9e296ebcbc3c5d1676987c3e397f09552ae88e0288234745d6c8d76",
+      "baseline_us": 15115.632057189941,
+      "candidate_us": 15520.591735839844,
+      "speedup": 0.973682449620634,
+      "classification": "REJECTED_REGRESSION"
+    },
+    {
+      "id": "V2",
+      "source": "candidate-v2-nb4096.py",
+      "source_sha256": "bf938c06cfde1b3e2f347d733a7f38e9ea2ae1af835d0533c2bdde08d7e0d560",
+      "nb": 4096,
+      "evidence": "v2-paired.json",
+      "evidence_sha256": "6467cfeafb720eeb0a5959c688ffefc425935b520a3f8e9776962ea6505b7bea",
+      "baseline_us": 15074.015617370605,
+      "candidate_us": 15497.712135314941,
+      "speedup": 0.9725800444097569,
+      "classification": "REJECTED_REGRESSION"
+    }
+  ],
+  "root_source_changed": false
+}

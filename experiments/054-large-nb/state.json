@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "experiment": 54,
+  "status": "exhausted",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f90ef9098c800b536cf555a01ce15c8d4f532287",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "shape_wall_us": 15075.2,
+    "potrf_us": 5051.12,
+    "triangular_solve_us": 4364.87,
+    "incumbent_nb": 2048
+  },
+  "active_candidate": {
+    "variant": null,
+    "source": null,
+    "target_shape": null,
+    "change": null
+  },
+  "completed_gates": [
+    "fresh isolated worktree at exact origin/main incumbent",
+    "exact ranked source SHA-256 verified",
+    "axis selected from measured B200 POTRF/TRSM decomposition",
+    "V1 nb1024 paired B200: 0.973682x, correct and active; rejected",
+    "V2 nb4096 paired B200: 0.972580x, correct and active; rejected"
+  ],
+  "pending_gates": [],
+  "updated_at": "2026-07-23T06:17:00+05:30",
+  "next_action": "Experiment closed without promotion; incumbent nb2048 is a measured local optimum."
+}
