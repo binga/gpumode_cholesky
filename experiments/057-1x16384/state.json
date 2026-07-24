@@ -9,13 +9,16 @@
     "secret_us": 847.836
   },
   "current_incumbent": {
-    "ranked_id": 890798,
-    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
-    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+    "ranked_id": 904546,
+    "commit": null,
+    "commit_status": "awaiting orchestrator adoption-commit confirmation",
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "public_us": 764.8768308865492,
+    "secret_us": 785.8614260468765
   },
   "active_shape": "batch=1,n=16384",
-  "active_variant": "V4 component profile",
-  "hypothesis": "V4 is a six-family validated 1.4861x frontier. Profile it to quantify whether another inverse leaf size/fusion can matter before spending V5 and V6.",
+  "active_variant": "V4 rebase onto ranked #904546",
+  "hypothesis": "Ranked #904546 integrates the V2 scalar-leaf path, so V4's Triton base-32 leaves remain a non-overlapping incremental lever. Rebuild and remeasure only against the new exact source after its adoption commit is confirmed.",
   "worktree": "/private/tmp/gpumode-cholesky-exp057-16384",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/057-1x16384.json",
   "completed_gates": [
@@ -38,7 +41,11 @@
     "V4 AST, whitespace, dispatch-scope, source-policy, Triton backend-counter gates passed",
     "origin/main refreshed and ranked source re-verified before V4 paid gate",
     "V4 paired Modal B200: 15137.920us to 10187.200us = 1.486074x, CI [1.485473,1.486923], checker pass, intended hit=1, Triton leaf hits=7, no new fallback",
-    "V4 candidate familygrid: official checker 6/6; V4 active with seven Triton leaf hits and no fallback on dense/diagonal/rowscale/tridiagonal; explicit incumbent-matched safety handoff on spectrum/lowrank"
+    "V4 candidate familygrid: official checker 6/6; V4 active with seven Triton leaf hits and no fallback on dense/diagonal/rowscale/tridiagonal; explicit incumbent-matched safety handoff on spectrum/lowrank",
+    "V4 shapediag Modal B200: 10126.9us wall, 9608.3us device, 518.6us idle, 283 launches; POTRF 5010.1us/52.1%, elementwise 1304.7us/13.6%, Triton leaves 43.1us",
+    "V5 direct-strided baddbmm source passed AST, whitespace, dispatch-scope, source-policy, and backend-counter free gates but was not launched",
+    "ranked #904546 became the moving incumbent at source SHA f8d67dce...; all further paid work against #890798 stopped before V5 launch",
+    "exact #904546 source inspected at /private/tmp/gpumode-cholesky-exp059-two-large/submission.py and confirmed to contain integrated exp057 V2"
   ],
   "pending_gates": [
     "free gates",
@@ -110,10 +117,18 @@
       "status": "completed_with_expected_safety_handoffs",
       "result": "variant-04-familygrid.json",
       "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V4",
+      "mode": "shapediag",
+      "shape": "batch=1,n=16384",
+      "status": "completed",
+      "result": "variant-04-shapediag.json",
+      "sandbox_id": "not exposed by modal_verify.py"
     }
   ],
   "popcorn_jobs": [],
   "variants_used": 4,
   "remote_retries_used": 0,
-  "next_action": "Commit V4 validated frontier for integration, then profile V4 and select V5."
+  "next_action": "Await orchestrator confirmation of the #904546 adoption commit; then rebase/rebuild V4 from that exact commit, rerun free gates, fetch/hash-check, and only then launch a paired n=16384 B200 gate."
 }

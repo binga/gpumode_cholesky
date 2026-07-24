@@ -96,6 +96,8 @@
       "baseline_family_control": "baseline-familygrid.json",
       "baseline_family_control_sha256": "18a13cb522137d15728ec6d8ec1b57f367acf0cc8d506f2f4295ef46982d3e42",
       "family_comparison": "variant-04-family-comparison.json",
+      "profile_evidence": "variant-04-shapediag.json",
+      "profile_evidence_sha256": "50a6ff4318fd60f75a199c113a80e8bbb700485a2558ff7ba7afed87542aeaec",
       "baseline_us": 15137.919902801514,
       "candidate_us": 10187.20006942749,
       "speedup": 1.4860735344566474,
@@ -113,6 +115,21 @@
       "new_fallbacks": {},
       "official_checker": "PASS: scaled_reconstruction_residual=0.211",
       "classification": "VALIDATED_FRONTIER"
+    },
+    {
+      "id": "V5",
+      "architecture": "V4 Triton leaves plus direct in-place strided baddbmm inverse combines",
+      "source": "candidate-v5-direct-combine.py",
+      "source_sha256": "854c6dbc64cfa3eb7e6aebdf0e4140653c46a305985b7d83279ed4e5fd68d932",
+      "free_gates": [
+        "AST",
+        "whitespace",
+        "dispatch scope",
+        "source policy",
+        "backend counters"
+      ],
+      "classification": "UNMEASURED_STALE_BASELINE",
+      "note": "Paid V5 launch was stopped before execution when ranked #904546 replaced #890798."
     }
   ]
 }

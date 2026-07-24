@@ -16,6 +16,7 @@ Every candidate in this directory changes only the exact
 | **V2** | **scalar-leaf trsm-free breadth-first inverse + merged block-column update** | **15286.256us** | **10737.440us** | **`1.423787×`** | **frontier** |
 | V3 | FP16-resident factor shadow + V2 inverse | 15140.352us | 10672.192us | `1.418604×` | rejected below V2 |
 | **V4** | **custom Triton base-32 inverse leaves + GEMM combines** | **15137.920us** | **10187.200us** | **`1.486074×`** | **validated frontier** |
+| V5 | V4 leaves + direct strided `baddbmm_` combines | — | — | — | free gates passed; paid launch stopped on incumbent change |
 
 V2's per-shape 95% interval is `[1.422166,1.424248]`. Both exact-source
 paired checks passed the official reconstruction checker. V2 reported one
@@ -53,3 +54,12 @@ base-32 leaf launch per panel and improves the frontier to `1.486074×`. Its
 six-family envelope matches V2: 6/6 official checks, four active fast-path
 families with seven Triton leaf hits each, and the same two incumbent-matched
 safety families.
+
+## Incumbent transition
+
+Ranked submission `#904546` became the moving incumbent with public
+`764.876831us`, secret `785.861426us`, and exact source SHA-256
+`f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
+That source integrates V2. All paid work against `#890798` stopped before V5
+launched. V4 remains the strongest incremental design and must be rebased and
+paired against `#904546` after its adoption commit is confirmed.
