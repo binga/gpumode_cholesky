@@ -17,23 +17,63 @@
     "batch=1,n=16384",
     "batch=1,n=32768"
   ],
-  "active_variant": "awaiting independently revalidated shape-local frontiers",
+  "active_variant": "v1 exact combined follow-up",
   "worktree": "/private/tmp/gpumode-cholesky-exp060-two-large",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/060-two-large-integration.json",
   "completed_gates": [
     "ranked #904546 adopted, pushed, and remote commit verified",
-    "exact incumbent source hash verified"
+    "exact incumbent source hash verified",
+    "exp057 V4 rebased paired gate: 1x16384 10725.7us -> 10164.8us (1.055351x), official checker pass, no new fallback",
+    "exp057 V4 rebased family gate: official checker 6/6 and incumbent-matched safety handoffs",
+    "exp058 V4 rebased paired gate: 1x32768 33036.5us -> 31495.9us (1.048912x), official checker pass, no new fallback",
+    "exp058 V4 rebased family gate: official checker 6/6 and incumbent-matched safety handoffs",
+    "combined v1 paired target gate: 1.051456x CI [1.050341,1.052572], both targets correct with intended counters",
+    "combined v1 family gate: official checker 12/12 and all fallback dictionaries exactly match #904546",
+    "combined v1 full 15-shape paired grid: 1.006785x CI [1.006202,1.007368], all shapes correct and off-target paths at parity",
+    "combined v1 fresh-cache import: 28.66s submission import, 30.15s runner total, all CUDA extensions ready"
   ],
   "pending_gates": [
-    "shape-local paired revalidation",
-    "combined paired target gate",
-    "six-family gate",
-    "full 15-shape paired grid",
-    "cold-build gate",
     "Popcorn test",
     "serialized ranked submission"
   ],
-  "modal_jobs": [],
+  "modal_jobs": [
+    {
+      "kind": "pairedgrid",
+      "variant": "v1",
+      "shapes": [
+        "1x16384",
+        "1x32768"
+      ],
+      "status": "passed",
+      "artifact": "experiments/060-two-large-followup/combined-v1-paired.json"
+    },
+    {
+      "kind": "familygrid",
+      "variant": "v1",
+      "status": "checker_passed_incumbent_matched_safety_paths",
+      "artifact": "experiments/060-two-large-followup/combined-v1-familygrid.json",
+      "review": "experiments/060-two-large-followup/combined-v1-family-comparison.json"
+    },
+    {
+      "kind": "fullgrid",
+      "variant": "v1",
+      "status": "passed",
+      "artifact": "experiments/060-two-large-followup/combined-v1-fullgrid.json"
+    },
+    {
+      "kind": "coldimport",
+      "variant": "v1",
+      "status": "passed",
+      "artifact": "experiments/060-two-large-followup/combined-v1-coldimport.json"
+    }
+  ],
   "popcorn_jobs": [],
-  "next_action": "Wait for both shape-local paired gates, then integrate only stable correctness-valid incremental wins."
+  "variants_used": 1,
+  "remote_retries_used": 0,
+  "promotion_source": {
+    "source": "combined-v1.py",
+    "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+    "classification": "PROMOTABLE_INCREMENTAL_FRONTIER"
+  },
+  "next_action": "Fetch and compare origin/main, reverify the incumbent and exact source hash, then run Popcorn test and one serialized ranked submission."
 }

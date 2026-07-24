@@ -6,7 +6,49 @@
     "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
     "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a"
   },
-  "variants": [],
-  "modal_jobs": [],
+  "variants": [
+    {
+      "id": "v1",
+      "source": "combined-v1.py",
+      "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+      "classification": "PROMOTABLE_INCREMENTAL_FRONTIER",
+      "changes": [
+        "exp057 V4 Triton base-32 inverse leaves at 1x16384",
+        "exp058 V4 FP16 panel apply with FP32 accumulation at 1x32768"
+      ],
+      "target_paired": {
+        "artifact": "combined-v1-paired.json",
+        "speedup": 1.0514559344546863,
+        "ci95": [
+          1.0503408247468073,
+          1.0525722280351058
+        ]
+      },
+      "fullgrid": {
+        "artifact": "combined-v1-fullgrid.json",
+        "speedup": 1.006785058113549,
+        "ci95": [
+          1.0062021240386996,
+          1.0073683299059677
+        ],
+        "passed_shapes": 15
+      },
+      "family_artifact": "combined-v1-familygrid.json",
+      "family_review": "combined-v1-family-comparison.json",
+      "cold_build": {
+        "artifact": "combined-v1-coldimport.json",
+        "submission_import_seconds": 28.662132201,
+        "runner_init_seconds": 30.150918833,
+        "budget_seconds": 288,
+        "passed": true
+      }
+    }
+  ],
+  "modal_jobs": [
+    "combined-v1-paired.json",
+    "combined-v1-familygrid.json",
+    "combined-v1-fullgrid.json",
+    "combined-v1-coldimport.json"
+  ],
   "popcorn_jobs": []
 }

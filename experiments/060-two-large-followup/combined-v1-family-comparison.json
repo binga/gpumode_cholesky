@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "baseline_submission": 904546,
+  "baseline_artifact": "../059-two-large-incremental/combined-v4-compilefix-familygrid.json",
+  "candidate_artifact": "combined-v1-familygrid.json",
+  "rows_reviewed": 12,
+  "official_checker_passed": 12,
+  "fallback_dictionaries_match": 12,
+  "unexpected_fallbacks": 0,
+  "optimized_no_fallback_cases": 7,
+  "inherited_safety_cases": [
+    "1x16384 spectrum",
+    "1x16384 lowrank",
+    "1x32768 spectrum",
+    "1x32768 lowrank",
+    "1x32768 rowscale"
+  ],
+  "passed": true
+}
