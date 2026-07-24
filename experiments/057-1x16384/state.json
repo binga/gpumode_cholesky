@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "experiment": "057-1x16384",
+  "goal_baseline": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_us": 801.977,
+    "secret_us": 847.836
+  },
+  "current_incumbent": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "active_shape": "batch=1,n=16384",
+  "active_variant": "V3 FP16-resident factor shadow plus trsm-free inverse",
+  "hypothesis": "V2 removed triangular solves and reached 1.4238x. Keeping the prior factor in FP16 with FP32-accumulated matrix multiplication may accelerate the remaining left-looking block-column updates without changing the 10-bit significand relative to TF32.",
+  "worktree": "/private/tmp/gpumode-cholesky-exp057-16384",
+  "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/057-1x16384.json",
+  "completed_gates": [
+    "origin/main fetched and matched baseline commit",
+    "ranked source hash verified",
+    "prior large-n architecture inventory complete",
+    "V1 AST, whitespace, dispatch-scope, source-policy, and counter gates passed",
+    "V1 optional local torch property test omitted because torch is unavailable locally",
+    "V1 paired Modal B200: 15167.872us to 14336.464us = 1.058135x, CI [1.057109,1.059205], checker pass, intended hit=1, no new fallback",
+    "V2 AST, whitespace, dispatch-scope, source-policy, and counter gates passed",
+    "origin/main refreshed and ranked source re-verified before V2 paid gate",
+    "V2 paired Modal B200: 15286.256us to 10737.440us = 1.423787x, CI [1.422166,1.424248], checker pass, intended hit=1, no new fallback",
+    "V2 candidate familygrid: official checker 6/6; V2 active without fallback on dense/diagonal/rowscale/tridiagonal; explicit safety handoff on spectrum/lowrank",
+    "exact #890798 baseline family control: official checker 6/6; existing safety handoff on the same spectrum/lowrank families",
+    "reviewed family comparison: zero unexpected fallbacks and identical candidate/control residuals on both safety families"
+  ],
+  "pending_gates": [
+    "free gates",
+    "paired same-process Modal B200",
+    "changed-family validation",
+    "orchestrator integration and full-grid gates"
+  ],
+  "modal_jobs": [
+    {
+      "variant": "V1",
+      "mode": "pairedgrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed",
+      "result": "variant-01-paired.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V2",
+      "mode": "pairedgrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed",
+      "result": "variant-02-paired.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V2",
+      "mode": "familygrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_with_expected_safety_handoffs",
+      "result": "variant-02-familygrid.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "baseline-890798",
+      "mode": "familygrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_with_matching_safety_handoffs",
+      "result": "baseline-familygrid.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    }
+  ],
+  "popcorn_jobs": [],
+  "variants_used": 2,
+  "remote_retries_used": 0,
+  "next_action": "Commit the documented V2 frontier and family controls for integration handoff, then build and measure V3."
+}

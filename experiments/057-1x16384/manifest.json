@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "experiment": "057-1x16384",
+  "baseline": {
+    "submission": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "architecture": "breadth-first blocked triangular inverse with base-256 batched leaves plus merged block-column update",
+      "source": "candidate-v1-blocked-inverse.py",
+      "source_sha256": "657e22a885ca5a5fd411b96a14787d18ab07f78d4e4bd15bdb22c47f6f06e750",
+      "evidence": "variant-01-paired.json",
+      "evidence_sha256": "3fb2142ddac93386f18872c1230e7d48ef0211b9740c4595a0d011cdcf55d9cd",
+      "baseline_us": 15167.871952056885,
+      "candidate_us": 14336.463928222656,
+      "speedup": 1.0581354324661254,
+      "ci95": [
+        1.0571086195469823,
+        1.0592045551907845
+      ],
+      "baseline_counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP057_V1_HITS": 1
+      },
+      "new_fallbacks": {},
+      "official_checker": "PASS: scaled_reconstruction_residual=0.213",
+      "classification": "FRONTIER"
+    },
+    {
+      "id": "V2",
+      "architecture": "trsm-free scalar-leaf breadth-first triangular inverse plus merged block-column update",
+      "source": "candidate-v2-trsm-free.py",
+      "source_sha256": "e7b35b9536de08b63b4ec2909197099027c6529edeb93a9cd2436ec402c9f501",
+      "evidence": "variant-02-paired.json",
+      "evidence_sha256": "843dc07c5dab4754325fe72f66ddb384b4c3152f5cadc2ebc6c789d73a39699c",
+      "family_evidence": "variant-02-familygrid.json",
+      "family_evidence_sha256": "fa4ddbc20d5b25c6f8f769220e9fa54358b5e6a0448f431448d9f9631a14e6db",
+      "baseline_family_control": "baseline-familygrid.json",
+      "baseline_family_control_sha256": "18a13cb522137d15728ec6d8ec1b57f367acf0cc8d506f2f4295ef46982d3e42",
+      "family_comparison": "variant-02-family-comparison.json",
+      "baseline_us": 15286.255836486816,
+      "candidate_us": 10737.44010925293,
+      "speedup": 1.4237866752547423,
+      "ci95": [
+        1.4221656301351902,
+        1.4242476169057776
+      ],
+      "baseline_counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP057_V2_HITS": 1
+      },
+      "new_fallbacks": {},
+      "official_checker": "PASS: scaled_reconstruction_residual=0.212",
+      "classification": "VALIDATED_FRONTIER"
+    }
+  ]
+}
