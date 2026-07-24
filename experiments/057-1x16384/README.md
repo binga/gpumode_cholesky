@@ -14,6 +14,8 @@ Every candidate in this directory changes only the exact
 | --- | --- | ---: | ---: | ---: | --- |
 | V1 | base-256 leaf-batched breadth-first inverse + merged block-column update | 15167.872us | 14336.464us | `1.058135×` | frontier, superseded |
 | **V2** | **scalar-leaf trsm-free breadth-first inverse + merged block-column update** | **15286.256us** | **10737.440us** | **`1.423787×`** | **frontier** |
+| V3 | FP16-resident factor shadow + V2 inverse | 15140.352us | 10672.192us | `1.418604×` | rejected below V2 |
+| **V4** | **custom Triton base-32 inverse leaves + GEMM combines** | **15137.920us** | **10187.200us** | **`1.486074×`** | **validated frontier** |
 
 V2's per-shape 95% interval is `[1.422166,1.424248]`. Both exact-source
 paired checks passed the official reconstruction checker. V2 reported one
@@ -43,6 +45,11 @@ was first narrowed to this exact shape and reproduced before removing its
 remaining triangular solves in V2.
 
 V2 remains short of the campaign's approximately `2.204×` balanced per-shape
-requirement, so the search continues with an FP16-resident factor shadow plus
-the trsm-free inverse, followed by a fresh V2 profile if that lever is not
-positive.
+requirement. V3's FP16 shadow passed dense correctness but its paired ratio was
+significantly below V2, closing that precision/storage combination. The search
+then used V2's component profile to target 122 elementwise inverse kernels:
+V4 replaces the first five scalar/GEMM inverse levels with one parallel Triton
+base-32 leaf launch per panel and improves the frontier to `1.486074×`. Its
+six-family envelope matches V2: 6/6 official checks, four active fast-path
+families with seven Triton leaf hits each, and the same two incumbent-matched
+safety families.

@@ -59,6 +59,60 @@
       "new_fallbacks": {},
       "official_checker": "PASS: scaled_reconstruction_residual=0.212",
       "classification": "VALIDATED_FRONTIER"
+    },
+    {
+      "id": "V3",
+      "architecture": "FP16-resident factor shadow plus V2 trsm-free inverse",
+      "source": "candidate-v3-fp16-shadow.py",
+      "source_sha256": "de7bba081ec23568bf0e8a8a460e796fee7b8df7fbb67a74f92f0f08686f28de",
+      "evidence": "variant-03-paired.json",
+      "evidence_sha256": "c6f713928c9e5f33e8449aac6af4fb646a86a2254c2e4973f156ad61eee32f21",
+      "baseline_us": 15140.352249145508,
+      "candidate_us": 10672.192096710205,
+      "speedup": 1.4186041513664431,
+      "ci95": [
+        1.4173321056870218,
+        1.4206311952876176
+      ],
+      "baseline_counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP057_V3_HITS": 1
+      },
+      "new_fallbacks": {},
+      "official_checker": "PASS: scaled_reconstruction_residual=0.212",
+      "classification": "REJECTED_BELOW_V2"
+    },
+    {
+      "id": "V4",
+      "architecture": "custom Triton base-32 triangular-inverse leaves plus GEMM combines and merged block-column update",
+      "source": "candidate-v4-triton-leaf32.py",
+      "source_sha256": "88ea6e7e9465100c9b0011f630070fd66d96d1374c79de60d5622a47f43fbdbf",
+      "evidence": "variant-04-paired.json",
+      "evidence_sha256": "a60f1b67e72d7776c8716478305a09cabe0d54f7bb2271d6bcff786f99eec8a5",
+      "family_evidence": "variant-04-familygrid.json",
+      "family_evidence_sha256": "247a471f3ae21209f468318977ed48b1c4b17be8ad6f8a0e5dec6ebac78f144a",
+      "baseline_family_control": "baseline-familygrid.json",
+      "baseline_family_control_sha256": "18a13cb522137d15728ec6d8ec1b57f367acf0cc8d506f2f4295ef46982d3e42",
+      "family_comparison": "variant-04-family-comparison.json",
+      "baseline_us": 15137.919902801514,
+      "candidate_us": 10187.20006942749,
+      "speedup": 1.4860735344566474,
+      "ci95": [
+        1.4854729663788835,
+        1.4869228176719853
+      ],
+      "baseline_counters": {
+        "_LARGE_FP8_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP057_V4_HITS": 1,
+        "_EXP057_V4_TRITON_LEAF_HITS": 7
+      },
+      "new_fallbacks": {},
+      "official_checker": "PASS: scaled_reconstruction_residual=0.211",
+      "classification": "VALIDATED_FRONTIER"
     }
   ]
 }

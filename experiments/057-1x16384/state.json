@@ -14,8 +14,8 @@
     "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
   },
   "active_shape": "batch=1,n=16384",
-  "active_variant": "V3 FP16-resident factor shadow plus trsm-free inverse",
-  "hypothesis": "V2 removed triangular solves and reached 1.4238x. Keeping the prior factor in FP16 with FP32-accumulated matrix multiplication may accelerate the remaining left-looking block-column updates without changing the 10-bit significand relative to TF32.",
+  "active_variant": "V4 component profile",
+  "hypothesis": "V4 is a six-family validated 1.4861x frontier. Profile it to quantify whether another inverse leaf size/fusion can matter before spending V5 and V6.",
   "worktree": "/private/tmp/gpumode-cholesky-exp057-16384",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/057-1x16384.json",
   "completed_gates": [
@@ -30,7 +30,15 @@
     "V2 paired Modal B200: 15286.256us to 10737.440us = 1.423787x, CI [1.422166,1.424248], checker pass, intended hit=1, no new fallback",
     "V2 candidate familygrid: official checker 6/6; V2 active without fallback on dense/diagonal/rowscale/tridiagonal; explicit safety handoff on spectrum/lowrank",
     "exact #890798 baseline family control: official checker 6/6; existing safety handoff on the same spectrum/lowrank families",
-    "reviewed family comparison: zero unexpected fallbacks and identical candidate/control residuals on both safety families"
+    "reviewed family comparison: zero unexpected fallbacks and identical candidate/control residuals on both safety families",
+    "V3 AST, whitespace, dispatch-scope, source-policy, and counter gates passed",
+    "origin/main refreshed and ranked source re-verified before V3 paid gate",
+    "V3 paired Modal B200: 15140.352us to 10672.192us = 1.418604x, CI [1.417332,1.420631], checker pass, intended hit=1, no new fallback; rejected below V2",
+    "V2 shapediag Modal B200: 10700.0us wall, 9975.7us device, 724.3us idle, 430 launches; POTRF 5035.1us/50.5%, elementwise 1404.1us/14.1%",
+    "V4 AST, whitespace, dispatch-scope, source-policy, Triton backend-counter gates passed",
+    "origin/main refreshed and ranked source re-verified before V4 paid gate",
+    "V4 paired Modal B200: 15137.920us to 10187.200us = 1.486074x, CI [1.485473,1.486923], checker pass, intended hit=1, Triton leaf hits=7, no new fallback",
+    "V4 candidate familygrid: official checker 6/6; V4 active with seven Triton leaf hits and no fallback on dense/diagonal/rowscale/tridiagonal; explicit incumbent-matched safety handoff on spectrum/lowrank"
   ],
   "pending_gates": [
     "free gates",
@@ -70,10 +78,42 @@
       "status": "completed_with_matching_safety_handoffs",
       "result": "baseline-familygrid.json",
       "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V3",
+      "mode": "pairedgrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_rejected_below_v2",
+      "result": "variant-03-paired.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V2",
+      "mode": "shapediag",
+      "shape": "batch=1,n=16384",
+      "status": "completed",
+      "result": "variant-02-shapediag.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V4",
+      "mode": "pairedgrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_validated_frontier",
+      "result": "variant-04-paired.json",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V4",
+      "mode": "familygrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_with_expected_safety_handoffs",
+      "result": "variant-04-familygrid.json",
+      "sandbox_id": "not exposed by modal_verify.py"
     }
   ],
   "popcorn_jobs": [],
-  "variants_used": 2,
+  "variants_used": 4,
   "remote_retries_used": 0,
-  "next_action": "Commit the documented V2 frontier and family controls for integration handoff, then build and measure V3."
+  "next_action": "Commit V4 validated frontier for integration, then profile V4 and select V5."
 }

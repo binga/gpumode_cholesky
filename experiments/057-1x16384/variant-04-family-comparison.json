@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "candidate": "candidate-v4-triton-leaf32.py",
+  "candidate_evidence": "variant-04-familygrid.json",
+  "baseline_evidence": "baseline-familygrid.json",
+  "shape": {
+    "batch": 1,
+    "n": 16384
+  },
+  "contract": "Official checker must pass all six families. Dense, diagonal, rowscale, and tridiagonal must hit V4 and its Triton leaf backend with no fallback. Spectrum and lowrank may take the exact ranked safety path only when the exact baseline takes its existing safety path on the same family.",
+  "rows": [
+    {
+      "case": "dense",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 with 7 Triton leaf hits",
+      "baseline_path": "_LARGE_FP8",
+      "candidate_fallbacks": 0,
+      "baseline_fallbacks": 0,
+      "candidate_residual": 0.212,
+      "baseline_residual": 0.213,
+      "ok": true
+    },
+    {
+      "case": "spectrum",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 attempted with 7 Triton leaf hits, then exact ranked safety path",
+      "baseline_path": "existing _LARGE_FP8 safety handoff",
+      "candidate_fallbacks": 1,
+      "baseline_fallbacks": 1,
+      "candidate_residual": 0.107,
+      "baseline_residual": 0.107,
+      "ok": true
+    },
+    {
+      "case": "diagonal",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 with 7 Triton leaf hits",
+      "baseline_path": "_LARGE_FP8",
+      "candidate_fallbacks": 0,
+      "baseline_fallbacks": 0,
+      "candidate_residual": 0.000122,
+      "baseline_residual": 0.000122,
+      "ok": true
+    },
+    {
+      "case": "lowrank",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 attempted with 7 Triton leaf hits, then exact ranked safety path",
+      "baseline_path": "existing _LARGE_FP8 plus _LEFT_LARGE safety handoffs",
+      "candidate_fallbacks": 1,
+      "baseline_fallbacks": 2,
+      "candidate_residual": 0.000822,
+      "baseline_residual": 0.000822,
+      "ok": true
+    },
+    {
+      "case": "rowscale",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 with 7 Triton leaf hits",
+      "baseline_path": "_LARGE_FP8",
+      "candidate_fallbacks": 0,
+      "baseline_fallbacks": 0,
+      "candidate_residual": 0.124,
+      "baseline_residual": 0.124,
+      "ok": true
+    },
+    {
+      "case": "tridiagonal",
+      "candidate_checker_ok": true,
+      "baseline_checker_ok": true,
+      "candidate_path": "V4 with 7 Triton leaf hits",
+      "baseline_path": "_LARGE_FP8",
+      "candidate_fallbacks": 0,
+      "baseline_fallbacks": 0,
+      "candidate_residual": 0.0135,
+      "baseline_residual": 0.0135,
+      "ok": true
+    }
+  ],
+  "official_checker_passed": "6/6",
+  "fast_path_families": "4/6",
+  "incumbent_matched_safety_families": [
+    "spectrum",
+    "lowrank"
+  ],
+  "unexpected_fallbacks": 0,
+  "passed": true,
+  "harness_note": "The generic familygrid JSON reports passed=false because it rejects every fallback. This reviewed candidate-vs-exact-baseline comparison proves V4's two safety handoffs are incumbent-matched; V4's Triton leaf backend executed seven times before both handoffs."
+}
