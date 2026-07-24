@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "experiment": 58,
+  "target": {
+    "batch": 1,
+    "n": 32768
+  },
+  "baseline": {
+    "submission": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source": "baseline-890798.py",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "V1",
+      "source": "candidate-v1.py",
+      "source_sha256": "488abd1b5d8413a85e16cf4ce83d729d9e30a485f4a5ff96dd7611d7291e977e",
+      "change": "breadth-first blocked triangular inverse with batched 256-wide leaves",
+      "paired_evidence": "variant-01-paired.json",
+      "paired_evidence_sha256": "9543c46a79ea0923f3595d99a103ed3fd3ca44110a481d53fb5bb0f588c8e8d1",
+      "baseline_us": 42769.02389526367,
+      "candidate_us": 33043.63250732422,
+      "speedup": 1.294300010209254,
+      "ci95": [
+        1.293612758436377,
+        1.2947887697888478
+      ],
+      "candidate_family_evidence": "variant-01-family.json",
+      "candidate_family_evidence_sha256": "46a728659d47890e6b734c4f93a83738712e9b0c7642ba72d06057e7b4c3b855",
+      "baseline_family_evidence": "baseline-family.json",
+      "baseline_family_evidence_sha256": "eb866b12a20b2f683299d4a750eeb10d593b57e5f8b199e1f4e97665212dab2c",
+      "checker_families_passed": 6,
+      "unexpected_fallbacks": 0,
+      "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION"
+    }
+  ]
+}

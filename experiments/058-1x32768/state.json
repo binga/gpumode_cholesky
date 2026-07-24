@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "experiment": "058-1x32768",
+  "goal_baseline": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_us": 801.977,
+    "secret_us": 847.836
+  },
+  "current_incumbent": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "active_shape": "batch=1,n=32768",
+  "active_variant": "v1-shape-local-blocked-inverse",
+  "hypothesis": "Restrict exp052's breadth-first batched-leaf triangular inverse to 1x32768 only; it previously removed the ranked path's 112 serialized recursive TRSM launches and measured 1.29435x on dense input, materially beyond exp055's rejected 1.021x base-size retune.",
+  "worktree": "/private/tmp/gpumode-cholesky-exp058-32768",
+  "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/058-1x32768.json",
+  "completed_gates": [
+    "origin/main fetched and matched baseline commit",
+    "ranked source hash verified",
+    "prior large-n evidence inspected through experiments 052-055",
+    "preserved exp052 breadth-first blocked inverse frontier identified: dense paired 42346.8us -> 32710.3us (1.29435x), official checker pass, expected backend counters, no new fallback",
+    "v1 exact baseline snapshot verified at fd3072b5",
+    "v1 AST parse and git diff --check passed",
+    "v1 diff is shape-local: 100 inserted lines plus one n=32768 dispatch selection; no stream/queue or checker/tolerance changes",
+    "local torch property test omitted because torch is not installed locally; stronger B200 official checker remains pending",
+    "v1 paired same-process Modal B200 dense: 42769.0us -> 33043.6us, 1.294300x, CI95 [1.2936128,1.2947888], official checker residual 5.28, _BLOCKED_INV_32768_HITS=1, _MXFP8_HITS=6, no new fallback",
+    "v1 and exact baseline each passed the official checker on all six families",
+    "v1 fallback pattern exactly matched the incumbent: dense/diagonal/tridiagonal active without fallback; spectrum/lowrank/rowscale use the pre-existing safety chain"
+  ],
+  "pending_gates": [
+    "free gates",
+    "paired same-process Modal B200",
+    "changed-family validation",
+    "orchestrator integration and full-grid gates"
+  ],
+  "modal_jobs": [
+    {
+      "gate": "v1-paired-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": null,
+      "note": "runner did not emit sandbox ID before the instrumentation fix; image build IDs include im-nvaF4f7giYK4VovH7eAnTb",
+      "status": "passed",
+      "evidence": "variant-01-paired.json"
+    },
+    {
+      "gate": "v1-family-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-6xj6ZbQb4xbxA5qB9YzVMA",
+      "status": "relative-pass; 6/6 checker and incumbent-matched fallbacks",
+      "evidence": "variant-01-family.json"
+    },
+    {
+      "gate": "baseline-family-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-YBkqbDufHuYzfvyqSPM8RH",
+      "status": "control complete; 6/6 checker",
+      "evidence": "baseline-family.json"
+    }
+  ],
+  "popcorn_jobs": [],
+  "variants_used": 1,
+  "remote_retries_used": 0,
+  "frontier": {
+    "variant": "v1-shape-local-blocked-inverse",
+    "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION",
+    "baseline_us": 42769.02389526367,
+    "candidate_us": 33043.63250732422,
+    "speedup": 1.294300010209254,
+    "candidate_sha256": "488abd1b5d8413a85e16cf4ce83d729d9e30a485f4a5ff96dd7611d7291e977e"
+  },
+  "next_action": "Commit the V1 checkpoint, then build the materially distinct nb=2048 schedule on the blocked-inverse architecture and run free plus paired n=32768 gates."
+}
