@@ -14,8 +14,8 @@
     "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
   },
   "active_shape": "batch=1,n=32768",
-  "active_variant": "v1-shape-local-blocked-inverse",
-  "hypothesis": "Restrict exp052's breadth-first batched-leaf triangular inverse to 1x32768 only; it previously removed the ranked path's 112 serialized recursive TRSM launches and measured 1.29435x on dense input, materially beyond exp055's rejected 1.021x base-size retune.",
+  "active_variant": "v4-frontier-checkpoint",
+  "hypothesis": "V4 improves the V1 frontier by moving only the seven panel-apply GEMMs to FP16 inputs with FP32 output while preserving the incumbent-matched safety behavior on all official families.",
   "worktree": "/private/tmp/gpumode-cholesky-exp058-32768",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/058-1x32768.json",
   "completed_gates": [
@@ -29,7 +29,16 @@
     "local torch property test omitted because torch is not installed locally; stronger B200 official checker remains pending",
     "v1 paired same-process Modal B200 dense: 42769.0us -> 33043.6us, 1.294300x, CI95 [1.2936128,1.2947888], official checker residual 5.28, _BLOCKED_INV_32768_HITS=1, _MXFP8_HITS=6, no new fallback",
     "v1 and exact baseline each passed the official checker on all six families",
-    "v1 fallback pattern exactly matched the incumbent: dense/diagonal/tridiagonal active without fallback; spectrum/lowrank/rowscale use the pre-existing safety chain"
+    "v1 fallback pattern exactly matched the incumbent: dense/diagonal/tridiagonal active without fallback; spectrum/lowrank/rowscale use the pre-existing safety chain",
+    "v1 checkpoint committed as 0f99bb6829ee1f6fcb6ad2ce8b39dfd8a79cc06e",
+    "v2 free gates passed: AST, whitespace, source-policy scan, and exact V1 diff limited to nb=4096 -> 2048 plus documentation",
+    "v2 rejected on paired B200: candidate path became non-finite on dense and took one new _LARGE_FP8_FALLBACKS safety handoff; returned-output latency 84735.4us versus 42540.3us control is fallback-contaminated and invalid as candidate timing",
+    "V1 shapediag: 32909.4us wall, 32441.6us device, 1.4% idle, 409 launches; POTRF 11164.6us (34.4%), dominant TF32 GEMM 7713.4us (23.8%), elementwise 4996.6us (15.4%), MXFP8 GEMM+quantization at least 3514.1us",
+    "V3 free gates passed: AST, whitespace, source-policy scan; exact V1 delta is one block-scaled MXFP8 panel-apply helper and call with explicit hit counter",
+    "V3 rejected on paired B200: all seven MXFP8 panel applies executed, but the dense primary path became non-finite and took one new fallback; 77961.5us returned-output timing is fallback-contaminated and invalid",
+    "V4 free gates passed: AST, whitespace, source-policy scan; exact V1 delta is FP16-input torch.mm with FP32 accumulation/output and an explicit hit counter",
+    "V4 paired same-process Modal B200 dense: 42762.4us -> 31473.1us, 1.358510x, CI95 [1.3564127,1.3593296], official checker residual 5.28, seven FP16 solve hits, six MXFP8 update hits, no new fallback",
+    "V4 checker passed all six families and its fallback pattern exactly matched baseline-family.json"
   ],
   "pending_gates": [
     "free gates",
@@ -59,18 +68,53 @@
       "sandbox_id": "sb-YBkqbDufHuYzfvyqSPM8RH",
       "status": "control complete; 6/6 checker",
       "evidence": "baseline-family.json"
+    },
+    {
+      "gate": "v2-paired-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-HopkZTSglPtjVF7giT6yEs",
+      "status": "rejected; dense candidate path non-finite and fallback-contaminated",
+      "evidence": "variant-02-paired.json"
+    },
+    {
+      "gate": "v1-shapediag-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-4sXk1j4mmO7PlT8bxCxb31",
+      "status": "passed",
+      "evidence": "variant-01-shapediag.json"
+    },
+    {
+      "gate": "v3-paired-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-mX6A7uHzt9PFV4IJVR3AL6",
+      "status": "rejected; dense primary path non-finite after seven intended MXFP8 panel applies",
+      "evidence": "variant-03-paired.json"
+    },
+    {
+      "gate": "v4-paired-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-jCtfHPecnlTKm8EUgdahFh",
+      "status": "passed",
+      "evidence": "variant-04-paired.json"
+    },
+    {
+      "gate": "v4-family-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-ew10QsJ1ojguxOJfNM7fc7",
+      "status": "relative-pass; 6/6 checker and incumbent-matched fallbacks",
+      "evidence": "variant-04-family.json"
     }
   ],
   "popcorn_jobs": [],
-  "variants_used": 1,
+  "variants_used": 4,
   "remote_retries_used": 0,
   "frontier": {
-    "variant": "v1-shape-local-blocked-inverse",
+    "variant": "v4-fp16-panel-apply",
     "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION",
-    "baseline_us": 42769.02389526367,
-    "candidate_us": 33043.63250732422,
-    "speedup": 1.294300010209254,
-    "candidate_sha256": "488abd1b5d8413a85e16cf4ce83d729d9e30a485f4a5ff96dd7611d7291e977e"
+    "baseline_us": 42762.351989746094,
+    "candidate_us": 31473.087310791016,
+    "speedup": 1.358509624844716,
+    "candidate_sha256": "4ef4f0c573bc031e94636fbd3712b0a079c91e9cf4ceb3a8a27ee2455023c1ee"
   },
-  "next_action": "Commit the V1 checkpoint, then build the materially distinct nb=2048 schedule on the blocked-inverse architecture and run free plus paired n=32768 gates."
+  "next_action": "Commit the V4 frontier checkpoint, then profile V4 at n=32768 and use the measured decomposition to choose V5."
 }

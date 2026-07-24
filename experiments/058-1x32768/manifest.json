@@ -33,6 +33,44 @@
       "checker_families_passed": 6,
       "unexpected_fallbacks": 0,
       "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION"
+    },
+    {
+      "id": "V2",
+      "source": "candidate-v2.py",
+      "source_sha256": "1e0a94100fc52e19a29652eff484ab21e25752afaffca3203b7d73a1e7aee2c2",
+      "change": "halve blocked-inverse panel width from 4096 to 2048",
+      "paired_evidence": "variant-02-paired.json",
+      "paired_evidence_sha256": "ff91e8d6ca53edefb9cbe3e8e24daa794a0f0a04b38a51bd3e19e81bea3b19b6",
+      "classification": "REJECTED_DENSE_NONFINITE_FALLBACK"
+    },
+    {
+      "id": "V3",
+      "source": "candidate-v3.py",
+      "source_sha256": "86b2d883a72a9ba0bf8f1e53dafab3a43c894220b049eb2e50cf50b99f8d8442",
+      "change": "native block-scaled MXFP8 panel application with FP32 output",
+      "paired_evidence": "variant-03-paired.json",
+      "paired_evidence_sha256": "fd51705d36a1513a3e8578d558537b37a7127a534842ba1005fcb9d6499638bf",
+      "classification": "REJECTED_DENSE_NONFINITE_FALLBACK"
+    },
+    {
+      "id": "V4",
+      "source": "candidate-v4.py",
+      "source_sha256": "4ef4f0c573bc031e94636fbd3712b0a079c91e9cf4ceb3a8a27ee2455023c1ee",
+      "change": "FP16 panel-apply inputs with FP32 accumulation/output",
+      "paired_evidence": "variant-04-paired.json",
+      "paired_evidence_sha256": "d1ff843370264e6b2f035e42a17a434e4350a7baf7991f325470d3947119189d",
+      "baseline_us": 42762.351989746094,
+      "candidate_us": 31473.087310791016,
+      "speedup": 1.358509624844716,
+      "ci95": [
+        1.3564126527029863,
+        1.3593295984818463
+      ],
+      "candidate_family_evidence": "variant-04-family.json",
+      "candidate_family_evidence_sha256": "9eaf054254bb852e4eb3356fc984e23604bbaa983bb350ced6c1517afbf42802",
+      "checker_families_passed": 6,
+      "unexpected_fallbacks": 0,
+      "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION"
     }
   ]
 }
