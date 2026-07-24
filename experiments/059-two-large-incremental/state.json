@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "experiment": "059-two-large-incremental",
+  "goal_baseline": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_us": 801.977,
+    "secret_us": 847.836
+  },
+  "current_incumbent": {
+    "ranked_id": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "active_shape": [
+    "batch=1,n=16384",
+    "batch=1,n=32768"
+  ],
+  "active_variant": null,
+  "hypothesis": null,
+  "worktree": "/private/tmp/gpumode-cholesky-exp059-two-large",
+  "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/059-two-large-integration.json",
+  "completed_gates": [
+    "origin/main fetched and matched baseline commit",
+    "ranked source hash verified",
+    "preserved subset paired evidence reviewed",
+    "exact candidate Python syntax, JSON, source-policy, and whitespace gates passed",
+    "local CPU property test omitted because host Python lacks torch; Modal official checker is required",
+    "exact v1 two-shape paired Modal B200: 1x16384 15209.6us -> 14333.8us (1.0611x), 1x32768 42331.5us -> 32733.0us (1.2932x), combined 1.1714x CI [1.1710,1.1719], zero new fallbacks",
+    "v1 familygrid checker 12/12 passed but candidate took safety chains on 2/6 families at 16384 and 3/6 at 32768",
+    "v2 residual-qualified solver familygrid checker 12/12 passed but did not eliminate the same final safety-chain activations; rejected as no robustness improvement"
+  ],
+  "pending_gates": [
+    "six-family validation on both shapes",
+    "full 15-shape paired grid",
+    "cold-build proof",
+    "Popcorn test 17/17",
+    "serialized ranked submission"
+  ],
+  "modal_jobs": [
+    {
+      "kind": "pairedgrid",
+      "shapes": [
+        "1x16384",
+        "1x32768"
+      ],
+      "status": "performance_passed_family_rejected",
+      "artifact": "experiments/059-two-large-incremental/variant-01-paired.json"
+    },
+    {
+      "kind": "familygrid",
+      "variant": "v1",
+      "status": "checker_passed_safety_control_pending",
+      "artifact": "experiments/059-two-large-incremental/variant-01-familygrid.json"
+    },
+    {
+      "kind": "familygrid",
+      "variant": "v2",
+      "status": "rejected_no_robustness_improvement",
+      "artifact": "experiments/059-two-large-incremental/variant-02-familygrid.json"
+    }
+  ],
+  "popcorn_jobs": [],
+  "variants_used": 2,
+  "remote_retries_used": 0,
+  "next_action": "Integrate the stronger committed shape-local frontiers from experiments 057 and 058, then rerun exact combined-source gates."
+}

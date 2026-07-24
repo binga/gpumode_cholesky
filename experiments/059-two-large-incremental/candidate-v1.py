@@ -3427,8 +3427,6 @@ _LARGE_CFG_V2 = {
     16384: dict(nb=2048, update="tf32", inv_base=256),
     32768: dict(nb=4096, update="mxfp8", inv_base=256),
 }
-_LARGE_V2_FAST_HITS = 0
-_LARGE_V2_STABLE_HITS = 0
 
 
 def _blocked_tri_inv(lower: torch.Tensor, base: int = 256) -> torch.Tensor:
@@ -3474,8 +3472,6 @@ def _large_v2(
     update: str,
     inv_base: int,
 ) -> torch.Tensor:
-    global _LARGE_V2_FAST_HITS, _LARGE_V2_STABLE_HITS
-
     n = mat.shape[0]
     factor = torch.zeros_like(mat)
     previous_tf32 = torch.backends.cuda.matmul.allow_tf32
@@ -3527,27 +3523,7 @@ def _large_v2(
                 panel = block[kb:]
 
             inverse = _blocked_tri_inv(lkk, inv_base)
-            identity = torch.eye(
-                kb,
-                device=lkk.device,
-                dtype=lkk.dtype,
-            )
-            inverse_error = (
-                identity - lkk @ inverse
-            ).abs().amax().item()
-            if _math.isfinite(inverse_error) and inverse_error <= 0.05:
-                factor[j:, k : k + kb] = (
-                    panel @ inverse.transpose(-1, -2)
-                )
-                _LARGE_V2_FAST_HITS += 1
-            else:
-                factor[j:, k : k + kb] = torch.linalg.solve_triangular(
-                    lkk.transpose(-1, -2),
-                    panel,
-                    upper=True,
-                    left=False,
-                )
-                _LARGE_V2_STABLE_HITS += 1
+            factor[j:, k : k + kb] = panel @ inverse.transpose(-1, -2)
     finally:
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
     return factor

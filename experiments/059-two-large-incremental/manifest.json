@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiment": 59,
+  "baseline": {
+    "submission": 890798,
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+  },
+  "variants": [
+    {
+      "id": "v1",
+      "source": "candidate-v1.py",
+      "source_sha256": "3179177229a1810063016cabc78b88ea6df5f14beb71f32bfce744545409ed0f",
+      "classification": "FRONTIER_SAFETY_CONTROL_PENDING",
+      "paired_artifact": "variant-01-paired.json",
+      "family_artifact": "variant-01-familygrid.json",
+      "results": [
+        {
+          "shape": "1x16384",
+          "control_us": 15209.61618423462,
+          "candidate_us": 14333.839893341064,
+          "speedup": 1.0611462241081504
+        },
+        {
+          "shape": "1x32768",
+          "control_us": 42331.520080566406,
+          "candidate_us": 32732.975006103516,
+          "speedup": 1.2932029240538807
+        }
+      ]
+    },
+    {
+      "id": "v2",
+      "source": "candidate-v2.py",
+      "source_sha256": "766047933d56f112351c4f2563e6fd1de1a8455fa877296828dce33db37f1be3",
+      "classification": "REJECTED_NO_ROBUSTNESS_IMPROVEMENT",
+      "family_artifact": "variant-02-familygrid.json"
+    }
+  ],
+  "popcorn_jobs": []
+}
