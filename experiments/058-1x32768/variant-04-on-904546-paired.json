@@ -1,0 +1,59 @@
+{
+  "mode": "pairedgrid",
+  "byte_identical": false,
+  "shapes": [
+    {
+      "n": 32768,
+      "batch": 1,
+      "spec": "batch=1 n=32768 case=dense",
+      "ratio_median": 1.0489124545133282,
+      "ratio_ci95": [
+        1.0474759084666092,
+        1.0510175562287631
+      ],
+      "ratio_mad": 0.0007714032814150062,
+      "ratios": [
+        1.05102,
+        1.04823,
+        1.04748,
+        1.04891,
+        1.04968
+      ],
+      "baseline_us": 33036.47994995117,
+      "candidate_us": 31495.936393737793,
+      "order_spread_median": 0.0005152237534085077,
+      "ratio_first_half": 1.0496224159549494,
+      "ratio_second_half": 1.0489124545133282,
+      "repeats": 5,
+      "iters_per_block": 3,
+      "rotating_inputs": 1,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=5.28; batch=1; n=32768",
+      "candidate_msg": "scaled_reconstruction_residual=5.28; batch=1; n=32768",
+      "baseline_counters": {
+        "_MXFP8_HITS": 6,
+        "_LARGE_FP8_HITS": 1,
+        "_EXP058_V1_HITS": 1
+      },
+      "candidate_counters": {
+        "_MXFP8_HITS": 6,
+        "_LARGE_FP8_HITS": 1,
+        "_EXP058_V1_HITS": 1,
+        "_EXP058_V4_FP16_SOLVE_HITS": 7
+      },
+      "new_fallbacks": {},
+      "ok": true
+    }
+  ],
+  "geomean_ratio": 1.0489124545133282,
+  "geomean_ci95": [
+    1.0471436861204488,
+    1.0506842105970748
+  ],
+  "geomean_ci_excludes_1": true,
+  "worst_shape_deviation": 0.04891245451332815,
+  "worst_order_spread": 0.0005152237534085077,
+  "all_shapes_ok": true,
+  "passed": true
+}

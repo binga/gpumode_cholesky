@@ -14,7 +14,7 @@
   "current_incumbent": {
     "submission": 904546,
     "source_commit": "50b3048e36922693d10a37cced6e9a935592eda4",
-    "adoption_commit": null,
+    "adoption_commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
     "source": "baseline-904546.py",
     "sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
     "public_us": 764.8768308865492,
@@ -23,7 +23,20 @@
   "rebased_candidate": {
     "source": "candidate-v4-on-904546.py",
     "sha256": "d7ce0b06b014393964c87e662ebe46594923f4847605d70d34bd4680d9b2a09f",
-    "status": "FREE_GATES_PASSED_AWAITING_ADOPTION_COMMIT"
+    "paired_evidence": "variant-04-on-904546-paired.json",
+    "paired_evidence_sha256": "3095c57a3bd12243ad6a4e66e3ff170a80a8a7afdeaf018018605d809d895f76",
+    "baseline_us": 33036.47994995117,
+    "candidate_us": 31495.936393737793,
+    "speedup": 1.0489124545133282,
+    "ci95": [
+      1.0474759084666092,
+      1.0510175562287631
+    ],
+    "family_evidence": "variant-04-on-904546-family.json",
+    "family_evidence_sha256": "88164a39ab262a44eafdfd16469527556781c6035866389b724c36bd983aee61",
+    "checker_families_passed": 6,
+    "unexpected_fallbacks": 0,
+    "status": "PROMOTABLE_INCREMENTAL_FRONTIER"
   },
   "variants": [
     {

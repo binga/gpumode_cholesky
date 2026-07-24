@@ -39,3 +39,11 @@ became the moving incumbent. No further paid work used `#890798`. V4 has been
 rebuilt as `candidate-v4-on-904546.py` with a 30-line shape-local delta and has
 passed AST, whitespace, policy, and exact-source diff gates; paired
 revalidation waits for the orchestrator's adoption-commit confirmation.
+
+That confirmation arrived at remotely verified main commit `6c754f9b…`.
+Rebased V4 then measured `33,036.480 → 31,495.936us`, a stable `1.048912×`
+incremental speedup with CI95 `[1.047476, 1.051018]`. The official residual
+remained `5.28`; `_EXP058_V4_FP16_SOLVE_HITS=7`, and no new fallback occurred.
+All six official families passed the checker, with the same safety fallbacks as
+the adopted V1 route. This exact source is ready for orchestrator-owned
+integration and full-grid gates.
