@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "experiment": 60,
+  "baseline": {
+    "submission": 904546,
+    "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a"
+  },
+  "variants": [],
+  "modal_jobs": [],
+  "popcorn_jobs": []
+}

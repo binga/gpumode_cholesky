@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "experiment": "060-two-large-followup",
+  "goal_baseline": {
+    "ranked_id": 890798,
+    "public_us": 801.9771791503684,
+    "secret_us": 847.8361641640636
+  },
+  "current_incumbent": {
+    "ranked_id": 904546,
+    "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "public_us": 764.8768308865492,
+    "secret_us": 785.8614260468765
+  },
+  "active_shape": [
+    "batch=1,n=16384",
+    "batch=1,n=32768"
+  ],
+  "active_variant": "awaiting independently revalidated shape-local frontiers",
+  "worktree": "/private/tmp/gpumode-cholesky-exp060-two-large",
+  "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/060-two-large-integration.json",
+  "completed_gates": [
+    "ranked #904546 adopted, pushed, and remote commit verified",
+    "exact incumbent source hash verified"
+  ],
+  "pending_gates": [
+    "shape-local paired revalidation",
+    "combined paired target gate",
+    "six-family gate",
+    "full 15-shape paired grid",
+    "cold-build gate",
+    "Popcorn test",
+    "serialized ranked submission"
+  ],
+  "modal_jobs": [],
+  "popcorn_jobs": [],
+  "next_action": "Wait for both shape-local paired gates, then integrate only stable correctness-valid incremental wins."
+}
