@@ -1,6 +1,6 @@
 # Experiment 057 — exact `1×16384` structural search
 
-Status: **active; V2 frontier preserved**.
+Status: **rebased V4 incremental frontier validated and ready for integration**.
 
 Baseline is ranked submission `#890798`, commit
 `f358e879b1287ca50d29115ad9a403c6bd10a69d`, source SHA-256
@@ -17,6 +17,7 @@ Every candidate in this directory changes only the exact
 | V3 | FP16-resident factor shadow + V2 inverse | 15140.352us | 10672.192us | `1.418604×` | rejected below V2 |
 | **V4** | **custom Triton base-32 inverse leaves + GEMM combines** | **15137.920us** | **10187.200us** | **`1.486074×`** | **validated frontier** |
 | V5 | V4 leaves + direct strided `baddbmm_` combines | — | — | — | free gates passed; paid launch stopped on incumbent change |
+| **V4R-904546** | **V4 Triton leaves rebased onto ranked #904546** | **10725.664us** | **10164.800us** | **`1.055351×`** | **promotable incremental frontier** |
 
 V2's per-shape 95% interval is `[1.422166,1.424248]`. Both exact-source
 paired checks passed the official reconstruction checker. V2 reported one
@@ -61,5 +62,24 @@ Ranked submission `#904546` became the moving incumbent with public
 `764.876831us`, secret `785.861426us`, and exact source SHA-256
 `f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
 That source integrates V2. All paid work against `#890798` stopped before V5
-launched. V4 remains the strongest incremental design and must be rebased and
-paired against `#904546` after its adoption commit is confirmed.
+launched.
+
+V4 was rebuilt mechanically from exact `#904546` after its adoption at commit
+`6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9`. The standalone rebased source has
+SHA-256 `b2db1ebbc61b542264e2d18f0a96f4aa3866c8e53f28f9e101985283620b6b9e`
+and changes only the exact `1×16384` inverse-leaf implementation; the adopted
+`1×32768` implementation is byte-identical.
+
+The paired B200 gate improved exact `#904546` from `10725.664us` to
+`10164.800us`, a stable `1.055351×` speedup with per-shape 95% interval
+`[1.053808,1.055674]`. All five paired ratios were positive. The official
+checker passed with residual `0.211` versus the incumbent's `0.212`, seven
+Triton leaf hits, and no new fallback.
+
+The rebased six-family gate passes the official checker on all six cases. Dense,
+diagonal, row-scaled, and tridiagonal remain on the optimized path with seven
+Triton leaf hits and no fallback. Spectrum and low-rank use exactly the same
+fallback dictionaries as exact ranked `#904546`, with identical residuals
+`0.107` and `0.000822`. The reviewed contract is recorded in
+`variant-04-rebased-904546-family-comparison.json`; the generic family harness
+alone says false only because it rejects inherited safety handoffs.

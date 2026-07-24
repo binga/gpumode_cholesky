@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "candidate": "candidate-v4-rebased-904546.py",
+  "candidate_source_sha256": "b2db1ebbc61b542264e2d18f0a96f4aa3866c8e53f28f9e101985283620b6b9e",
+  "candidate_evidence": "variant-04-rebased-904546-familygrid.json",
+  "candidate_evidence_sha256": "26c5847a05fa557d77606ba98c6bdc7fb3cc3d083f503dedc06dc445872607f9",
+  "incumbent": {
+    "submission": 904546,
+    "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+    "source": "../059-two-large-incremental/combined-v4-compilefix.py",
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "family_evidence": "../059-two-large-incremental/combined-v4-compilefix-familygrid.json",
+    "family_evidence_sha256": "7ad4223001cc7c96eb398a43d1fca814c2119c44f6807291e31fea9e564c9678",
+    "control_filter": "batch=1,n=16384"
+  },
+  "shape": {
+    "batch": 1,
+    "n": 16384
+  },
+  "contract": "Official checker must pass all six families. Dense, diagonal, rowscale, and tridiagonal must hit the rebased V4 Triton-leaf backend with no fallback. Spectrum and lowrank may use only safety handoffs already present for the exact ranked #904546 source on the same family.",
+  "rows": [
+    {
+      "case": "dense",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "ranked V2 path with 7 V4 Triton leaf hits",
+      "incumbent_path": "ranked V2 path",
+      "candidate_fallbacks": 0,
+      "incumbent_fallbacks": 0,
+      "candidate_residual": 0.212,
+      "incumbent_residual": 0.212,
+      "ok": true
+    },
+    {
+      "case": "spectrum",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "7 V4 Triton leaf hits, then ranked #904546 safety path",
+      "incumbent_path": "ranked #904546 _LARGE_FP8 safety handoff",
+      "candidate_fallbacks": {
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "incumbent_fallbacks": {
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "candidate_residual": 0.107,
+      "incumbent_residual": 0.107,
+      "ok": true
+    },
+    {
+      "case": "diagonal",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "ranked V2 path with 7 V4 Triton leaf hits",
+      "incumbent_path": "ranked V2 path",
+      "candidate_fallbacks": 0,
+      "incumbent_fallbacks": 0,
+      "candidate_residual": 0.000122,
+      "incumbent_residual": 0.000122,
+      "ok": true
+    },
+    {
+      "case": "lowrank",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "7 V4 Triton leaf hits, then ranked #904546 safety path",
+      "incumbent_path": "ranked #904546 _LARGE_FP8 and _LEFT_LARGE safety handoffs",
+      "candidate_fallbacks": {
+        "_LEFT_LARGE_FALLBACKS": 1,
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "incumbent_fallbacks": {
+        "_LEFT_LARGE_FALLBACKS": 1,
+        "_LARGE_FP8_FALLBACKS": 1
+      },
+      "candidate_residual": 0.000822,
+      "incumbent_residual": 0.000822,
+      "ok": true
+    },
+    {
+      "case": "rowscale",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "ranked V2 path with 7 V4 Triton leaf hits",
+      "incumbent_path": "ranked V2 path",
+      "candidate_fallbacks": 0,
+      "incumbent_fallbacks": 0,
+      "candidate_residual": 0.124,
+      "incumbent_residual": 0.124,
+      "ok": true
+    },
+    {
+      "case": "tridiagonal",
+      "candidate_checker_ok": true,
+      "incumbent_checker_ok": true,
+      "candidate_path": "ranked V2 path with 7 V4 Triton leaf hits",
+      "incumbent_path": "ranked V2 path",
+      "candidate_fallbacks": 0,
+      "incumbent_fallbacks": 0,
+      "candidate_residual": 0.0135,
+      "incumbent_residual": 0.0135,
+      "ok": true
+    }
+  ],
+  "official_checker_passed": "6/6",
+  "fast_path_families": "4/6",
+  "incumbent_matched_safety_families": [
+    "spectrum",
+    "lowrank"
+  ],
+  "unexpected_fallbacks": 0,
+  "passed": true,
+  "harness_note": "The generic familygrid JSON reports passed=false because it rejects every fallback. This reviewed comparison uses the exact ranked #904546 family artifact and confirms identical fallback dictionaries and residuals on both safety families."
+}

@@ -130,6 +130,50 @@
       ],
       "classification": "UNMEASURED_STALE_BASELINE",
       "note": "Paid V5 launch was stopped before execution when ranked #904546 replaced #890798."
+    },
+    {
+      "id": "V4R-904546",
+      "architecture": "V4 custom Triton base-32 triangular-inverse leaves rebased mechanically onto ranked #904546's integrated V2 path",
+      "baseline": {
+        "submission": 904546,
+        "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+        "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a"
+      },
+      "source": "candidate-v4-rebased-904546.py",
+      "source_sha256": "b2db1ebbc61b542264e2d18f0a96f4aa3866c8e53f28f9e101985283620b6b9e",
+      "builder": "build_v4_rebased.py",
+      "evidence": "variant-04-rebased-904546-paired.json",
+      "evidence_sha256": "34db6d310c32cb038e852718f8527752a9b98499a4fdded08470548a45eb2421",
+      "family_evidence": "variant-04-rebased-904546-familygrid.json",
+      "family_evidence_sha256": "26c5847a05fa557d77606ba98c6bdc7fb3cc3d083f503dedc06dc445872607f9",
+      "incumbent_family_control": "../059-two-large-incremental/combined-v4-compilefix-familygrid.json",
+      "incumbent_family_control_sha256": "7ad4223001cc7c96eb398a43d1fca814c2119c44f6807291e31fea9e564c9678",
+      "family_comparison": "variant-04-rebased-904546-family-comparison.json",
+      "family_comparison_sha256": "0537b10aafdef154b4cf0806af93a0d2081d07ed0a413877bda8c522f27363dd",
+      "baseline_us": 10725.664138793945,
+      "candidate_us": 10164.799690246582,
+      "speedup": 1.0553510645539805,
+      "ci95": [
+        1.0538083425269493,
+        1.0556739850576546
+      ],
+      "propagated_geomean_ci95": [
+        1.0544181162585853,
+        1.056284838321272
+      ],
+      "baseline_counters": {
+        "_LARGE_FP8_HITS": 1,
+        "_EXP057_V2_HITS": 1
+      },
+      "candidate_counters": {
+        "_LARGE_FP8_HITS": 1,
+        "_EXP057_V2_HITS": 1,
+        "_EXP057_V4_TRITON_LEAF_HITS": 7
+      },
+      "new_fallbacks": {},
+      "official_checker": "PASS: scaled_reconstruction_residual=0.211 versus incumbent 0.212",
+      "family_contract": "PASS: 6/6 official checker; four no-fallback fast families; spectrum/lowrank exactly match incumbent safety handoffs and residuals",
+      "classification": "PROMOTABLE_INCREMENTAL_FRONTIER"
     }
   ]
 }

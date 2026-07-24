@@ -10,15 +10,15 @@
   },
   "current_incumbent": {
     "ranked_id": 904546,
-    "commit": null,
-    "commit_status": "awaiting orchestrator adoption-commit confirmation",
+    "commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+    "commit_status": "adopted and remotely verified",
     "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
     "public_us": 764.8768308865492,
     "secret_us": 785.8614260468765
   },
   "active_shape": "batch=1,n=16384",
-  "active_variant": "V4 rebase onto ranked #904546",
-  "hypothesis": "Ranked #904546 integrates the V2 scalar-leaf path, so V4's Triton base-32 leaves remain a non-overlapping incremental lever. Rebuild and remeasure only against the new exact source after its adoption commit is confirmed.",
+  "active_variant": "V4 rebased handoff-ready incremental frontier",
+  "hypothesis": "Validated: replacing ranked #904546's scalar inverse leaves with V4 Triton base-32 leaves improves exact 1x16384 by 1.055351x while preserving its six-family correctness and safety envelope.",
   "worktree": "/private/tmp/gpumode-cholesky-exp057-16384",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/057-1x16384.json",
   "completed_gates": [
@@ -45,12 +45,18 @@
     "V4 shapediag Modal B200: 10126.9us wall, 9608.3us device, 518.6us idle, 283 launches; POTRF 5010.1us/52.1%, elementwise 1304.7us/13.6%, Triton leaves 43.1us",
     "V5 direct-strided baddbmm source passed AST, whitespace, dispatch-scope, source-policy, and backend-counter free gates but was not launched",
     "ranked #904546 became the moving incumbent at source SHA f8d67dce...; all further paid work against #890798 stopped before V5 launch",
-    "exact #904546 source inspected at /private/tmp/gpumode-cholesky-exp059-two-large/submission.py and confirmed to contain integrated exp057 V2"
+    "exact #904546 source inspected at /private/tmp/gpumode-cholesky-exp059-two-large/submission.py and confirmed to contain integrated exp057 V2",
+    "origin/main adoption commit 6c754f9 remotely verified by orchestrator; exact source SHA f8d67dce...",
+    "exp057 branch rebased onto exact origin/main@6c754f9",
+    "standalone V4 candidate rebuilt mechanically from exact #904546 source; candidate SHA b2db1ebb...",
+    "rebased V4 AST, whitespace, exact-diff, dispatch-scope, source-policy, baseline-hash, and Triton backend-counter gates passed",
+    "rebased V4 diff leaves the 1x32768 implementation byte-identical",
+    "rebased V4 paired Modal B200 versus exact #904546: 10725.664us to 10164.800us = 1.055351x, CI [1.053808,1.055674], propagated geomean CI [1.054418,1.056285], official checker pass, residual 0.211 versus 0.212, seven Triton leaf hits, no new fallback",
+    "rebased V4 candidate familygrid: official checker 6/6; seven Triton leaf hits and no fallback on dense/diagonal/rowscale/tridiagonal",
+    "exact #904546 family control artifact SHA 7ad42230... confirms the same spectrum/lowrank safety handoffs and identical residuals",
+    "reviewed rebased family comparison: zero unexpected fallbacks, 4/6 fast families, 2/6 incumbent-matched safety families"
   ],
   "pending_gates": [
-    "free gates",
-    "paired same-process Modal B200",
-    "changed-family validation",
     "orchestrator integration and full-grid gates"
   ],
   "modal_jobs": [
@@ -125,10 +131,29 @@
       "status": "completed",
       "result": "variant-04-shapediag.json",
       "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V4-rebased-904546",
+      "mode": "pairedgrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_validated_incremental_frontier",
+      "result": "variant-04-rebased-904546-paired.json",
+      "artifact_sha256": "34db6d310c32cb038e852718f8527752a9b98499a4fdded08470548a45eb2421",
+      "sandbox_id": "not exposed by modal_verify.py"
+    },
+    {
+      "variant": "V4-rebased-904546",
+      "mode": "familygrid",
+      "shape": "batch=1,n=16384",
+      "status": "completed_with_incumbent_matched_safety_handoffs",
+      "result": "variant-04-rebased-904546-familygrid.json",
+      "artifact_sha256": "26c5847a05fa557d77606ba98c6bdc7fb3cc3d083f503dedc06dc445872607f9",
+      "reviewed_comparison": "variant-04-rebased-904546-family-comparison.json",
+      "sandbox_id": "not exposed by modal_verify.py"
     }
   ],
   "popcorn_jobs": [],
   "variants_used": 4,
   "remote_retries_used": 0,
-  "next_action": "Await orchestrator confirmation of the #904546 adoption commit; then rebase/rebuild V4 from that exact commit, rerun free gates, fetch/hash-check, and only then launch a paired n=16384 B200 gate."
+  "next_action": "Hand candidate SHA b2db1ebb... and exact paired/family evidence to the orchestrator for integration and full-grid validation; do not launch another variant until integration resolves."
 }
