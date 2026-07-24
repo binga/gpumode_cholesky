@@ -32,3 +32,10 @@ dense input and were rejected without using their fallback-contaminated timing.
 V4 remains below the aspirational `2.00×` checkpoint and the two-shape campaign
 product requirement, so the bounded search continues from this protected
 frontier.
+
+After these gates, combined two-shape source ranked as `#904546`
+(`764.876831us` public / `785.861426us` secret, SHA-256 `f8d67dce…`) and
+became the moving incumbent. No further paid work used `#890798`. V4 has been
+rebuilt as `candidate-v4-on-904546.py` with a 30-line shape-local delta and has
+passed AST, whitespace, policy, and exact-source diff gates; paired
+revalidation waits for the orchestrator's adoption-commit confirmation.

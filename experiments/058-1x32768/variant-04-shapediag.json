@@ -1,0 +1,146 @@
+{
+  "mode": "shapediag",
+  "device": "NVIDIA B200",
+  "shapes": [
+    {
+      "spec": "batch=1 n=32768",
+      "batch": 1,
+      "n": 32768,
+      "wall_us": 31440.4,
+      "device_us": 30908.2,
+      "idle_us": 532.2,
+      "idle_pct": 1.7,
+      "kernel_launches": 422,
+      "us_per_launch_wall": 74.503,
+      "kernels": [
+        {
+          "kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,",
+          "us": 11173.63,
+          "calls": 8,
+          "us_per_call": 1396.704,
+          "pct_device": 36.2
+        },
+        {
+          "kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp",
+          "us": 5041.58,
+          "calls": 107,
+          "us_per_call": 47.118,
+          "pct_device": 16.3
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25",
+          "us": 3478.38,
+          "calls": 4,
+          "us_per_call": 869.596,
+          "pct_device": 11.3
+        },
+        {
+          "kernel": "nvjet_sm100_qqsss_128x256_128x6_2x1_2cta_v_bz_Avec32UE8M0_Bvec32UE8M0_",
+          "us": 2222.74,
+          "calls": 5,
+          "us_per_call": 444.548,
+          "pct_device": 7.2
+        },
+        {
+          "kernel": "nvjet_sm100_hss_128x256_64x6_2x1_2cta_v_bz_TNT",
+          "us": 2201.51,
+          "calls": 6,
+          "us_per_call": 366.919,
+          "pct_device": 7.1
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25",
+          "us": 1322.01,
+          "calls": 3,
+          "us_per_call": 440.67,
+          "pct_device": 4.3
+        },
+        {
+          "kernel": "_mx_quant_e4m3_blocked_kernel",
+          "us": 1020.95,
+          "calls": 12,
+          "us_per_call": 85.079,
+          "pct_device": 3.3
+        },
+        {
+          "kernel": "void batch_trsm_left_kernel<float, 64, 4, 3, false, true, true>(cublas",
+          "us": 848.82,
+          "calls": 28,
+          "us_per_call": 30.315,
+          "pct_device": 2.7
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc",
+          "us": 647.44,
+          "calls": 16,
+          "us_per_call": 40.465,
+          "pct_device": 2.1
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunc",
+          "us": 586.5,
+          "calls": 6,
+          "us_per_call": 97.751,
+          "pct_device": 1.9
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::float16_",
+          "us": 508.62,
+          "calls": 14,
+          "us_per_call": 36.33,
+          "pct_device": 1.6
+        },
+        {
+          "kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda",
+          "us": 457.15,
+          "calls": 8,
+          "us_per_call": 57.144,
+          "pct_device": 1.5
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25",
+          "us": 370.1,
+          "calls": 14,
+          "us_per_call": 26.436,
+          "pct_device": 1.2
+        },
+        {
+          "kernel": "nvjet_sm100_qqsss_128x256_128x6_2x2_2cta_h_bz_Avec32UE8M0_Bvec32UE8M0_",
+          "us": 278.37,
+          "calls": 1,
+          "us_per_call": 278.367,
+          "pct_device": 0.9
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s256x128x8tf32gemm_f32_f32_f32_f32_f32_256x12",
+          "us": 156.07,
+          "calls": 14,
+          "us_per_call": 11.148,
+          "pct_device": 0.5
+        },
+        {
+          "kernel": "cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12",
+          "us": 93.71,
+          "calls": 14,
+          "us_per_call": 6.693,
+          "pct_device": 0.3
+        },
+        {
+          "kernel": "nvjet_sm100_hss_128x256_64x6_2x2_2cta_h_bz_TNT",
+          "us": 89.58,
+          "calls": 1,
+          "us_per_call": 89.578,
+          "pct_device": 0.3
+        },
+        {
+          "kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern",
+          "us": 81.52,
+          "calls": 28,
+          "us_per_call": 2.911,
+          "pct_device": 0.3
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

@@ -11,6 +11,20 @@
     "source": "baseline-890798.py",
     "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
   },
+  "current_incumbent": {
+    "submission": 904546,
+    "source_commit": "50b3048e36922693d10a37cced6e9a935592eda4",
+    "adoption_commit": null,
+    "source": "baseline-904546.py",
+    "sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "public_us": 764.8768308865492,
+    "secret_us": 785.8614260468765
+  },
+  "rebased_candidate": {
+    "source": "candidate-v4-on-904546.py",
+    "sha256": "d7ce0b06b014393964c87e662ebe46594923f4847605d70d34bd4680d9b2a09f",
+    "status": "FREE_GATES_PASSED_AWAITING_ADOPTION_COMMIT"
+  },
   "variants": [
     {
       "id": "V1",

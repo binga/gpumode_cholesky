@@ -9,13 +9,16 @@
     "secret_us": 847.836
   },
   "current_incumbent": {
-    "ranked_id": 890798,
-    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
-    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+    "ranked_id": 904546,
+    "source_commit": "50b3048e36922693d10a37cced6e9a935592eda4",
+    "adoption_commit": null,
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "public_us": 764.8768308865492,
+    "secret_us": 785.8614260468765
   },
   "active_shape": "batch=1,n=32768",
-  "active_variant": "v4-frontier-checkpoint",
-  "hypothesis": "V4 improves the V1 frontier by moving only the seven panel-apply GEMMs to FP16 inputs with FP32 output while preserving the incumbent-matched safety behavior on all official families.",
+  "active_variant": "v4-on-904546-awaiting-adoption-commit",
+  "hypothesis": "Reapply V4's seven FP16-input/FP32-output panel solves to ranked #904546, which already contains the V1 blocked inverse plus the adopted non-overlapping 1x16384 path and compile-safe packaging.",
   "worktree": "/private/tmp/gpumode-cholesky-exp058-32768",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/058-1x32768.json",
   "completed_gates": [
@@ -38,12 +41,17 @@
     "V3 rejected on paired B200: all seven MXFP8 panel applies executed, but the dense primary path became non-finite and took one new fallback; 77961.5us returned-output timing is fallback-contaminated and invalid",
     "V4 free gates passed: AST, whitespace, source-policy scan; exact V1 delta is FP16-input torch.mm with FP32 accumulation/output and an explicit hit counter",
     "V4 paired same-process Modal B200 dense: 42762.4us -> 31473.1us, 1.358510x, CI95 [1.3564127,1.3593296], official checker residual 5.28, seven FP16 solve hits, six MXFP8 update hits, no new fallback",
-    "V4 checker passed all six families and its fallback pattern exactly matched baseline-family.json"
+    "V4 checker passed all six families and its fallback pattern exactly matched baseline-family.json",
+    "V4 shapediag: 31440.4us wall, 30908.2us device, 1.7% idle; POTRF 11173.6us, generic elementwise 5041.6us/107 calls, TF32 GEMM groups 5170.5us, MXFP8 GEMM+quantization at least 3522.1us, FP16 panel GEMM+casts 2799.7us",
+    "incumbent transition: ranked #904546 succeeded at 764.876831us public / 785.861426us secret, exact source f8d67dce; all #890798 paid evidence is preserved but stale for further spending",
+    "exact #904546 snapshot saved as baseline-904546.py at SHA f8d67dce",
+    "V4 rebuilt shape-locally as candidate-v4-on-904546.py at SHA d7ce0b06; AST, whitespace, source-policy, and exact-source diff gates passed",
+    "unmeasured V5 in-place-combine source preserved as candidate-v5.py but not launched after the incumbent transition"
   ],
   "pending_gates": [
-    "free gates",
-    "paired same-process Modal B200",
-    "changed-family validation",
+    "orchestrator confirmation of #904546 adoption commit",
+    "paired same-process Modal B200 against exact #904546",
+    "changed-family validation against exact #904546",
     "orchestrator integration and full-grid gates"
   ],
   "modal_jobs": [
@@ -103,6 +111,13 @@
       "sandbox_id": "sb-ew10QsJ1ojguxOJfNM7fc7",
       "status": "relative-pass; 6/6 checker and incumbent-matched fallbacks",
       "evidence": "variant-04-family.json"
+    },
+    {
+      "gate": "v4-shapediag-32768",
+      "app_id": "ap-w41LMfwNB0uN5LPoZBX33n",
+      "sandbox_id": "sb-jTnFofjVFRdK0q5BAa74gv",
+      "status": "passed",
+      "evidence": "variant-04-shapediag.json"
     }
   ],
   "popcorn_jobs": [],
@@ -110,11 +125,19 @@
   "remote_retries_used": 0,
   "frontier": {
     "variant": "v4-fp16-panel-apply",
-    "classification": "PROMOTABLE_FRONTIER_FOR_INTEGRATION",
+    "classification": "STALE_EVIDENCE_REBUILDING_ON_904546",
     "baseline_us": 42762.351989746094,
     "candidate_us": 31473.087310791016,
     "speedup": 1.358509624844716,
     "candidate_sha256": "4ef4f0c573bc031e94636fbd3712b0a079c91e9cf4ceb3a8a27ee2455023c1ee"
   },
-  "next_action": "Commit the V4 frontier checkpoint, then profile V4 at n=32768 and use the measured decomposition to choose V5."
+  "rebased_candidate": {
+    "variant": "v4-fp16-panel-apply",
+    "baseline_submission": 904546,
+    "baseline_source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "source": "candidate-v4-on-904546.py",
+    "source_sha256": "d7ce0b06b014393964c87e662ebe46594923f4847605d70d34bd4680d9b2a09f",
+    "status": "FREE_GATES_PASSED_AWAITING_ADOPTION_COMMIT"
+  },
+  "next_action": "Wait for orchestrator confirmation of the #904546 adoption commit; then fetch/verify that commit and rerun paired n=32768 B200 against baseline-904546.py."
 }
