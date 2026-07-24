@@ -2489,3 +2489,55 @@ Artifacts: `experiments/050-fused-diag128/` — `baseline-890798.py`,
 `candidate-v1..v6.py`, `probe-v5-nodispatch.py`, `probe-rename-only.py`,
 `variant-01-paired.json`, `variant-01-shapediag.json`, `variant-04-paired.json`,
 `variant-06-fullgrid.json`, `variant-06-familygrid.json`, `notes.md`, `state.json`.
+
+---
+
+## Session 47 — 2026-07-24 — Experiment 059: two large shapes → ranked #904546
+
+**Goal (user):** choose two large shapes, improve leaderboard geomean by at
+least 10%, and submit incremental wins. Kernel-audit workflow was explicitly
+excluded. Frozen baseline: ranked `#890798`, public 801.977179us / secret
+847.836164us, source SHA-256 `fd3072b5…44c1`.
+
+**Checkpoint verdict: ADOPTED PARTIAL WIN. Campaign remains active.**
+
+The selected shapes are `1×16384` and `1×32768`. Work proceeded in isolated
+worktrees with non-overlapping shape leases. Experiment 057 replaced the
+`16384` triangular solves with a scalar-leaf recursive inverse and merged
+block-column update; experiment 058 introduced batched 256-wide inverse leaves
+at `32768`. The integration also carries experiment 050's already verified
+single-extension packaging repair so a fresh Popcorn build fits its 288-second
+budget.
+
+### Promotion evidence
+
+| Shape | exact `#890798` control | candidate | speedup |
+|---|---:|---:|---:|
+| `1×16384` | 15,223.3us | 10,738.4us | **1.4177×** |
+| `1×32768` | 42,771.2us | 33,164.1us | **1.2897×** |
+
+The exact candidate passed the full 15-shape paired grid at **1.039915× CI95
+[1.039570, 1.040259]**, all shapes correct. Its six-family grid passed 12/12;
+the five safety-dispatched families exactly matched baseline controls, while
+both dense target families hit the intended optimized paths with no fallback.
+A clean extension-cache import took 65.27s (71.51s runner initialization),
+below the 288s promotion limit.
+
+Popcorn test `#904530` passed 17/17. The exact same source, SHA-256
+`f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`, ranked
+as `#904546`:
+
+| split | baseline | new | reduction |
+|---|---:|---:|---:|
+| public | 801.977179us | 764.876831us | **4.626110%** |
+| secret | 847.836164us | 785.861426us | **7.309754%** |
+
+This source is the new incumbent. Stronger, independently verified per-shape
+frontiers remain banked: experiment 057 V4 measured 1.4861× at `1×16384`, and
+experiment 058 V4 measured 1.3585× at `1×32768`. They must be rebased and
+remeasured against exact `#904546` before the next full-grid promotion and
+serialized ranked submission.
+
+Artifacts: `experiments/057-large-16384/`,
+`experiments/058-large-32768/`, and
+`experiments/059-two-large-incremental/`.

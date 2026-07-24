@@ -9,9 +9,11 @@
     "secret_us": 847.836
   },
   "current_incumbent": {
-    "ranked_id": 890798,
-    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
-    "source_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1"
+    "ranked_id": 904546,
+    "commit": "pending_adoption_commit",
+    "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "public_us": 764.8768308865492,
+    "secret_us": 785.8614260468765
   },
   "active_shape": [
     "batch=1,n=16384",
@@ -36,11 +38,14 @@
     "v4 source-only packaging repair merges unchanged CUDA32/64/128 sources; recursive safety base restored to ranked value 512",
     "v4 exact cold import in fresh TORCH_EXTENSIONS_DIR: 65.27s submission import, 71.51s runner init, all merged CUDA backends ready, below 288s limit",
     "v4 exact full 15-shape paired grid: 1.039915x CI [1.039570,1.040259], all shapes correct, 3.838% lower aggregate latency",
-    "v4 exact familygrid official checker 12/12; reviewed comparison found zero unexpected safety fallbacks relative to exact baseline controls"
+    "v4 exact familygrid official checker 12/12; reviewed comparison found zero unexpected safety fallbacks relative to exact baseline controls",
+    "Popcorn test #904530 passed 17/17 on exact source SHA f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+    "Popcorn ranked #904546 succeeded: public 764.8768308865492us, secret 785.8614260468765us",
+    "leaderboard improvement over #890798: 4.626110% public and 7.309754% secret"
   ],
   "pending_gates": [
-    "Popcorn test 17/17",
-    "serialized ranked submission"
+    "adoption commit, push, and remote-commit verification",
+    "continue the two-shape campaign from #904546 until at least 10% cumulative geomean improvement"
   ],
   "modal_jobs": [
     {
@@ -102,8 +107,28 @@
       "review": "experiments/059-two-large-incremental/combined-v4-family-comparison.json"
     }
   ],
-  "popcorn_jobs": [],
+  "popcorn_jobs": [
+    {
+      "submission_id": 904530,
+      "mode": "test",
+      "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+      "status": "succeeded",
+      "result": "17/17",
+      "artifact": "experiments/059-two-large-incremental/popcorn-test-v4-summary.json",
+      "raw_log": "experiments/059-two-large-incremental/popcorn-test-v4.log"
+    },
+    {
+      "submission_id": 904546,
+      "mode": "leaderboard",
+      "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+      "status": "succeeded",
+      "public_us": 764.8768308865492,
+      "secret_us": 785.8614260468765,
+      "artifact": "experiments/059-two-large-incremental/popcorn-ranked-v4-summary.json",
+      "raw_log": "experiments/059-two-large-incremental/popcorn-ranked-v4.log"
+    }
+  ],
   "variants_used": 4,
   "remote_retries_used": 0,
-  "next_action": "Fetch/reverify incumbent, then run one Popcorn test submission and require 17/17."
+  "next_action": "Adopt and push exact ranked #904546, then rebase the stronger exp057/exp058 leaf frontiers onto that incumbent and continue toward the 10% cumulative target."
 }

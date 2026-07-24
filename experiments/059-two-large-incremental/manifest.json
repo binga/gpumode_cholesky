@@ -50,7 +50,7 @@
       "id": "v4",
       "source": "combined-v4-compilefix.py",
       "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
-      "classification": "PROMOTABLE_FRONTIER",
+      "classification": "ADOPTED_PARTIAL_WIN",
       "changes": [
         "exp057 V2 trsm-free inverse and merged block-column update at 1x16384",
         "exp058 V1 batched-leaf blocked inverse at 1x32768",
@@ -76,5 +76,27 @@
       }
     }
   ],
-  "popcorn_jobs": []
+  "popcorn_jobs": [
+    {
+      "submission_id": 904530,
+      "mode": "test",
+      "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+      "status": "succeeded",
+      "result": "17/17",
+      "artifact": "popcorn-test-v4-summary.json",
+      "raw_log": "popcorn-test-v4.log"
+    },
+    {
+      "submission_id": 904546,
+      "mode": "leaderboard",
+      "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+      "status": "succeeded",
+      "public_us": 764.8768308865492,
+      "secret_us": 785.8614260468765,
+      "public_improvement_pct": 4.626110222129278,
+      "secret_improvement_pct": 7.309754022853215,
+      "artifact": "popcorn-ranked-v4-summary.json",
+      "raw_log": "popcorn-ranked-v4.log"
+    }
+  ]
 }

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "submission_id": 904530,
+  "mode": "test",
+  "leaderboard": "cholesky",
+  "runner": "B200",
+  "source": "submission.py",
+  "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "status": "succeeded",
+  "passed": true,
+  "tests_passed": 17,
+  "tests_total": 17,
+  "start_time": "2026-07-24T19:13:40.641721Z",
+  "end_time": "2026-07-24T19:14:31.042803Z",
+  "raw_log": "popcorn-test-v4.log"
+}

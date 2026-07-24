@@ -57,8 +57,16 @@ popcorn submissions                                # view your entries
 - Baseline: `torch.linalg.cholesky_ex` (cuSOLVER). Correct across all input families.
 - CPU property check: **10/10 pass**.
 - Real B200 verify (Modal sandbox): **13/13 pass** (torch 2.12+cu130 on `NVIDIA B200`). The default torch wheel already ships Blackwell/sm_100 kernels — no cu128 pin needed.
-- **Current ranked winner `#890798`** (exp 047): `done`, public geomean
-  **801.977us** and secret geomean **847.836us**; exact root SHA-256
+- **Current ranked winner `#904546`** (exp 059): `done`, public geomean
+  **764.876831us** and secret geomean **785.861426us**, improving the frozen
+  `#890798` baseline by **4.6261% public / 7.3098% secret**. Popcorn test
+  `#904530` passed 17/17. Exact root SHA-256:
+  `f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
+  The adopted paths optimize the selected `1×16384` and `1×32768` shapes; the
+  campaign remains active toward a cumulative 10% geomean reduction. See
+  `experiments/059-two-large-incremental/` and `journal.md` Session 47.
+- **Previous ranked winner `#890798`** (exp 047): public geomean
+  **801.977us** and secret geomean **847.836us**; exact SHA-256
   `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
   **Experiment 048 (`4×1024`) is exhausted with nothing submitted:** the best
   dense-only cooperative candidate measured 719.712→616.768us (1.166791×),
@@ -214,8 +222,8 @@ popcorn submissions                                # view your entries
   but official test `#890068` hit the six-minute compile limit, so it was not
   ranked and the root source remains exact `#890037`. See
   `experiments/043-cuda-n256/`.
-- **Ranked submission `#890798`** (exp 047 — fused resident panel, current
-  best): `done`, public geomean **801.9771791503684us** and secret
+- **Ranked submission `#890798`** (exp 047 — fused resident panel, superseded
+  by exp 059): `done`, public geomean **801.9771791503684us** and secret
   **847.8361641640636us**, improving `#890659` (806.037us) by **0.504%
   public**. `_panel_fused128` loads a `TILE_R x 128` block-column tile once and
   runs all four 32-wide panel sub-steps against the resident diagonal inverses
@@ -233,6 +241,18 @@ popcorn submissions                                # view your entries
   **2x is not reached on any of the three target shapes.** Exact SHA-256:
   `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`. See
   `experiments/047-fused-panel/`.
+- **Ranked submission `#904546`** (exp 059 — two large shapes, current best):
+  `done`, public geomean **764.8768308865492us** and secret geomean
+  **785.8614260468765us**. The exact V4 full grid passed 15/15 at
+  **1.039915× CI [1.039570, 1.040259]**; `1×16384` improved
+  15,223.3→10,738.4us (`1.4177×`) and `1×32768` improved
+  42,771.2→33,164.1us (`1.2897×`). Six-family testing passed 12/12 with every
+  safety path matching the exact incumbent control. Popcorn test `#904530`
+  passed 17/17; ranked `#904546` improves `#890798` by **4.6261% public /
+  7.3098% secret**. Exact SHA-256:
+  `f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
+  This is an adopted checkpoint; the campaign continues toward 10%. See
+  `experiments/059-two-large-incremental/`.
 - **Ranked submission `#888867`** (exp 041 V3 — best public score): `done`, public
   geomean **899.124686138768us** and secret **905.4166394915869us**. The first
   cuSOLVER-free CUDA warp kernel replaced the exact `1024×64` graph path at

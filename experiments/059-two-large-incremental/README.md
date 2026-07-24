@@ -57,3 +57,17 @@ leaderboard paths reached the intended optimized counters with no fallback.
 
 Exact candidate SHA-256:
 `f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
+
+## Ranked checkpoint
+
+Popcorn test `#904530` passed 17/17. The exact same source was ranked as
+`#904546`:
+
+| Split | `#890798` | `#904546` | Improvement |
+|---|---:|---:|---:|
+| public | 801.9772 µs | 764.8768 µs | **4.6261%** |
+| secret | 847.8362 µs | 785.8614 µs | **7.3098%** |
+
+This is an adopted partial win. It becomes the next incumbent while the same
+two-shape campaign continues toward the requested cumulative 10% geomean
+reduction.
