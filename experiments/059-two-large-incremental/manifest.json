@@ -35,6 +35,45 @@
       "source_sha256": "766047933d56f112351c4f2563e6fd1de1a8455fa877296828dce33db37f1be3",
       "classification": "REJECTED_NO_ROBUSTNESS_IMPROVEMENT",
       "family_artifact": "variant-02-familygrid.json"
+    },
+    {
+      "id": "v3",
+      "source": "combined-v3.py",
+      "source_sha256": "e90d46a60907d84f5f5e2f50a86ec2017acf820cf94df490b6e6ada9e7959762",
+      "classification": "PROMOTABLE_FRONTIER_PENDING_COMPILE_REPAIR",
+      "paired_artifact": "combined-v3-paired.json",
+      "family_artifact": "combined-v3-familygrid.json",
+      "fullgrid_artifact": "combined-v3-fullgrid.json",
+      "fullgrid_speedup": 1.0400093071172452
+    },
+    {
+      "id": "v4",
+      "source": "combined-v4-compilefix.py",
+      "source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+      "classification": "PROMOTABLE_FRONTIER",
+      "changes": [
+        "exp057 V2 trsm-free inverse and merged block-column update at 1x16384",
+        "exp058 V1 batched-leaf blocked inverse at 1x32768",
+        "exp055 unchanged CUDA32/64/128 single-extension cold-build repair"
+      ],
+      "family_artifact": "combined-v4-compilefix-familygrid.json",
+      "fullgrid": {
+        "artifact": "combined-v4-compilefix-fullgrid.json",
+        "speedup": 1.0399147246743556,
+        "ci95": [
+          1.0395700924301101,
+          1.040259471169083
+        ],
+        "latency_improvement_pct": 3.8382690164190825,
+        "passed_shapes": 15
+      },
+      "cold_build": {
+        "artifact": "combined-v4-coldimport.json",
+        "submission_import_seconds": 65.266606734,
+        "runner_init_seconds": 71.514330214,
+        "budget_seconds": 288,
+        "passed": true
+      }
     }
   ],
   "popcorn_jobs": []

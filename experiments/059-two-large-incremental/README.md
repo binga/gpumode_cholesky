@@ -33,3 +33,27 @@ rejected without a dense timing run.
 
 The campaign continues with the stronger independent shape frontiers in
 experiments 057 and 058. No Popcorn job was spent from this source.
+
+## V3/V4 combined frontier
+
+Experiment 057 V2 (scalar-leaf trsm-free inverse) and experiment 058 V1
+(batched 256-wide inverse leaves) were combined without overlapping dispatch:
+
+| Shape | Control | Candidate | Speedup |
+|---|---:|---:|---:|
+| `1×16384` | 15,223.3 µs | 10,738.4 µs | `1.4177×` |
+| `1×32768` | 42,771.2 µs | 33,164.1 µs | `1.2897×` |
+
+The exact V4 source also merges the unchanged CUDA32/64/128 extension sources,
+the compile repair previously proven by experiment 055. Its fresh
+`TORCH_EXTENSIONS_DIR` import took `65.27 s` (`71.51 s` runner total), below
+the `288 s` promotion budget.
+
+Exact V4 full-grid paired result: `1.039915×`, CI95
+`[1.039570,1.040259]`, all 15 shapes correct. This is `3.838%` lower aggregate
+latency. The six-family exact source passed the official checker 12/12; its
+five safety-path families exactly match the incumbent controls, and both dense
+leaderboard paths reached the intended optimized counters with no fallback.
+
+Exact candidate SHA-256:
+`f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.

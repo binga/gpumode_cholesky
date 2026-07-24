@@ -17,8 +17,8 @@
     "batch=1,n=16384",
     "batch=1,n=32768"
   ],
-  "active_variant": null,
-  "hypothesis": null,
+  "active_variant": "v4 exact compile-repaired combination",
+  "hypothesis": "Combine exp057 V2 and exp058 V1 in the incumbent safety chain, then use exp055's already verified single-extension packaging so the exact source fits Popcorn's cold-build budget.",
   "worktree": "/private/tmp/gpumode-cholesky-exp059-two-large",
   "lease": "/Users/phani/projects/gpumode_cholesky/experiments/.leases/059-two-large-integration.json",
   "completed_gates": [
@@ -29,12 +29,16 @@
     "local CPU property test omitted because host Python lacks torch; Modal official checker is required",
     "exact v1 two-shape paired Modal B200: 1x16384 15209.6us -> 14333.8us (1.0611x), 1x32768 42331.5us -> 32733.0us (1.2932x), combined 1.1714x CI [1.1710,1.1719], zero new fallbacks",
     "v1 familygrid checker 12/12 passed but candidate took safety chains on 2/6 families at 16384 and 3/6 at 32768",
-    "v2 residual-qualified solver familygrid checker 12/12 passed but did not eliminate the same final safety-chain activations; rejected as no robustness improvement"
+    "v2 residual-qualified solver familygrid checker 12/12 passed but did not eliminate the same final safety-chain activations; rejected as no robustness improvement",
+    "v3 exact combined paired: 1x16384 15185.3us -> 10720.1us (1.4160x), 1x32768 42769.0us -> 33191.3us (1.2887x), combined target geomean 1.3508x, zero dense fallback",
+    "v3 full 15-shape paired grid: 1.040009x CI [1.039226,1.040794], all shapes correct, off-target shapes at parity",
+    "v3 combined familygrid official checker 12/12; safety families exactly match committed baseline controls from exp057 and exp058",
+    "v4 source-only packaging repair merges unchanged CUDA32/64/128 sources; recursive safety base restored to ranked value 512",
+    "v4 exact cold import in fresh TORCH_EXTENSIONS_DIR: 65.27s submission import, 71.51s runner init, all merged CUDA backends ready, below 288s limit",
+    "v4 exact full 15-shape paired grid: 1.039915x CI [1.039570,1.040259], all shapes correct, 3.838% lower aggregate latency",
+    "v4 exact familygrid official checker 12/12; reviewed comparison found zero unexpected safety fallbacks relative to exact baseline controls"
   ],
   "pending_gates": [
-    "six-family validation on both shapes",
-    "full 15-shape paired grid",
-    "cold-build proof",
     "Popcorn test 17/17",
     "serialized ranked submission"
   ],
@@ -59,10 +63,47 @@
       "variant": "v2",
       "status": "rejected_no_robustness_improvement",
       "artifact": "experiments/059-two-large-incremental/variant-02-familygrid.json"
+    },
+    {
+      "kind": "pairedgrid",
+      "variant": "v3",
+      "status": "passed",
+      "artifact": "experiments/059-two-large-incremental/combined-v3-paired.json"
+    },
+    {
+      "kind": "familygrid",
+      "variant": "v3",
+      "status": "checker_passed_incumbent_matched_safety_paths",
+      "artifact": "experiments/059-two-large-incremental/combined-v3-familygrid.json"
+    },
+    {
+      "kind": "fullgrid",
+      "variant": "v3",
+      "status": "passed",
+      "artifact": "experiments/059-two-large-incremental/combined-v3-fullgrid.json"
+    },
+    {
+      "kind": "coldimport",
+      "variant": "v4",
+      "status": "passed",
+      "artifact": "experiments/059-two-large-incremental/combined-v4-coldimport.json"
+    },
+    {
+      "kind": "fullgrid",
+      "variant": "v4",
+      "status": "passed",
+      "artifact": "experiments/059-two-large-incremental/combined-v4-compilefix-fullgrid.json"
+    },
+    {
+      "kind": "familygrid",
+      "variant": "v4",
+      "status": "checker_passed_incumbent_matched_safety_paths",
+      "artifact": "experiments/059-two-large-incremental/combined-v4-compilefix-familygrid.json",
+      "review": "experiments/059-two-large-incremental/combined-v4-family-comparison.json"
     }
   ],
   "popcorn_jobs": [],
-  "variants_used": 2,
+  "variants_used": 4,
   "remote_retries_used": 0,
-  "next_action": "Integrate the stronger committed shape-local frontiers from experiments 057 and 058, then rerun exact combined-source gates."
+  "next_action": "Fetch/reverify incumbent, then run one Popcorn test submission and require 17/17."
 }

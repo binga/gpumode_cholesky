@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "candidate_artifact": "combined-v4-compilefix-familygrid.json",
+  "candidate_source_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "checker_passed": "12/12",
+  "dense_backend_proof": {
+    "1x16384": {
+      "_EXP057_V2_HITS": 1,
+      "new_fallbacks": {}
+    },
+    "1x32768": {
+      "_EXP058_V1_HITS": 1,
+      "_MXFP8_HITS": 6,
+      "new_fallbacks": {}
+    }
+  },
+  "incumbent_matched_safety_families": {
+    "1x16384": [
+      "spectrum",
+      "lowrank"
+    ],
+    "1x32768": [
+      "spectrum",
+      "lowrank",
+      "rowscale"
+    ]
+  },
+  "control_sources": [
+    "experiments/057-1x16384/baseline-familygrid.json",
+    "experiments/058-1x32768/baseline-family.json"
+  ],
+  "unexpected_fallbacks": 0,
+  "reviewed_pass": true,
+  "note": "The generic familygrid passed flag is false because it rejects every safety dispatch. Candidate and exact incumbent controls use identical safety families and checker residuals; dense ranked paths prove the optimized backends execute without fallback."
+}

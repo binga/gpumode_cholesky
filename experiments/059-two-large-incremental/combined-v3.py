@@ -171,8 +171,20 @@ void chol32_launch(torch::Tensor src, torch::Tensor dst) {
 }
 """
 
-# Loaded together with CUDA64 and CUDA128 below to remove two fixed compiler
-# startup costs. The CUDA32 kernel source and -O3 code generation are unchanged.
+if torch.cuda.is_available():
+    try:
+        from torch.utils.cpp_extension import load_inline
+
+        _CUDA32 = load_inline(
+            name="chol32_exp039_final",
+            cpp_sources="void chol32_launch(torch::Tensor, torch::Tensor);",
+            cuda_sources=_CUDA32_SOURCE,
+            functions=["chol32_launch"],
+            extra_cuda_cflags=["-O3"],
+            verbose=False,
+        )
+    except Exception as exc:
+        _CUDA32_ERROR = repr(exc)
 
 
 def _cuda_cholesky32(data: torch.Tensor) -> torch.Tensor:
@@ -199,18 +211,18 @@ _CUDA64_SOURCE = r"""
 #include <torch/extension.h>
 #include <cuda_runtime.h>
 
-constexpr int N64 = 64;
+constexpr int N = 64;
 
 __global__ void cholesky64_rank2(const float* input, float* output) {
     const int row = threadIdx.x;
-    const size_t base = (size_t)blockIdx.x * N64 * N64;
+    const size_t base = (size_t)blockIdx.x * N * N;
     __shared__ float tile[64][65];
     __shared__ float pivot0[64];
     __shared__ float pivot1[64];
     __shared__ float reciprocal0;
     __shared__ float reciprocal1;
 
-    for (int linear = row; linear < N64 * N64; linear += 64) {
+    for (int linear = row; linear < N * N; linear += 64) {
         tile[linear >> 6][linear & 63] = input[base + linear];
     }
     __syncthreads();
@@ -265,7 +277,7 @@ __global__ void cholesky64_rank2(const float* input, float* output) {
         tile[row][column] = column <= row ? values[column] : 0.0f;
     }
     __syncthreads();
-    for (int linear = row; linear < N64 * N64; linear += 64) {
+    for (int linear = row; linear < N * N; linear += 64) {
         output[base + linear] = tile[linear >> 6][linear & 63];
     }
 }
@@ -279,8 +291,20 @@ void chol64_launch(torch::Tensor input, torch::Tensor output) {
 }
 """
 
-# Loaded together with CUDA32 and CUDA128 below. N64 is a source-only rename
-# that resolves the combined translation unit's constant-name collision.
+if torch.cuda.is_available():
+    try:
+        from torch.utils.cpp_extension import load_inline
+
+        _CUDA64 = load_inline(
+            name="chol64_exp041_v3_final",
+            cpp_sources="void chol64_launch(torch::Tensor, torch::Tensor);",
+            cuda_sources=_CUDA64_SOURCE,
+            functions=["chol64_launch"],
+            extra_cuda_cflags=["-O3"],
+            verbose=False,
+        )
+    except Exception as exc:
+        _CUDA64_ERROR = repr(exc)
 
 
 def _cuda_cholesky64(data: torch.Tensor) -> torch.Tensor:
@@ -575,29 +599,19 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol3264128_exp055_combined_o3",
+            name="chol128_exp042_v5_with_exp044_micro",
             cpp_sources=(
-                "void chol32_launch(torch::Tensor, torch::Tensor);\n"
-                "void chol64_launch(torch::Tensor, torch::Tensor);\n"
                 "void chol128_launch(torch::Tensor, torch::Tensor);\n"
                 "void micro32_launch(torch::Tensor, torch::Tensor, "
                 "torch::Tensor, int64_t, int64_t, int64_t);"
             ),
-            cuda_sources=(
-                _CUDA32_SOURCE + "\n" + _CUDA64_SOURCE + "\n" +
-                _CUDA128_SOURCE
-            ),
-            functions=["chol32_launch", "chol64_launch", "chol128_launch",
-                       "micro32_launch"],
+            cuda_sources=_CUDA128_SOURCE,
+            functions=["chol128_launch", "micro32_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
-        _CUDA32 = _CUDA128
-        _CUDA64 = _CUDA128
     except Exception as exc:
         _CUDA128_ERROR = repr(exc)
-        _CUDA32_ERROR = _CUDA128_ERROR
-        _CUDA64_ERROR = _CUDA128_ERROR
 
 
 def _cuda_cholesky128(data: torch.Tensor) -> torch.Tensor:
@@ -3402,14 +3416,17 @@ def _left_looking_large(
 # Experiments 057 V2 + 058 V1: two large-shape inverse frontiers.
 #
 # 1x16384 removes every triangular-solve leaf from the 2048-wide inverse tree:
-# reciprocal scalar leaves grow breadth-first through batched GEMMs. Its
+# reciprocal scalar leaves grow breadth-first through batched GEMMs.  Its
 # diagonal and below-diagonal regions are updated together as one block column.
 #
 # 1x32768 batches the independent 256x256 triangular-inverse leaves, then grows
-# the 4096-wide inverse breadth-first. Its ranked MXFP8 panel updates and block
+# the 4096-wide inverse breadth-first.  Its ranked MXFP8 panel updates and block
 # width remain unchanged.
 #
 # Both are enrolled inside the incumbent's existing large-shape safety chain.
+# A numerically unsuitable family therefore takes exactly the shipped fallback
+# sequence, while dense paired evidence proves these backends execute without a
+# fallback on the leaderboard paths.
 # ---------------------------------------------------------------------------
 
 _EXP057_V2_HITS = 0
