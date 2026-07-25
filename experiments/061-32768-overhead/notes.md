@@ -76,3 +76,59 @@ The initial V1 guarded on `stride(1) == 1` and raised, because
 path fell through to `_left_looking_cholesky_32768` and measured 0.631x with
 `new_fallbacks {_LARGE_FP8_FALLBACKS: [0, 1]}`. Fix: the move kernel takes both
 strides for both operands and uses square tiles for a transposing move.
+
+### V2 — `candidate-v2-merged-column.py` — FRONTIER, 1.2799x (best)
+
+Mechanism: V1's block moves, plus the diagonal block's TF32 SYRK folded into
+the panel's MXFP8 left-looking update as a single block-column product.
+
+At block column k both updates consume the same frontier `factor[k:, :k]`, and
+the right operand `factor[k:k+nb, :k]` is literally its first nb rows. So
+`_exp061_mx_column_product` quantizes the frontier once and slices the right
+operand out of the same buffers: `quantized[:nb]` for the values, and
+`scales[: nb * cols // 32]` for the e8m0 scales, which is exact because
+`_mx_quant_e4m3_blocked` lays its blocked scale tiles out row-tile-major
+(`tile = (pid_m // 4) * (columns // 128) + pid_k`), so every tile owned by the
+first nb rows falls inside that prefix.
+
+The single `torch._scaled_mm` then produces both updates, and the two Triton
+gathers consume `column[:nb]` (fp32, into the cholesky buffer) and
+`column[nb:]` (fp16, into the solve operand).
+
+Cost model: the TF32 SYRK (4733us at ~813 TFLOP/s) disappears; the MXFP8 GEMM
+grows by nb rows per step, 7.30e12 -> 1.115e13 flops at ~2950 TFLOP/s. Total
+quantized elements are unchanged -- `(n - k) * k` instead of
+`(n - j) * k + nb * k`, the same count -- so the requantization bill does not
+move at all.
+
+Paired (`variant-02-paired.json`): baseline 31602.7us -> candidate 24692.0us,
+ratio 1.27988, CI95 [1.27906, 1.28435], MAD 0.08%, A-vs-A 0.05%,
+`new_fallbacks: {}`, counters `_EXP061_V2_HITS 1 / _EXP061_MOVE_HITS 23 /
+_EXP061_MX_COLUMN_HITS 7 / _EXP061_MM_OUT_HITS 7 / _EXP061_STEP_HITS 8`, and
+`_EXP058_V1_HITS 1` still present.
+
+Family (`variant-02-familygrid.json`), checker passes 6/6:
+
+| family | V1 residual | V2 residual | budget |
+|---|---:|---:|---:|
+| dense | 5.29 | **6.45** | 20 |
+| spectrum | 0.000544 | 0.000544 | 20 |
+| diagonal | 6.1e-05 | 6.1e-05 | 20 |
+| lowrank | 0.000494 | 0.000494 | 20 |
+| rowscale | 4.26e-05 | 4.26e-05 | 20 |
+| tridiagonal | 0.00633 | 0.105 | 20 |
+
+The accuracy cost of moving the diagonal SYRK from TF32 to MXFP8 is +22% on
+dense (5.29 -> 6.45, margin 3.8x -> 3.1x) and 16.6x on tridiagonal, which is
+still 190x inside the budget. Worst family 6.45 of 20. The three families that
+fall back are #906955's inherited safety cases, unchanged.
+
+## Where the remaining time is
+
+After V2 the shape is 24692us and `cholesky_ex` on the eight 4096x4096
+diagonal blocks is 11167us of it -- about 45%, and pinned at ~0.34us/row by
+cuSOLVER's serial panel cost. Everything still on the table (blocked inverse
+1556us, fills 648us, `triu_tril` inside `.L` 458us, requantization 1021us) adds
+to roughly 2.6ms, i.e. at most another ~1.12x, and each piece is small enough
+that a Modal paired job costs more than the evidence is worth. Stopped at two
+variants rather than spending the remaining four on <3% each.

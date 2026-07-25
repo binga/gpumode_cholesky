@@ -136,6 +136,70 @@
         ],
         "note": "Those three families take _LARGE_FP8_FALLBACKS/_LEFT_LARGE_FALLBACKS on the ranked incumbent #906955 too (experiments/060-two-large-followup/combined-v1-familygrid.json, identical residuals to 3 s.f.). Not a regression."
       }
+    },
+    {
+      "id": "v2",
+      "name": "merged MXFP8 block-column update",
+      "file": "candidate-v2-merged-column.py",
+      "sha256": "e99f2accee1ec25f95d63de0e596509b430e03d3591b0b0de4531fccddf4e9ad",
+      "classification": "VALIDATED_FRONTIER",
+      "builds_on": "v1",
+      "mechanism": "Folds the diagonal block's TF32 SYRK into the panel's MXFP8 left-looking update as one block-column product. Both consume the same frontier factor[k:, :k] and the right operand factor[k:k+nb, :k] is its first nb rows, so _exp061_mx_column_product quantizes once and slices the right operand out of the same buffers -- quantized[:nb] for values and scales[: nb*cols//32] for the e8m0 scales, exact because _mx_quant_e4m3_blocked lays blocked scale tiles out row-tile-major. The 4733us TF32 SYRK at ~813 TFLOP/s disappears; the MXFP8 GEMM grows from 7.30e12 to 1.115e13 flops at ~2950 TFLOP/s; total quantized elements are unchanged at (n-k)*k.",
+      "arithmetic_change": "diagonal block SYRK moves from TF32 to MXFP8",
+      "paired": {
+        "file": "variant-02-paired.json",
+        "sha256": "7d2de667f9dc8d8c9d42033e1f816ae1916605357e3524bf4e864993051fda95",
+        "baseline_us": 31602.7193069458,
+        "candidate_us": 24691.967964172363,
+        "ratio_median": 1.2798785156695822,
+        "ratio_ci95": [
+          1.2790641893769001,
+          1.2843455903089518
+        ],
+        "ratio_mad_pct": 0.0814,
+        "a_vs_a_spread_pct": 0.0474,
+        "new_fallbacks": {},
+        "candidate_counters": {
+          "_LARGE_FP8_HITS": 1,
+          "_EXP058_V1_HITS": 1,
+          "_EXP061_V2_HITS": 1,
+          "_EXP061_MOVE_HITS": 23,
+          "_EXP061_MX_COLUMN_HITS": 7,
+          "_EXP061_MM_OUT_HITS": 7,
+          "_EXP061_STEP_HITS": 8
+        },
+        "baseline_residual": 5.28,
+        "candidate_residual": 6.44,
+        "residual_budget": 20
+      },
+      "family": {
+        "file": "variant-02-familygrid.json",
+        "sha256": "01ef7e0cec68e671842b3b6e9561058d248ea62988fca6a80a5e1d2f0a4c19ba",
+        "checker_ok": {
+          "dense": true,
+          "spectrum": true,
+          "diagonal": true,
+          "lowrank": true,
+          "rowscale": true,
+          "tridiagonal": true
+        },
+        "residuals": {
+          "dense": 6.45,
+          "spectrum": 0.000544,
+          "diagonal": 6.1e-05,
+          "lowrank": 0.000494,
+          "rowscale": 4.26e-05,
+          "tridiagonal": 0.105
+        },
+        "worst_family_residual": 6.45,
+        "margin_to_budget": "3.1x (was 3.8x on the incumbent)",
+        "inherited_safety_cases": [
+          "spectrum",
+          "lowrank",
+          "rowscale"
+        ]
+      },
+      "residual_margin_note": "Dense residual moves 5.28 -> 6.44 of 20, so the margin tightens from 3.8x to 3.1x. Accepted by the orchestrator: 3.1x is the same order as what already ships on this shape and all six families still pass. Calibration point -- the sibling 1x16384 worker rejected an otherwise-faster variant that took its margin to 1.6x, and below ~2x this one would be rejected too. Any further variant that pushes the worst family past ~10 of 20 must be backed out."
     }
   ],
   "invalid_evidence": [
@@ -162,5 +226,7 @@
   ],
   "not_attempted": {
     "diagonal_factorization": "11167us / 36.3% is cuSOLVER getrf_wo_pivot at ~0.34us/row. Sibling 1x16384 worker measured twelve blocked/recursive replacements, all slower than cuSOLVER, with 500x worse accuracy on the TF32 ones. Standing user directive also forbids new cuSOLVER-based fast paths and stream overlap. Left on the shipped call."
-  }
+  },
+  "best_candidate": "v2",
+  "remaining_headroom": "After V2 the shape is 24692us and cholesky_ex on the eight 4096x4096 diagonal blocks is 11167us of it (~45%), pinned at ~0.34us/row by cuSOLVER's serial panel cost. All remaining attackable overhead -- blocked inverse 1556us, fills 648us, triu_tril 458us, requantization 1021us -- sums to ~2.6ms, at most another ~1.12x."
 }

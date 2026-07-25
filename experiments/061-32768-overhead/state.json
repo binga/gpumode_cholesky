@@ -10,32 +10,48 @@
     "sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175"
   },
   "current_incumbent_same_as_goal_baseline": true,
+  "incumbent_note": "Orchestrator has ranked #907206 in flight carrying the v1 combination; v2 must be rebased onto whatever wins.",
   "best_candidate": {
+    "id": "v2",
+    "file": "experiments/061-32768-overhead/candidate-v2-merged-column.py",
+    "sha256": "e99f2accee1ec25f95d63de0e596509b430e03d3591b0b0de4531fccddf4e9ad",
+    "paired_speedup": 1.2798785156695822,
+    "paired_ci95": [1.2790641893769001, 1.2843455903089518],
+    "baseline_us": 31602.7193069458,
+    "candidate_us": 24691.967964172363,
+    "worst_family_residual": 6.45,
+    "residual_budget": 20,
+    "classification": "VALIDATED_FRONTIER"
+  },
+  "superseded_candidate": {
+    "id": "v1",
     "file": "experiments/061-32768-overhead/candidate-v1-triton-move.py",
     "sha256": "9c4c167e30b960bd8a93c3a3ca594e6c776c96713cabca5b50c2d41ebd401c6f",
     "paired_speedup": 1.1203600109959257,
-    "paired_ci95": [1.1198162230343733, 1.1216115857557825],
-    "baseline_us": 31575.90389251709,
-    "candidate_us": 28183.712005615234,
-    "classification": "VALIDATED_FRONTIER"
+    "worst_family_residual": 5.29,
+    "commit": "3f47ad0",
+    "note": "Committed and integrated by the orchestrator into ranked #907206. Kept intact as the fallback if v2 is rejected downstream."
   },
   "gates_completed": [
-    "python syntax / py_compile",
+    "python syntax / py_compile (v1, v2)",
     "git diff --check",
-    "source-policy scan (no banned stream phrase, no scanner evasion)",
+    "source-policy scan: load_inline count unchanged at 4, zero stream tokens, no scanner evasion",
     "B200 component profile (baseline-shapediag.json)",
-    "B200 pairedgrid vs exact incumbent (variant-01-paired.json), new_fallbacks empty",
-    "B200 familygrid all six families (variant-01-familygrid.json), checker 6/6"
+    "B200 pairedgrid v1 vs exact incumbent (variant-01-paired.json), new_fallbacks empty",
+    "B200 familygrid v1 all six families (variant-01-familygrid.json), checker 6/6",
+    "B200 familygrid v2 all six families (variant-02-familygrid.json), checker 6/6",
+    "B200 pairedgrid v2 vs exact incumbent (variant-02-paired.json), new_fallbacks empty"
   ],
   "gates_pending_at_orchestrator": [
-    "full 15-shape grid",
+    "rebase v2 onto the #907206 incumbent",
+    "full 15-shape grid with v2",
     "cold-build budget",
     "popcorn test 17/17",
     "popcorn ranked"
   ],
-  "variants_consumed": 1,
+  "variants_consumed": 2,
   "variants_budget": 6,
   "modal_retries_consumed": 0,
   "invalid_runs_repaired": 1,
-  "next_action": "V2: merged block-column MXFP8 update to retire the 4733us TF32 diagonal SYRK; gate residual on all six families (must stay well under 20)."
+  "next_action": "Hand v2 to the orchestrator for rebase and integration. Remaining headroom on this shape is the 11167us cuSOLVER diagonal (~45% of the post-v2 24692us), which the sibling worker's twelve blocked-replacement measurements have already closed off; everything else attackable sums to ~2.6ms."
 }
