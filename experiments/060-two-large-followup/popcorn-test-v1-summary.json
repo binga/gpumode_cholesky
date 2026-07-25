@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "submission_id": 904674,
+  "mode": "test",
+  "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+  "status": "succeeded",
+  "result": "17/17",
+  "runner": "B200",
+  "start_time": "2026-07-24T19:57:04.027099Z",
+  "end_time": "2026-07-24T19:57:43.754301Z",
+  "raw_log": "popcorn-test-v1.log"
+}

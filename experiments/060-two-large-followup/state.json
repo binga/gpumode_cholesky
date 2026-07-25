@@ -30,12 +30,11 @@
     "combined v1 paired target gate: 1.051456x CI [1.050341,1.052572], both targets correct with intended counters",
     "combined v1 family gate: official checker 12/12 and all fallback dictionaries exactly match #904546",
     "combined v1 full 15-shape paired grid: 1.006785x CI [1.006202,1.007368], all shapes correct and off-target paths at parity",
-    "combined v1 fresh-cache import: 28.66s submission import, 30.15s runner total, all CUDA extensions ready"
+    "combined v1 fresh-cache import: 28.66s submission import, 30.15s runner total, all CUDA extensions ready",
+    "Popcorn test #904674 passed 17/17 on exact source SHA 003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+    "ranked #906955 succeeded: public 760.413319us, secret 758.096104us"
   ],
-  "pending_gates": [
-    "Popcorn test",
-    "serialized ranked submission"
-  ],
+  "pending_gates": [],
   "modal_jobs": [
     {
       "kind": "pairedgrid",
@@ -67,13 +66,35 @@
       "artifact": "experiments/060-two-large-followup/combined-v1-coldimport.json"
     }
   ],
-  "popcorn_jobs": [],
+  "popcorn_jobs": [
+    {
+      "submission_id": 904674,
+      "mode": "test",
+      "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+      "status": "succeeded",
+      "result": "17/17",
+      "artifact": "experiments/060-two-large-followup/popcorn-test-v1-summary.json",
+      "raw_log": "experiments/060-two-large-followup/popcorn-test-v1.log"
+    },
+    {
+      "submission_id": 906955,
+      "mode": "leaderboard",
+      "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+      "status": "succeeded",
+      "scores_microseconds": {
+        "public": 760.4133189101879,
+        "secret": 758.0961041718278
+      },
+      "artifact": "experiments/060-two-large-followup/popcorn-ranked-v1-summary.json",
+      "raw_log": "experiments/060-two-large-followup/popcorn-ranked-v1.log"
+    }
+  ],
   "variants_used": 1,
   "remote_retries_used": 0,
   "promotion_source": {
     "source": "combined-v1.py",
     "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
-    "classification": "PROMOTABLE_INCREMENTAL_FRONTIER"
+    "classification": "ADOPTED_RANKED_WINNER"
   },
-  "next_action": "Fetch and compare origin/main, reverify the incumbent and exact source hash, then run Popcorn test and one serialized ranked submission."
+  "next_action": "Adopted as the new incumbent. Open experiment 061 from this exact source and continue driving 1x16384 and 1x32768 toward the 10% public-split goal."
 }

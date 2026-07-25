@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "submission_id": 906955,
+  "mode": "leaderboard",
+  "source_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+  "status": "succeeded",
+  "checks": {
+    "public": "passed",
+    "secret": "passed"
+  },
+  "scores_microseconds": {
+    "public": 760.4133189101879,
+    "secret": 758.0961041718278
+  },
+  "improvement_over_904546_pct": {
+    "public": 0.583559574054272,
+    "secret": 3.5331065954867853
+  },
+  "improvement_over_890798_pct": {
+    "public": 5.1826736870760115,
+    "secret": 10.584599216844714
+  },
+  "raw_log": "popcorn-ranked-v1.log"
+}
