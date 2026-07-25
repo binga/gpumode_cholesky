@@ -130,6 +130,8 @@ def main() -> int:
             "pairedgrid",
             "familygrid",
             "shapediag",
+            "diag61probe",
+            "diag61proto",
             "midprobe",
             "microprobe",
             "asmprobe",

@@ -3521,123 +3521,6 @@ def _factor_1x16384_trsm_free(mat: torch.Tensor) -> torch.Tensor:
     return factor
 
 
-# ---------------------------------------------------------------------------
-# Experiment 061 (1x16384 only): overhead-and-precision rework of the exp-057
-# trsm-free path. Two measured facts drive it (probe-01/probe-02, B200):
-#
-#   * cuSOLVER's diagonal potrf is serial-latency-bound at ~0.33us per row, so
-#     its total cost is ~c*n whatever the block width. Every attempt to rebuild
-#     it out of PyTorch ops measured 1.6-3.8x SLOWER than one cuSOLVER call, so
-#     the diagonal is left exactly as shipped.
-#   * Everything else is copy traffic and TF32 GEMM. Those are addressable:
-#       - one reused block-column scratch and one reused inverse buffer instead
-#         of a fresh allocation + fill per step;
-#       - `torch.mm(..., out=<factor slice>)` instead of materializing the
-#         product and copying it into the factor;
-#       - no block-column copy at all on the first step, which has no update;
-#       - a persistent FP16 shadow of the factor so the left-looking GEMM and
-#         the inverse apply run on FP16 tensor cores with FP32 accumulation.
-#
-# FP16 and TF32 carry the same 11-bit effective mantissa, so the shadow trades
-# no precision for ~1.7x measured GEMM throughput (736.9 -> 1262.7 TFLOP/s);
-# only the exponent range narrows, and the shipped isfinite guard in
-# `custom_kernel` already routes any overflow to the exact fallback chain.
-# Measured residual is unchanged at 0.211 of the 20.0 budget.
-# ---------------------------------------------------------------------------
-_EXP061_16384_HITS = 0
-_EXP061_16384_INVERSE_CALLS = 0
-
-
-def _exp061_leaf_inverse(
-    lower: torch.Tensor, inverse: torch.Tensor
-) -> torch.Tensor:
-    """exp-057's trsm-free triangular inverse writing into a caller-owned
-    buffer. Every region that is ever non-zero is fully overwritten on each
-    call (the base-32 leaves fill their lower triangles, the tree fills whole
-    off-diagonal blocks), so the buffer only has to be zeroed once by the
-    caller instead of once per block column. The `neg` is folded into the
-    second product's alpha rather than run as its own pass."""
-    global _EXP061_16384_INVERSE_CALLS
-    _EXP061_16384_INVERSE_CALLS += 1
-    n = lower.shape[0]
-    if not _HAVE_TRITON or n % 32 or (n & (n - 1)):
-        raise RuntimeError("exp061 Triton base-32 inverse precondition failed")
-    lower = lower.contiguous()
-    count = n // 32
-    _exp057_tri_inv_leaf32_kernel[(count * 32,)](
-        lower,
-        inverse,
-        n=n,
-        base=32,
-        num_warps=1,
-    )
-    size = 32
-    while size < n:
-        step = 2 * size
-        shape = (n // step, size, size)
-        stride = (step * n + step, n, 1)
-        inv11 = inverse.as_strided(shape, stride, 0)
-        inv22 = inverse.as_strided(shape, stride, size * n + size)
-        low21 = lower.as_strided(shape, stride, size * n)
-        dest = inverse.as_strided(shape, stride, size * n)
-        torch.baddbmm(
-            dest,
-            inv22,
-            torch.bmm(low21, inv11),
-            beta=0.0,
-            alpha=-1.0,
-            out=dest,
-        )
-        size = step
-    return inverse
-
-
-def _exp061_factor_1x16384(mat: torch.Tensor) -> torch.Tensor:
-    n = 16384
-    nb = 2048
-    factor = torch.zeros_like(mat)
-    scratch = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
-    inverse = torch.zeros(nb, nb, device=mat.device, dtype=mat.dtype)
-    shadow = torch.empty(n, n, device=mat.device, dtype=torch.float16)
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            j = k + nb
-            if k:
-                block = scratch[: n - k]
-                # FP16 tensor-core left-looking update, FP32 accumulate. The
-                # product lands straight in the scratch and the original block
-                # column is subtracted from it, so no separate copy is needed.
-                torch.mm(
-                    shadow[k:, :k],
-                    shadow[k:j, :k].transpose(-1, -2),
-                    out_dtype=torch.float32,
-                    out=block,
-                )
-                torch.sub(mat[k:, k:j], block, out=block)
-            else:
-                block = mat[:, :nb]
-            lkk = torch.linalg.cholesky_ex(
-                block[:nb],
-                check_errors=False,
-            ).L
-            factor[k:j, k:j] = lkk
-            if j >= n:
-                break
-            _exp061_leaf_inverse(lkk, inverse)
-            torch.mm(
-                block[nb:].to(torch.float16),
-                inverse.transpose(-1, -2).to(torch.float16),
-                out_dtype=torch.float32,
-                out=factor[j:, k:j],
-            )
-            shadow[k:, k:j].copy_(factor[k:, k:j])
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    return factor
-
-
 def _blocked_tri_inv_32768(
     lower: torch.Tensor,
     base: int = 256,
@@ -3748,7 +3631,7 @@ def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
     global _LARGE_FP8_HITS, _LARGE_FP8_FALLBACKS, _LARGE_FP8_ERROR
     global _FUSED_CTA_HITS, _FUSED_CTA_FALLBACKS, _FUSED_CTA_ERROR
-    global _EXP057_V2_HITS, _EXP058_V1_HITS, _EXP061_16384_HITS
+    global _EXP057_V2_HITS, _EXP058_V1_HITS
 
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
@@ -3822,14 +3705,14 @@ def custom_kernel(data: input_t) -> output_t:
     if is_f32_cuda and batch == 1 and n in _LARGE_CFG:
         try:
             if n == 16384:
-                l = _exp061_factor_1x16384(data[0])
+                l = _factor_1x16384_trsm_free(data[0])
             elif n == 32768:
                 l = _factor_1x32768_blocked_inverse(data[0])
             else:
                 l = _left_looking_large(data[0], **_LARGE_CFG[n])
             if torch.isfinite(l.diagonal()).all().item():
                 if n == 16384:
-                    _EXP061_16384_HITS += 1
+                    _EXP057_V2_HITS += 1
                 elif n == 32768:
                     _EXP058_V1_HITS += 1
                 _LARGE_FP8_HITS += 1

@@ -1,0 +1,75 @@
+{
+  "experiment": "061-16384-fp8panel",
+  "shape": "batch=1 n=16384",
+  "worker": "claude-code-job-2497f360",
+  "branch": "codex/exp061-16384",
+  "baseline": {
+    "submission_id": 906955,
+    "commit": "c965e08",
+    "file": "baseline-906955.py",
+    "sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175"
+  },
+  "probes": [
+    {
+      "file": "probe-01-diag.json",
+      "sha256": "6e698e093378f11b7bdb7da7df24bef571ef0b8fe23e643385112060b677e7be",
+      "mode": "diag61probe",
+      "finding": "cuSOLVER diagonal potrf is serial-latency-bound at ~0.33us/row (m=128..4096 measured 61.6/103.4/186.7/348.5/676.4/1537.9us, i.e. near-LINEAR not cubic). Total diagonal cost is therefore ~c*n independent of nb, so nb tuning is dead. All 12 PyTorch-op blocked replacements at m=2048 LOST to one cuSOLVER call (best blocked_leaf1024_tf32 1089us vs 676us = 1.6x slower; worst blocked_leaf256_invapply 2536us = 3.8x slower). TF32 inside the diagonal is strictly dominated (tol_frac 0.037 vs fp32 7e-5 AND slower).",
+      "caveat": "The `components` block in this JSON is contaminated by first-call Triton JIT inside the timed region (sums to 295511us against a 10180us shape). Disregard it; use experiments/057-1x16384/variant-04-shapediag.json for the kernel breakdown."
+    },
+    {
+      "file": "probe-02-proto.json",
+      "sha256": "296a00d298997a5f892e2a284787081efca2e7ddf9fc0d3af1b23209ade68902",
+      "mode": "diag61proto",
+      "finding": "Whole-shape prototype ladder: P0_control 10096.9us / P1_hygiene 9317.9us (1.084x) / P2_fp16shadow 8806.4us (1.147x) / P3_fp16_all 8700.4us (1.161x), residual identical at 0.211 for all four. Big-GEMM microbenchmark (14336x2048x14336): TF32 1142.4us = 736.9 TFLOP/s vs FP16 666.7us = 1262.7 TFLOP/s (1.71x). torch.mm supports both out_dtype= and out_dtype=+out=."
+    }
+  ],
+  "variants": [
+    {
+      "id": "v1",
+      "name": "fp16-shadow + allocation/copy hygiene",
+      "file": "candidate-v1-fp16shadow.py",
+      "sha256": "6ec2467a7c1be04fc0f9c69b53639607f10ef7be94cc64f79eeee62b0703ba19",
+      "architecture": "New 16384-only factor `_exp061_factor_1x16384` replacing `_factor_1x16384_trsm_free` at the n==16384 dispatch. Five mechanisms: (1) one reused (n-nb, nb) block-column scratch instead of a fresh `.contiguous()` allocation per step; (2) one reused, zeroed-once triangular-inverse buffer via new helper `_exp061_leaf_inverse` (every non-zero region is fully overwritten each call, so the per-step FillFunc disappears) with the tree's `neg` folded into baddbmm alpha=-1; (3) `torch.mm(..., out=<factor slice>)` so the inverse apply writes the factor directly instead of materializing a product and copying it in; (4) no block-column copy at all on step k=0, which has no update to accumulate; (5) a persistent FP16 shadow of the factor driving both the left-looking block-column GEMM and the inverse apply on FP16 tensor cores with FP32 accumulation. FP16 and TF32 carry the same 11-bit effective mantissa, so the shadow trades no precision for 1.71x measured GEMM throughput; only exponent range narrows and the shipped isfinite guard already routes overflow to the exact fallback chain. The cuSOLVER diagonal potrf is deliberately left untouched (see probe-01).",
+      "baseline_us": 10159.4,
+      "candidate_us": 8792.0,
+      "speedup": 1.15555,
+      "ci95": [1.15484, 1.15733],
+      "ratio_mad_pct": 0.04,
+      "a_vs_a_spread_pct": 0.06,
+      "counters": {"_LARGE_FP8_HITS": 1, "_EXP061_16384_HITS": 1},
+      "new_fallbacks": {},
+      "residual_of_budget_20": {
+        "dense": 0.212,
+        "spectrum": 0.107,
+        "diagonal": 0.000122,
+        "lowrank": 0.000822,
+        "rowscale": 0.124,
+        "tridiagonal": 0.0135
+      },
+      "incumbent_residuals": {
+        "dense": 0.213,
+        "spectrum": 0.107,
+        "diagonal": 0.000122,
+        "lowrank": 0.000822,
+        "rowscale": 0.124,
+        "tridiagonal": 0.0135
+      },
+      "checker": "official checker PASS on all six families",
+      "family_note": "spectrum and lowrank take safety fallbacks. These are the INHERITED safety cases of ranked incumbent #906955, recorded in experiments/060-two-large-followup/combined-v1-family-comparison.json as `inherited_safety_cases` (1x16384 spectrum, 1x16384 lowrank, 1x32768 spectrum, 1x32768 lowrank, 1x32768 rowscale). Behaviour and residuals match the incumbent exactly; no new fallback family.",
+      "evidence": [
+        {"file": "variant-01-paired.json", "sha256": "bc5af357124b8f1b48b5827b086f09987b25f067fefcb25d578a3dc21b9e86e9"},
+        {"file": "variant-01-familygrid.json", "sha256": "abdb92419347203ab00dc2d480d8cce2599e0e262a1ad3dbf8b9de2842aae803"}
+      ],
+      "classification": "VALIDATED_FRONTIER"
+    }
+  ],
+  "integration_surface": {
+    "functions_added": ["_exp061_leaf_inverse", "_exp061_factor_1x16384"],
+    "counters_added": ["_EXP061_16384_HITS", "_EXP061_16384_INVERSE_CALLS"],
+    "functions_modified": ["custom_kernel (one n==16384 dispatch line + one counter line)"],
+    "shared_code_untouched": ["_left_looking_large", "_LARGE_CFG", "_tri_inv_recursive", "_mxfp8_panel_update", "_mx_quant_e4m3_blocked", "_factor_1x32768_blocked_inverse", "_trsm_free_inverse_16384", "_exp057_tri_inv_leaf32_kernel"],
+    "load_inline_count": "unchanged (4)",
+    "note": "1x16384 and 1x32768 dispatch through DIFFERENT private factor functions, not through the shared _left_looking_large, so this diff does not overlap the sibling worker's region at all."
+  }
+}

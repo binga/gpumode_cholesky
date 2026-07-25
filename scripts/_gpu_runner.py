@@ -3080,11 +3080,549 @@ def main():
         result = run_n256phase(filter_ns)
     elif mode == "pairedgrid":
         result = run_pairedgrid(filter_ns)
+    elif mode == "diag61proto":
+        result = run_diag61proto(filter_ns)
+    elif mode == "diag61probe":
+        result = run_diag61probe(filter_ns)
     elif mode == "familygrid":
         result = run_familygrid(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)
+
+
+
+
+# ---------------------------------------------------------------------------
+# Experiment 061 (1x16384): diagonal-block factorization cost model.
+#
+# The exp-057 shapediag showed `getrf_wo_pivot` (cuSOLVER potrf on the eight
+# 2048x2048 diagonal blocks) is 5010us of 9608us device time. This probe
+# (a) decomposes the shipped 1x16384 path per component with CUDA events and
+# (b) micro-benchmarks candidate replacements for the diagonal factorization.
+# ---------------------------------------------------------------------------
+def _e61_time(fn, warmup=2, iters=6):
+    for _ in range(warmup):
+        fn()
+    torch.cuda.synchronize()
+    durations = []
+    for _ in range(iters):
+        _l2_flush()
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        fn()
+        end.record()
+        torch.cuda.synchronize()
+        durations.append(start.elapsed_time(end) * 1e3)
+    return _median(durations)
+
+
+def _e61_blocked_potrf(mat, leaf, tf32, inv_apply=False, inner_leaf=0):
+    """Right-looking blocked potrf on a copy of `mat` (small diagonal block).
+    Leaf factorizations go to cuSOLVER (or recursively to a smaller blocked
+    potrf when `inner_leaf`), trailing updates run as GEMMs."""
+    a = mat.clone()
+    m = a.shape[0]
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = tf32
+        for i in range(0, m, leaf):
+            j = i + leaf
+            a11 = a[i:j, i:j]
+            if inner_leaf:
+                l11 = _e61_blocked_potrf(a11, inner_leaf, tf32)
+            else:
+                l11 = torch.linalg.cholesky_ex(a11, check_errors=False).L
+            a[i:j, i:j] = l11
+            if j >= m:
+                break
+            a21 = a[j:, i:j]
+            if inv_apply:
+                import submission as _sub
+
+                inverse = _sub._trsm_free_inverse_16384(l11)
+                l21 = a21 @ inverse.transpose(-1, -2)
+            else:
+                l21 = torch.linalg.solve_triangular(
+                    l11.transpose(-1, -2), a21, upper=True, left=False
+                )
+            a[j:, i:j] = l21
+            a[j:, j:].addmm_(
+                l21, l21.transpose(-1, -2), beta=1.0, alpha=-1.0
+            )
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return torch.tril(a)
+
+
+def _e61_components(mat, iters=3):
+    """Per-component CUDA-event decomposition of _factor_1x16384_trsm_free."""
+    import submission as _sub
+
+    n = 16384
+    nb = 2048
+    totals = {
+        "zeros_like": 0.0,
+        "blockcol_copy": 0.0,
+        "blockcol_gemm": 0.0,
+        "potrf": 0.0,
+        "store_lkk": 0.0,
+        "inverse": 0.0,
+        "apply_inverse": 0.0,
+    }
+
+    def _ev():
+        return torch.cuda.Event(enable_timing=True)
+
+    for _ in range(iters):
+        torch.cuda.synchronize()
+        marks = []
+        previous = torch.backends.cuda.matmul.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = True
+            s = _ev()
+            s.record()
+            factor = torch.zeros_like(mat)
+            e = _ev()
+            e.record()
+            marks.append(("zeros_like", s, e))
+            for k in range(0, n, nb):
+                j = k + nb
+                s = _ev()
+                s.record()
+                block = mat[k:, k:j].contiguous()
+                e = _ev()
+                e.record()
+                marks.append(("blockcol_copy", s, e))
+                if k:
+                    s = _ev()
+                    s.record()
+                    block.addmm_(
+                        factor[k:, :k],
+                        factor[k:j, :k].transpose(-1, -2),
+                        beta=1.0,
+                        alpha=-1.0,
+                    )
+                    e = _ev()
+                    e.record()
+                    marks.append(("blockcol_gemm", s, e))
+                s = _ev()
+                s.record()
+                lkk = torch.linalg.cholesky_ex(
+                    block[:nb], check_errors=False
+                ).L
+                e = _ev()
+                e.record()
+                marks.append(("potrf", s, e))
+                s = _ev()
+                s.record()
+                factor[k:j, k:j] = lkk
+                e = _ev()
+                e.record()
+                marks.append(("store_lkk", s, e))
+                if j >= n:
+                    break
+                s = _ev()
+                s.record()
+                inverse = _sub._trsm_free_inverse_16384(lkk)
+                e = _ev()
+                e.record()
+                marks.append(("inverse", s, e))
+                s = _ev()
+                s.record()
+                factor[j:, k:j] = block[nb:] @ inverse.transpose(-1, -2)
+                e = _ev()
+                e.record()
+                marks.append(("apply_inverse", s, e))
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous
+        torch.cuda.synchronize()
+        for name, s, e in marks:
+            totals[name] += s.elapsed_time(e) * 1e3
+        del factor
+    return {k: v / iters for k, v in totals.items()}
+
+
+def run_diag61probe(filter_ns=None):
+    import submission as _sub
+
+    rows = []
+    print("== cuSOLVER potrf cost model ==", flush=True)
+    model = []
+    for m in (128, 256, 512, 1024, 2048, 4096):
+        block = generate_input(batch=1, n=m, cond=2, seed=70000 + m)[
+            0
+        ].contiguous()
+        us = _e61_time(
+            lambda b=block: torch.linalg.cholesky_ex(
+                b, check_errors=False
+            ).L
+        )
+        model.append({"m": m, "us": us})
+        print(f"  cusolver potrf m={m:<5} {us:>9.1f}us", flush=True)
+        del block
+    torch.cuda.empty_cache()
+
+    print("== 2048 diagonal-block factorizer candidates ==", flush=True)
+    block = generate_input(batch=1, n=2048, cond=2, seed=224466)[
+        0
+    ].contiguous()
+
+    def _bench(name, fn):
+        try:
+            out = fn()
+            torch.cuda.synchronize()
+            margin = _recon_margin(block.unsqueeze(0), out.unsqueeze(0))
+            us = _e61_time(fn)
+        except Exception as exc:
+            print(f"  {name:<28} FAILED {exc!r}", flush=True)
+            rows.append({"name": name, "error": repr(exc)})
+            return
+        rows.append({"name": name, "us": us, "tol_frac": margin})
+        print(
+            f"  {name:<28} {us:>9.1f}us  tol_frac={margin:.3e} "
+            f"({margin * 20.0:.3f}/20)",
+            flush=True,
+        )
+
+    _bench(
+        "cusolver_2048",
+        lambda: torch.linalg.cholesky_ex(block, check_errors=False).L,
+    )
+    for leaf in (128, 256, 512, 1024):
+        for tf32 in (True, False):
+            tag = "tf32" if tf32 else "fp32"
+            _bench(
+                f"blocked_leaf{leaf}_{tag}",
+                lambda lf=leaf, t=tf32: _e61_blocked_potrf(block, lf, t),
+            )
+    _bench(
+        "blocked_leaf512_inner128",
+        lambda: _e61_blocked_potrf(block, 512, True, inner_leaf=128),
+    )
+    _bench(
+        "blocked_leaf1024_inner256",
+        lambda: _e61_blocked_potrf(block, 1024, True, inner_leaf=256),
+    )
+    _bench(
+        "blocked_leaf256_invapply",
+        lambda: _e61_blocked_potrf(block, 256, True, inv_apply=True),
+    )
+    del block
+    torch.cuda.empty_cache()
+
+    print("== shipped 1x16384 component decomposition ==", flush=True)
+    data = generate_input(batch=1, n=16384, cond=2, seed=112233)
+    mat = data[0].contiguous()
+    torch.cuda.synchronize()
+    components = _e61_components(mat)
+    total = sum(components.values())
+    for name, us in sorted(
+        components.items(), key=lambda kv: -kv[1]
+    ):
+        print(
+            f"  {name:<18} {us:>9.1f}us  ({100.0 * us / total:.1f}%)",
+            flush=True,
+        )
+    print(f"  {'TOTAL':<18} {total:>9.1f}us", flush=True)
+    del data, mat
+    torch.cuda.empty_cache()
+
+    return {
+        "mode": "diag61probe",
+        "device": torch.cuda.get_device_name(0),
+        "cusolver_model": model,
+        "candidates": rows,
+        "components": components,
+        "components_total_us": total,
+        "passed": True,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Experiment 061 probe 2: whole-shape 1x16384 prototypes.
+#
+# Probe 1 proved the cuSOLVER diagonal potrf is serial-latency-bound at
+# ~0.33us/row and that op-level blocking of it always loses, so these
+# prototypes leave the diagonal alone and attack the other 48%: the copy /
+# allocation traffic and the TF32 GEMM precision.
+# ---------------------------------------------------------------------------
+_E61_N = 16384
+_E61_NB = 2048
+
+
+def _e61_leaf_inverse(lower, inverse):
+    """exp057 trsm-free inverse writing into a caller-owned buffer. Every
+    region that is ever non-zero is fully overwritten each call, so the
+    buffer only has to be zeroed once by the caller."""
+    import submission as _sub
+
+    n = lower.shape[0]
+    lower = lower.contiguous()
+    count = n // 32
+    _sub._exp057_tri_inv_leaf32_kernel[(count * 32,)](
+        lower, inverse, n=n, base=32, num_warps=1
+    )
+    size = 32
+    while size < n:
+        step = 2 * size
+        shape = (n // step, size, size)
+        stride = (step * n + step, n, 1)
+        inv11 = inverse.as_strided(shape, stride, 0)
+        inv22 = inverse.as_strided(shape, stride, size * n + size)
+        low21 = lower.as_strided(shape, stride, size * n)
+        dest = inverse.as_strided(shape, stride, size * n)
+        inner = torch.bmm(low21, inv11)
+        torch.baddbmm(dest, inv22, inner, beta=0.0, alpha=-1.0, out=dest)
+        size = step
+    return inverse
+
+
+def _e61_proto_control(mat, st):
+    import submission as _sub
+
+    n, nb = _E61_N, _E61_NB
+    factor = torch.zeros_like(mat)
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            block = mat[k:, k:j].contiguous()
+            if k:
+                block.addmm_(
+                    factor[k:, :k],
+                    factor[k:j, :k].transpose(-1, -2),
+                    beta=1.0,
+                    alpha=-1.0,
+                )
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if j >= n:
+                break
+            inverse = _sub._trsm_free_inverse_16384(lkk)
+            factor[j:, k:j] = block[nb:] @ inverse.transpose(-1, -2)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return factor
+
+
+def _e61_proto_v1(mat, st):
+    """Allocation / copy hygiene only. Same arithmetic as the control."""
+    n, nb = _E61_N, _E61_NB
+    factor = st["factor"]
+    factor.zero_()
+    scratch = st["scratch"]
+    invbuf = st["invbuf"]
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            rows = n - k
+            if k:
+                block = scratch[:rows]
+                block.copy_(mat[k:, k:j])
+                block.addmm_(
+                    factor[k:, :k],
+                    factor[k:j, :k].transpose(-1, -2),
+                    beta=1.0,
+                    alpha=-1.0,
+                )
+            else:
+                block = mat[:, :nb]
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if j >= n:
+                break
+            inverse = _e61_leaf_inverse(lkk, invbuf)
+            torch.mm(
+                block[nb:],
+                inverse.transpose(-1, -2),
+                out=factor[j:, k:j],
+            )
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return factor
+
+
+def _e61_proto_v2(mat, st, fp16_apply=False):
+    """V1 + a persistent FP16 shadow of the factor driving the left-looking
+    block-column GEMM (FP32 accumulate). FP16 and TF32 carry the same 11-bit
+    effective mantissa, so this trades no precision for ~2.5x tensor-core
+    throughput; only the exponent range narrows, and the shipped isfinite
+    guard already covers that."""
+    n, nb = _E61_N, _E61_NB
+    factor = st["factor"]
+    factor.zero_()
+    scratch = st["scratch"]
+    invbuf = st["invbuf"]
+    shadow = st["shadow"]
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            rows = n - k
+            if k:
+                block = scratch[:rows]
+                torch.mm(
+                    shadow[k:, :k],
+                    shadow[k:j, :k].transpose(-1, -2),
+                    out_dtype=torch.float32,
+                    out=block,
+                )
+                torch.sub(mat[k:, k:j], block, out=block)
+            else:
+                block = mat[:, :nb]
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if j >= n:
+                break
+            inverse = _e61_leaf_inverse(lkk, invbuf)
+            if fp16_apply:
+                torch.mm(
+                    block[nb:].to(torch.float16),
+                    inverse.transpose(-1, -2).to(torch.float16),
+                    out_dtype=torch.float32,
+                    out=factor[j:, k:j],
+                )
+            else:
+                torch.mm(
+                    block[nb:],
+                    inverse.transpose(-1, -2),
+                    out=factor[j:, k:j],
+                )
+            shadow[k:, k:j].copy_(factor[k:, k:j])
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return factor
+
+
+def _e61_proto_v3(mat, st):
+    return _e61_proto_v2(mat, st, fp16_apply=True)
+
+
+def run_diag61proto(filter_ns=None):
+    n, nb = _E61_N, _E61_NB
+    print("== mm out_dtype / out= capability ==", flush=True)
+    caps = {}
+    a = torch.randn(256, 256, device="cuda", dtype=torch.float16)
+    c = torch.empty(256, 256, device="cuda", dtype=torch.float32)
+    for name, fn in (
+        ("mm_out_dtype", lambda: torch.mm(a, a, out_dtype=torch.float32)),
+        (
+            "mm_out_dtype_out",
+            lambda: torch.mm(a, a, out_dtype=torch.float32, out=c),
+        ),
+    ):
+        try:
+            fn()
+            torch.cuda.synchronize()
+            caps[name] = True
+        except Exception as exc:
+            caps[name] = repr(exc)
+        print(f"  {name:<20} {caps[name]}", flush=True)
+    del a, c
+
+    print("== big GEMM precision comparison (14336x2048x14336) ==", flush=True)
+    gemm = []
+    lhs = torch.randn(14336, 14336, device="cuda", dtype=torch.float32) * 0.01
+    rhs = torch.randn(2048, 14336, device="cuda", dtype=torch.float32) * 0.01
+    out = torch.empty(14336, 2048, device="cuda", dtype=torch.float32)
+    flops = 2.0 * 14336 * 2048 * 14336
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        us = _e61_time(lambda: torch.mm(lhs, rhs.transpose(0, 1), out=out))
+        gemm.append({"name": "tf32", "us": us, "tflops": flops / us / 1e6})
+        print(f"  tf32   {us:>9.1f}us  {flops / us / 1e6:>7.1f} TFLOP/s", flush=True)
+        lhs16 = lhs.to(torch.float16)
+        rhs16 = rhs.to(torch.float16)
+        try:
+            us = _e61_time(
+                lambda: torch.mm(
+                    lhs16,
+                    rhs16.transpose(0, 1),
+                    out_dtype=torch.float32,
+                    out=out,
+                )
+            )
+            gemm.append({"name": "fp16", "us": us, "tflops": flops / us / 1e6})
+            print(
+                f"  fp16   {us:>9.1f}us  {flops / us / 1e6:>7.1f} TFLOP/s",
+                flush=True,
+            )
+        except Exception as exc:
+            print(f"  fp16   FAILED {exc!r}", flush=True)
+        del lhs16, rhs16
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    del lhs, rhs, out
+    torch.cuda.empty_cache()
+
+    print("== whole-shape 1x16384 prototypes ==", flush=True)
+    data = generate_input(batch=1, n=16384, cond=2, seed=112233)
+    mat = data[0].contiguous()
+    st = {
+        "factor": torch.empty(n, n, device="cuda", dtype=torch.float32),
+        "scratch": torch.empty(n, nb, device="cuda", dtype=torch.float32),
+        "invbuf": torch.zeros(nb, nb, device="cuda", dtype=torch.float32),
+        "shadow": torch.zeros(n, n, device="cuda", dtype=torch.float16),
+    }
+    rows = []
+
+    def _bench(name, fn):
+        try:
+            out = fn()
+            torch.cuda.synchronize()
+            margin = _recon_margin(data, out.unsqueeze(0))
+            good, message = check_implementation(data, out.unsqueeze(0).clone())
+            us = _e61_time(fn, warmup=1, iters=4)
+        except Exception as exc:
+            print(f"  {name:<12} FAILED {exc!r}", flush=True)
+            rows.append({"name": name, "error": repr(exc)})
+            return
+        rows.append(
+            {
+                "name": name,
+                "us": us,
+                "tol_frac": margin,
+                "checker_ok": bool(good),
+                "checker_msg": str(message),
+            }
+        )
+        print(
+            f"  {name:<12} {us:>9.1f}us  resid={margin * 20.0:.3f}/20  "
+            f"checker={'PASS' if good else 'FAIL ' + str(message)}",
+            flush=True,
+        )
+
+    _bench("P0_control", lambda: _e61_proto_control(mat, st))
+    _bench("P1_hygiene", lambda: _e61_proto_v1(mat, st))
+    _bench("P2_fp16shadow", lambda: _e61_proto_v2(mat, st))
+    _bench("P3_fp16_all", lambda: _e61_proto_v3(mat, st))
+
+    base = next((r["us"] for r in rows if r["name"] == "P0_control"), None)
+    if base:
+        for r in rows:
+            if "us" in r:
+                r["speedup_vs_control"] = base / r["us"]
+                print(
+                    f"  {r['name']:<12} speedup vs control = {base / r['us']:.4f}x",
+                    flush=True,
+                )
+    return {
+        "mode": "diag61proto",
+        "device": torch.cuda.get_device_name(0),
+        "caps": caps,
+        "gemm": gemm,
+        "prototypes": rows,
+        "passed": True,
+    }
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,55 @@
+{
+  "mode": "diag61proto",
+  "device": "NVIDIA B200",
+  "caps": {
+    "mm_out_dtype": true,
+    "mm_out_dtype_out": true
+  },
+  "gemm": [
+    {
+      "name": "tf32",
+      "us": 1142.4480080604553,
+      "tflops": 736.8506786100095
+    },
+    {
+      "name": "fp16",
+      "us": 666.6560173034668,
+      "tflops": 1262.7405560982136
+    }
+  ],
+  "prototypes": [
+    {
+      "name": "P0_control",
+      "us": 10096.879959106445,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.0
+    },
+    {
+      "name": "P1_hygiene",
+      "us": 9317.903995513916,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.08359991302417
+    },
+    {
+      "name": "P2_fp16shadow",
+      "us": 8806.367874145508,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.1465430587733831
+    },
+    {
+      "name": "P3_fp16_all",
+      "us": 8700.431823730469,
+      "tol_frac": 0.010530130937695503,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.1605033133605114
+    }
+  ],
+  "passed": true
+}
