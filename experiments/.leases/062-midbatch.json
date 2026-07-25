@@ -3,10 +3,12 @@
   "baseline_commit": "1d657f7",
   "baseline_submission": 907267,
   "baseline_sha256": "06799fb095b9fbccb476e7da2c0567a3d36ba57ccb09ccf278b49149db8814c2",
-  "status": "active",
+  "status": "released",
   "task": "exp062 tiny-batch mid shapes",
   "target_region": "batch=2,n=2048 and batch=2,n=4096",
   "worktree": "/Users/phani/projects/gpumode_cholesky/.claude/worktrees/exp062-midbatch",
   "owner": "claude-code-job-a7d014b6",
-  "owner_note": "Two non-overlapping mid shapes, both currently on the vendor serial path. Popcorn ranked submissions serialized under this lease."
+  "owner_note": "Two non-overlapping mid shapes, both currently on the vendor serial path. Popcorn ranked submissions serialized under this lease.",
+  "released_at": "2026-07-25T17:30:00+00:00",
+  "result": "Ranked #909269 ADOPTED: public 745.765 -> 733.540us (-1.64%), secret 741.378 -> 721.821us (-2.64%). 2x2048 1.1482x, 2x4096 1.2754x, full-grid geomean 1.0256, all_shapes_ok. Source ship-v5.py sha f408a020ea94. Fell short of the +10% goal, which needs 2.204x per shape from 2 of 15 shapes."
 }

@@ -216,3 +216,35 @@ triangular inverse folded into the chain (round-1's Gauss-Jordan, which was
 numerically correct) or the block's serial phases overlapped with its parallel
 phases via named barriers -- plus an fp16 trailing update to cut the ~330us /
 ~850us non-diagonal driver cost.
+
+## Ranked outcome — `#909269` (adopted)
+
+Source `ship-v5.py`, sha256 `f408a020ea94c062c9d44693f4ed3c47cd47b6edbfbce77c6c12c80164d6f163`.
+All three Popcorn runs passed (test, benchmark, leaderboard).
+
+| split | incumbent `#907267` | `#909269` | change |
+|---|---:|---:|---:|
+| public | 745.765us | **733.540us** | **-1.64%** |
+| secret | 741.378us | **721.821us** | **-2.64%** |
+| mean of splits | — | — | **-2.14%** |
+
+The paired grid predicted +2.6% and the secret split delivered +2.64%, so the
+local harness remains trustworthy for this shape family.
+
+`ship-v6.py` (the merged-extension layout, grid 1.0261) is banked and untested
+on Popcorn; it is the better base for the next round because it keeps the
+extension count at two.
+
+## Next levers, in expected-value order
+
+1. **Fold the triangular inverse back into the pivot chain.** Round 1's
+   Gauss-Jordan computed L and inv(L) in one pass and was numerically correct
+   (inverse error 2.4e-07). Today chain + triinv cost 14.9 + 14.6 = 29.5us of
+   a 48us block; a fused chain should land near 20us.
+2. **Overlap the block's serial and parallel phases** with named barriers:
+   warps 1-7 update only the next 32x32 pivot tile, then warp 0 starts the next
+   chain while they finish the rest of the trailing update.
+3. **fp16 trailing update** in the driver. The non-diagonal cost is ~330us at
+   2x2048 and ~850us at 2x4096, dominated by TF32 rank-k GEMMs running at
+   ~17% of the measured 736.9 TFLOP/s TF32 peak. exp 061 measured fp16 at
+   1262.7 TFLOP/s with no accuracy cost at n>=1024.
