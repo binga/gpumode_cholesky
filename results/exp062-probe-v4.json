@@ -1,0 +1,128 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "diag128_block",
+      "us": 50.29,
+      "ns_per_row": 392.9,
+      "ok": true
+    },
+    {
+      "name": "diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "phase_load",
+      "us": 3.516,
+      "cycles": 8552,
+      "pct": 7.0,
+      "ok": true
+    },
+    {
+      "name": "phase_chain",
+      "us": 15.682,
+      "cycles": 38139,
+      "pct": 31.2,
+      "ok": true
+    },
+    {
+      "name": "phase_triinv",
+      "us": 15.088,
+      "cycles": 36695,
+      "pct": 30.0,
+      "ok": true
+    },
+    {
+      "name": "phase_panel",
+      "us": 2.285,
+      "cycles": 5557,
+      "pct": 4.5,
+      "ok": true
+    },
+    {
+      "name": "phase_stageP+Qt",
+      "us": 4.574,
+      "cycles": 11125,
+      "pct": 9.1,
+      "ok": true
+    },
+    {
+      "name": "phase_commit",
+      "us": 1.477,
+      "cycles": 3593,
+      "pct": 2.9,
+      "ok": true
+    },
+    {
+      "name": "phase_trailing+inv",
+      "us": 6.015,
+      "cycles": 14630,
+      "pct": 12.0,
+      "ok": true
+    },
+    {
+      "name": "phase_store",
+      "us": 1.651,
+      "cycles": 4016,
+      "pct": 3.3,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x2048",
+      "us": 1368.8,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo512",
+      "us": 1135.7,
+      "speedup": 1.2053,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo1024",
+      "us": 1132.9,
+      "speedup": 1.2082,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo2048",
+      "us": 1140.2,
+      "speedup": 1.2005,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x4096",
+      "us": 3217.0,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo512",
+      "us": 2520.2,
+      "speedup": 1.2765,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo1024",
+      "us": 2470.6,
+      "speedup": 1.3021,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo2048",
+      "us": 2458.7,
+      "speedup": 1.3084,
+      "abs_err": 5.9e-05,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

@@ -44,7 +44,7 @@ ANCHOR_DISPATCH = (
     "    # Few-but-large matrices: avoid cusolverDnSpotrfBatched"
 )
 ANCHOR_GLOBALS = (
-    "    global _EXP057_V2_HITS, _EXP058_V1_HITS\n"
+    "    global _EXP057_V2_HITS, _EXP058_V1_HITS, _EXP061_16384_HITS\n"
 )
 
 DISPATCH_BLOCK = """    # Experiment 062: tiny-batch mid shapes. The vendor factorization runs
@@ -113,7 +113,7 @@ def build(variant: str, tail_name: str = TAIL_DEFAULT) -> str:
         ANCHOR_EXT_CPP,
         ANCHOR_EXT_CPP
         + '                "\\nvoid e62_diag128_launch(torch::Tensor, '
-        'torch::Tensor, int64_t, int64_t);"\n',
+        'torch::Tensor, int64_t, int64_t, torch::Tensor);"\n',
     )
     out = out.replace(
         ANCHOR_EXT_SRC,
