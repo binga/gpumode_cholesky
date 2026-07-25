@@ -21,7 +21,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 BASELINE = HERE / "baseline-907267.py"
 BASELINE_SHA = "06799fb095b9fbccb476e7da2c0567a3d36ba57ccb09ccf278b49149db8814c2"
-TAIL = HERE / "tail-v1.py"
+TAIL_DEFAULT = "tail-v3.py"
 
 # --- anchors that must appear exactly once in the baseline -------------------
 
@@ -80,12 +80,12 @@ def _require(src, anchor, label):
         )
 
 
-def build(variant: str) -> str:
+def build(variant: str, tail_name: str = TAIL_DEFAULT) -> str:
     base = BASELINE.read_text()
     got = hashlib.sha256(base.encode()).hexdigest()
     if got != BASELINE_SHA:
         raise SystemExit(f"baseline hash mismatch: {got}")
-    tail = TAIL.read_text()
+    tail = (HERE / tail_name).read_text()
 
     if variant == "probe":
         return base + tail
@@ -128,14 +128,17 @@ def build(variant: str) -> str:
         '                       "micro32_launch", "e62_diag128_launch"],\n',
     )
     out = out.replace(ANCHOR_GLOBALS, ANCHOR_GLOBALS + GLOBALS_LINE)
+    tail = tail.replace(
+        "_EXP062_COMBINED = None", "_EXP062_COMBINED = _CUDA128"
+    )
     out = out.replace(ANCHOR_DISPATCH, DISPATCH_BLOCK + ANCHOR_DISPATCH)
     return out + tail
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         raise SystemExit(__doc__)
-    text = build(sys.argv[1])
+    text = build(sys.argv[1], sys.argv[3] if len(sys.argv) == 4 else TAIL_DEFAULT)
     pathlib.Path(sys.argv[2]).write_text(text)
     print(
         f"wrote {sys.argv[2]} ({len(text.splitlines())} lines, "

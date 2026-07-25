@@ -1,0 +1,106 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "chain32_v2",
+      "us": 2.025,
+      "ns_per_pivot": 63.3,
+      "ok": true
+    },
+    {
+      "name": "chain32_v3",
+      "us": 22.6556,
+      "ns_per_pivot": 708.0,
+      "ok": true
+    },
+    {
+      "name": "diag128_block_v2",
+      "us": 88.176,
+      "ns_per_row": 688.9,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "diag128_block_v3",
+      "us": 162.55,
+      "ns_per_row": 1269.9,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "restore_copy_overhead",
+      "us": 18.235,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x2048",
+      "us": 1381.4,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_v2_nbo512",
+      "us": 1765.8,
+      "speedup": 0.7823,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_v2_nbo1024",
+      "us": 1762.0,
+      "speedup": 0.784,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_v3_nbo512",
+      "us": 2938.9,
+      "speedup": 0.47,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_v3_nbo1024",
+      "us": 2931.1,
+      "speedup": 0.4713,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x4096",
+      "us": 3221.1,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_v2_nbo512",
+      "us": 3796.5,
+      "speedup": 0.8484,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_v2_nbo1024",
+      "us": 3712.2,
+      "speedup": 0.8677,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_v3_nbo512",
+      "us": 6146.5,
+      "speedup": 0.5241,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_v3_nbo1024",
+      "us": 6065.6,
+      "speedup": 0.531,
+      "abs_err": 5.9e-05,
+      "ok": true
+    }
+  ],
+  "passed": true
+}
