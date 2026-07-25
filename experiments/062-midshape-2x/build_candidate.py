@@ -47,6 +47,14 @@ ANCHOR_GLOBALS = (
     "    global _EXP057_V2_HITS, _EXP058_V1_HITS, _EXP061_16384_HITS\n"
 )
 
+ANCHOR_HOIST = (
+    "if torch.cuda.is_available():\n"
+    "    try:\n"
+    "        from torch.utils.cpp_extension import load_inline\n"
+    "\n"
+    "        _CUDA128 = load_inline(\n"
+)
+
 DISPATCH_BLOCK = """    # Experiment 062: tiny-batch mid shapes. The vendor factorization runs
     # once per matrix and is dependent-pivot-latency bound, so it costs c*n per
     # matrix regardless of batch. The blocked path factors both matrices with
@@ -140,6 +148,16 @@ def build(variant: str, tail_name: str = TAIL_DEFAULT) -> str:
     tail = tail.replace(
         "_EXP062_COMBINED = None", "_EXP062_COMBINED = _CUDA128"
     )
+    # The combined load_inline runs at import time, long before the appended
+    # tail. Hoist the CUDA source string above it, or the merged build dies
+    # with NameError and every pre-existing CUDA fast path silently vanishes.
+    key = '_EXP062_SOURCE = r"""'
+    i = tail.index(key)
+    j = tail.index('"""', i + len(key)) + 3
+    source_decl = tail[i:j]
+    tail = tail[:i] + tail[j:]
+    _require(out, ANCHOR_HOIST, "hoist")
+    out = out.replace(ANCHOR_HOIST, source_decl + "\n\n" + ANCHOR_HOIST)
     out = out.replace(ANCHOR_DISPATCH, DISPATCH_BLOCK + ANCHOR_DISPATCH)
     return out + tail
 
