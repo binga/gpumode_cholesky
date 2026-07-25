@@ -2541,3 +2541,106 @@ serialized ranked submission.
 Artifacts: `experiments/057-large-16384/`,
 `experiments/058-large-32768/`, and
 `experiments/059-two-large-incremental/`.
+
+---
+
+## Session 48 — 2026-07-25 — Experiment 061: two large shapes → ranked #907267
+
+**Goal (user):** pick two large shapes, improve leaderboard geomean by at least
+10%, submit incremental wins as they appear. Kernel-audit workflow excluded.
+Frozen campaign baseline remains ranked `#890798`, public 801.977179us /
+secret 847.836164us.
+
+**Verdict: ADOPTED. Secret −12.556%, public −7.009%, mean of splits −9.860%.**
+
+Shapes: `1×16384` and `1×32768` (continuing the campaign's selection). Three
+ranked submissions landed this session.
+
+### The diagnostic that redirected the campaign
+
+Every recent large-n experiment had been tuning the low-precision trailing
+GEMM. The B200 kernel profiles say that is the wrong target:
+
+| shape | `getrf_wo_pivot` (diagonal potrf) | elementwise | MXFP8 GEMM |
+|---|---:|---:|---:|
+| `1×16384` | 5010us (**52.1%**) | 1305us (13.6%) | — |
+| `1×32768` | 11167us (**36.3%**) | 5003us (16.3%) | 2195us (7.1%) |
+
+The MXFP8 path that exps 034/052/058 spent their budget on is **7%** of the
+32768 shape, and the leftover TF32 GEMMs (~16.6%) cost more than twice as much.
+This retroactively explains exp057 V3's "fp16 gained 0.6%" — a correct
+measurement of the wrong lever.
+
+**cuSOLVER `potrf` is serial-latency-bound, ~0.33us/row** (m=128…4096 measured
+61.6/103.4/186.7/348.5/676.4/1537.9us — near-*linear*, not cubic). Hence total
+diagonal cost is `c·n` **independent of nb**, which kills nb tuning outright,
+and all twelve PyTorch-op blocked diagonal replacements lost to one cuSOLVER
+call (best 1.6× slower, worst 3.8×). The only remaining lever there needs the
+whole nb×nb block in one launch; a 2048² fp32 block is 16MB against 228KB of
+shared memory per SM, so it requires a grid-wide barrier. Left open.
+
+### What shipped
+
+| shape | mechanism | paired speedup |
+|---|---|---:|
+| `1×16384` | fp16 factor shadow + allocation/copy hygiene | **1.15555×** |
+| `1×32768` | Triton block-move + `mm_out`, then diagonal SYRK merged into the MXFP8 block column | **1.27988×** |
+
+The 32768 v1 hygiene step targeted 5003us (16.3%) sitting in
+`at::native::elementwise_kernel<128,2>` at only ~2.0 TB/s — PyTorch's generic
+OffsetCalculator path, taken because every block move has a strided operand.
+
+Both shape diffs are dispatched by `n ==` branches and **three-way merged with
+zero conflicts** on both rounds.
+
+### Ranked results
+
+| id | public | secret | vs frozen `#890798` |
+|---|---:|---:|---|
+| `#906955` | 760.877 → 760.413us | 758.096us | −5.18% / −10.58% |
+| `#907206` | 747.870us | 766.468us | −6.75% / −9.60% |
+| **`#907267`** | **745.765us** | **741.378us** | **−7.01% / −12.56%** |
+
+`#907206`'s secret regressed 1.10% while public improved exactly as the paired
+grid predicted (−1.65% actual vs −1.71% predicted); that was secret-split
+variance, and `#907267` then improved both splits together.
+
+### Rejected, with reasons
+
+- **MXFP8 left-looking GEMM at 16384** was 4% faster but moved the residual
+  0.211 → **12.484 of 20**, cutting margin from 95× to 1.6×. The shipped
+  `isfinite` guard catches NaN/Inf but *not* accuracy loss, so at 1.6× a harder
+  secret input fails the checker outright with no fallback. Not worth 4% on one
+  of fifteen shapes.
+- **Zeroing only the strict block-upper** instead of a full memset: slower
+  (0.986×) — 7 strided slice-zero launches cost more than the 600MB fill.
+
+### Corrections worth carrying forward
+
+- **`_LARGE_CFG` / `_left_looking_large` is dead code for both large shapes.**
+  `custom_kernel` dispatches 16384 → `_factor_1x16384_trsm_free` and 32768 →
+  `_factor_1x32768_blocked_inverse` directly.
+- **`torch.linalg.cholesky_ex(...).L` is column-major.** A `stride(1)==1` guard
+  on it raises, the safety chain swallows it, and the run silently measures the
+  slow fallback — reading as a 0.63× regression rather than a crash. Cost one
+  full n=32768 Modal run. Always require empty `new_fallbacks` plus the expected
+  counters before believing a paired number.
+- **`familygrid` reports `passed: false` whenever any fallback fires.** The five
+  inherited safety cases (`1x16384` spectrum/lowrank, `1x32768`
+  spectrum/lowrank/rowscale) are recorded in
+  `060-two-large-followup/combined-v1-family-comparison.json`; reproducing only
+  that set is *not* a regression.
+- **No persistent FP8 shadow is possible** with the shipped quantizer: in
+  `_mx_quant_e4m3_blocked_kernel` the scale tile index depends on total K, so
+  per-block-column scales cannot be concatenated into the layout the GEMM needs.
+
+### Not achieved
+
+Public −10% was not reached. Two shapes carry only 2/15 of the geomean exponent,
+so −10% public needs ~1.48× on *each*; the delivered 1.156× and 1.280× give
+−7.0%. Closing the rest requires the diagonal, which is pinned by cuSOLVER's
+~0.33us/row and needs a single-launch resident-block kernel.
+
+Artifacts: `experiments/061-16384-fp8panel/` (branch `codex/exp061-16384`),
+`experiments/061-32768-overhead/` (branch `codex/exp061-32768`), and
+`experiments/061-two-large-round3/`.
