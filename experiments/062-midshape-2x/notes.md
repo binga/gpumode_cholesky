@@ -107,3 +107,55 @@ Compiled with `-Xptxas -v` so register and spill counts are printed.
   is no large register array to spill at all.
 - an isolated `e62_chainbench` that reports **ns per pivot** for each design
   with no block setup, panel or trailing work in the way.
+
+## Round 3 — `results/exp062-probe-v3.json`
+
+4x4 register tiling over a staged transpose, `float4`-legal row stride, and
+`clock64` phase accounting. **153.77 -> 62.221us per block.** Phase table:
+
+| phase | us | pct |
+|---|---:|---:|
+| triinv | 18.52 | 29.8 |
+| chain | 15.07 | 24.2 |
+| load | 12.35 | 19.9 |
+| trailing+inv | 5.83 | 9.4 |
+| stageP+Qt | 4.53 | 7.3 |
+| store/panel/commit | 5.93 | 9.5 |
+
+The GEMM phases collapsed from ~80us to 13.9us, confirming the round-2
+diagnosis. Whole-shape 2x2048 1.022x, 2x4096 1.116x.
+
+## Round 4 — `results/exp062-probe-v4.json`
+
+Two-level blocked triangular inverse (16 dependent steps instead of 32) and
+`float4` global load/store. **62.221 -> 50.290us per block**, 162 registers,
+zero spills.
+
+| phase | round 3 | round 4 |
+|---|---:|---:|
+| load | 12.35 | **3.52** |
+| store | 2.44 | **1.65** |
+| triinv | 18.52 | **15.09** |
+| chain | 15.07 | 15.68 |
+
+The inverse did *not* fall as far as the halved chain length predicted — its
+cost is dominated by the two 16x16x16 coupling products in a single warp, not
+by the substitution chain. Whole-shape: 2x2048 **1.208x**, 2x4096 **1.308x**.
+
+## The full-grid gate earns its keep
+
+First ship build measured **geomean 0.8403 — a 16% regression** — while both
+enrolled shapes were exactly on target (2x2048 **1.1517x**, 2x4096
+**1.2680x**, `_EXP062_HITS: 1` on both).
+
+Cause: the ship merge declared `e62_diag128_launch` with **four** parameters
+while rounds 3-4 had added a fifth (the profiling buffer). The signature
+mismatch broke the whole combined `load_inline`, so `_CUDA32`, `_CUDA64`,
+`_CUDA128` and `micro32` all failed to load and five unrelated shapes fell
+back to slow routes: 4096x32 0.458x, 1024x64 0.275x, 256x128 0.478x,
+640x512 0.912x, 60x1024 0.919x.
+
+**A 57/57 correctness pass cannot catch this** — every fallback is numerically
+correct, only slower. The paired grid's per-shape `candidate_counters` are the
+only signal that the fast paths vanished. Always diff baseline vs candidate
+counters before trusting any merged-extension build.
