@@ -1,0 +1,246 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "combined_ext",
+      "us": 0.0,
+      "ok": true,
+      "error": "None"
+    },
+    {
+      "name": "v0_diag128_block",
+      "us": 48.902,
+      "ns_per_row": 382.0,
+      "ok": true
+    },
+    {
+      "name": "v0_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_load",
+      "us": 3.232,
+      "cycles": 8148,
+      "pct": 6.6,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_chain",
+      "us": 15.22,
+      "cycles": 38375,
+      "pct": 31.1,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_triinv",
+      "us": 14.918,
+      "cycles": 37614,
+      "pct": 30.5,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_panel",
+      "us": 2.392,
+      "cycles": 6031,
+      "pct": 4.9,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_stageP+Qt",
+      "us": 4.577,
+      "cycles": 11541,
+      "pct": 9.4,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_commit",
+      "us": 1.134,
+      "cycles": 2859,
+      "pct": 2.3,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_trailing+inv",
+      "us": 5.879,
+      "cycles": 14824,
+      "pct": 12.0,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_store",
+      "us": 1.551,
+      "cycles": 3911,
+      "pct": 3.2,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_block",
+      "us": 41.71,
+      "ns_per_row": 325.9,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_err",
+      "us": 0.0,
+      "abs_err": 0.0490309,
+      "inv_err": 0.57271028,
+      "ok": false
+    },
+    {
+      "name": "v1_phase_load",
+      "us": 3.99,
+      "cycles": 8142,
+      "pct": 9.6,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_chain",
+      "us": 18.682,
+      "cycles": 38124,
+      "pct": 44.8,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_triinv",
+      "us": 0.0,
+      "cycles": 0,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_panel",
+      "us": 2.724,
+      "cycles": 5558,
+      "pct": 6.5,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_stageP+Qt",
+      "us": 5.15,
+      "cycles": 10510,
+      "pct": 12.3,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_commit",
+      "us": 1.883,
+      "cycles": 3843,
+      "pct": 4.5,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_trailing+inv",
+      "us": 7.255,
+      "cycles": 14804,
+      "pct": 17.4,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_store",
+      "us": 2.026,
+      "cycles": 4135,
+      "pct": 4.9,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x2048",
+      "us": 1383.7,
+      "ok": true
+    },
+    {
+      "name": "v0_2x2048_nbo1024",
+      "us": 1195.1,
+      "speedup": 1.1578,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "v1_2x2048_nbo1024",
+      "us": 1053.9,
+      "speedup": 1.3129,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_2x4096",
+      "us": 3221.4,
+      "ok": true
+    },
+    {
+      "name": "v0_2x4096_nbo1024",
+      "us": 2501.4,
+      "speedup": 1.2879,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "v1_2x4096_nbo1024",
+      "us": 2299.8,
+      "speedup": 1.4008,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_8x2048",
+      "us": 1616.4,
+      "ok": true
+    },
+    {
+      "name": "v0_8x2048_nbo1024",
+      "us": 1374.9,
+      "speedup": 1.1756,
+      "abs_err": 7.5e-05,
+      "ok": true
+    },
+    {
+      "name": "v1_8x2048_nbo1024",
+      "us": 1273.9,
+      "speedup": 1.2689,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_4x1024",
+      "us": 721.1,
+      "ok": true
+    },
+    {
+      "name": "v0_4x1024_nbo1024",
+      "us": 580.9,
+      "speedup": 1.2413,
+      "abs_err": 0.000108,
+      "ok": true
+    },
+    {
+      "name": "v1_4x1024_nbo1024",
+      "us": 535.3,
+      "speedup": 1.347,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_16x512",
+      "us": 412.2,
+      "ok": true
+    },
+    {
+      "name": "v0_16x512_nbo512",
+      "us": 303.1,
+      "speedup": 1.3601,
+      "abs_err": 0.000146,
+      "ok": true
+    },
+    {
+      "name": "v1_16x512_nbo512",
+      "us": 278.3,
+      "speedup": 1.4815,
+      "abs_err": NaN,
+      "ok": false
+    }
+  ],
+  "passed": false
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "21c50f9",
+  "baseline_submission": 909269,
+  "baseline_sha256": "f408a020ea94c062c9d44693f4ed3c47cd47b6edbfbce77c6c12c80164d6f163",
+  "status": "active",
+  "created_at": "2026-07-25T23:30:00+05:30",
+  "task": "docs/plan-40pct-per-shape.md section 2",
+  "target_region": "e62_diag128 resident 128x128 diagonal-block kernel",
+  "worktree": ".claude/worktrees/agent-a7175228f6fb51b8b",
+  "owner": "claude-code-exp063",
+  "owner_note": "Kernel-local lease on e62_diag128. Enrolled dispatch shapes stay (2,2048) and (2,4096) until a full paired grid says otherwise."
+}
