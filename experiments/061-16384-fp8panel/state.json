@@ -4,8 +4,15 @@
   "lease": "experiments/.leases/061-1x16384.json",
   "worktree": "/private/tmp/gpumode-cholesky-exp061-16384",
   "branch": "codex/exp061-16384",
-  "goal_baseline": {"submission_id": 906955, "commit": "c965e08", "sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175"},
-  "current_incumbent": {"submission_id": 906955, "commit": "c965e08"},
+  "goal_baseline": {
+    "submission_id": 906955,
+    "commit": "c965e08",
+    "sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175"
+  },
+  "current_incumbent": {
+    "submission_id": 906955,
+    "commit": "c965e08"
+  },
   "best_candidate": {
     "file": "experiments/061-16384-fp8panel/candidate-v1-fp16shadow.py",
     "sha256": "6ec2467a7c1be04fc0f9c69b53639607f10ef7be94cc64f79eeee62b0703ba19",
@@ -21,12 +28,32 @@
     "pairedgrid n=16384 vs exact incumbent",
     "familygrid n=16384 six families"
   ],
-  "gates_pending": ["full 15-shape grid (orchestrator, at integration)", "cold-build proof (orchestrator)", "popcorn (orchestrator, serialized)"],
+  "gates_pending": [
+    "full 15-shape grid (orchestrator, at integration)",
+    "cold-build proof (orchestrator)",
+    "popcorn (orchestrator, serialized)"
+  ],
   "modal_jobs": [
-    {"mode": "diag61probe", "artifact": "probe-01-diag.json", "status": "complete"},
-    {"mode": "diag61proto", "artifact": "probe-02-proto.json", "status": "complete"},
-    {"mode": "pairedgrid", "artifact": "variant-01-paired.json", "status": "complete"},
-    {"mode": "familygrid", "artifact": "variant-01-familygrid.json", "status": "complete"}
+    {
+      "mode": "diag61probe",
+      "artifact": "probe-01-diag.json",
+      "status": "complete"
+    },
+    {
+      "mode": "diag61proto",
+      "artifact": "probe-02-proto.json",
+      "status": "complete"
+    },
+    {
+      "mode": "pairedgrid",
+      "artifact": "variant-01-paired.json",
+      "status": "complete"
+    },
+    {
+      "mode": "familygrid",
+      "artifact": "variant-01-familygrid.json",
+      "status": "complete"
+    }
   ],
   "variants_consumed": 1,
   "variants_budget": 6,
@@ -34,7 +61,11 @@
     "nb tuning (diagonal cost is c*n, independent of nb)",
     "PyTorch-op blocked/recursive diagonal factorization (12 configurations, all 1.6-3.8x slower than one cuSOLVER call)",
     "TF32 arithmetic inside the diagonal block (slower AND 500x worse residual)",
-    "panel-GEMM precision as a standalone lever (exp057 V3 measured +0.6%; superseded by the broader fp16 shadow here)"
+    "panel-GEMM precision as a standalone lever (exp057 V3 measured +0.6%; superseded by the broader fp16 shadow here)",
+    "MXFP8 left-looking GEMM (P4: 1.040x vs banked design but residual 0.211 -> 12.484/20, margin 95x -> 1.6x; rejected on accuracy)",
+    "persistent FP8 shadow (impossible: shipped quantizer's scale tile index depends on total K, so the layout is not block-column separable)",
+    "skipping the full-factor memset (P5: slower than one memset; strided slice-zero launches cost more than the fill they remove)"
   ],
-  "next_action": "Optional stretch: single-launch custom diagonal-block kernel. Assessed as out of reach within remaining budget (requires cooperative-grid launch or a spin-barrier persistent kernel; repo failed at this in exp029 and exp050). Report banked frontier."
+  "next_action": "STOP. Banked frontier is experiments/061-16384-fp8panel/candidate-v1-fp16shadow.py at 1.15555x paired, committed b150aa2. All non-diagonal levers closed; the diagonal needs a cooperative-grid kernel excluded by campaign constraints.",
+  "prototypes_measured": 6
 }

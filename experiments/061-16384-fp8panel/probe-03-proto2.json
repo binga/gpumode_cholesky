@@ -1,0 +1,71 @@
+{
+  "mode": "diag61proto",
+  "device": "NVIDIA B200",
+  "caps": {
+    "mm_out_dtype": true,
+    "mm_out_dtype_out": true
+  },
+  "gemm": [
+    {
+      "name": "tf32",
+      "us": 1120.4479932785034,
+      "tflops": 751.3187538073936
+    },
+    {
+      "name": "fp16",
+      "us": 655.6320190429688,
+      "tflops": 1283.9726638805741
+    }
+  ],
+  "prototypes": [
+    {
+      "name": "P0_control",
+      "us": 10081.648349761963,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.0
+    },
+    {
+      "name": "P1_hygiene",
+      "us": 9298.783779144287,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.0841899961555745
+    },
+    {
+      "name": "P2_fp16shadow",
+      "us": 8788.112163543701,
+      "tol_frac": 0.010530481114983559,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.1471915881529509
+    },
+    {
+      "name": "P3_fp16_all",
+      "us": 8674.60823059082,
+      "tol_frac": 0.010530130937695503,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.1622021515864251
+    },
+    {
+      "name": "P4_mxfp8",
+      "us": 8340.943813323975,
+      "tol_frac": 0.6242185831069946,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=12.5; batch=1; n=16384",
+      "speedup_vs_control": 1.2086939530341105
+    },
+    {
+      "name": "P5_nomemset",
+      "us": 8799.66402053833,
+      "tol_frac": 0.010530130937695503,
+      "checker_ok": true,
+      "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+      "speedup_vs_control": 1.1456855996128368
+    }
+  ],
+  "passed": true
+}

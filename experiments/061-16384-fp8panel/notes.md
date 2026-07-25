@@ -118,3 +118,46 @@ not close, and it is the same design the repo already failed at twice (exp029 pe
 kernels, exp050 fused 128x128 diagonal at 422ns/row -- worse than cuSOLVER's 330ns/row).
 It was judged out of reach within this experiment's budget and risk envelope, and is
 reported as an open lever rather than attempted and left half-finished.
+
+## probe-03: both remaining non-diagonal levers are closed
+
+Extended prototype ladder (same harness, same input, `--submission` = the committed v1):
+
+| prototype | us | vs P0 | vs P3 | residual/20 | margin |
+|---|---:|---:|---:|---:|---:|
+| P0 control | 10081.6 | 1.000x | 0.860x | 0.211 | 95.0x |
+| P1 hygiene | 9298.8 | 1.084x | 0.933x | 0.211 | 95.0x |
+| P2 + fp16 shadow | 8788.1 | 1.147x | 0.987x | 0.211 | 95.0x |
+| **P3 + fp16 apply (= shipped v1)** | **8674.6** | **1.162x** | **1.000x** | **0.211** | **95.0x** |
+| P4 MXFP8 left-looking | 8340.9 | 1.209x | 1.040x | **12.484** | **1.6x** |
+| P5 no-memset | 8799.7 | 1.146x | 0.986x | 0.211 | 95.0x |
+
+**P4 (MXFP8) REJECTED on accuracy, not speed.** It is genuinely 4.0% faster than the
+banked design, but it spends the accuracy budget to buy that: residual goes 0.211 -> 12.484
+of 20.0, collapsing the margin from 95x to **1.6x**. The shipped `isfinite` guard only
+catches NaN/Inf, not accuracy loss, so at 1.6x margin a harder secret-set input fails the
+official checker outright with **no graceful fallback**. For comparison the 1x32768 MXFP8
+path -- already the most aggressive thing in the ranked source -- ships at 5.28/20 (3.8x).
+Trading a 95x margin for 1.6x to gain 4% on one of fifteen shapes is not a good trade.
+
+Note this also confirms a persistent FP8 shadow is impossible with the shipped quantizer:
+in `_mx_quant_e4m3_blocked_kernel` the scale tile index is
+`(pid_m // 4) * (columns // 128) + pid_k`, so the layout depends on the **total** K. A
+per-block-column quantization cannot be concatenated into the K=k layout the GEMM needs,
+which is why P4 has to re-quantize the whole growing left operand every step (~1.76GB of
+traffic) and why its speed gain is only 4% despite FP8's raw throughput advantage.
+
+**P5 REJECTED on performance.** Leaving the factor uninitialized and zeroing only the
+strict block-upper triangle -- the sole region the loop never writes -- is *slower* than
+one big memset (8799.7us vs 8674.6us). The 7 strided slice-zero launches cost more than
+the 600MB of fill they remove.
+
+## Final state
+
+Six prototypes and one gated candidate measured. The committed v1 is the best safe point.
+Remaining time on this shape is 57% cuSOLVER diagonal potrf, which probe-01 closed for
+every mechanism reachable without a single-launch custom diagonal kernel; that in turn
+needs a grid-wide barrier (a 2048x2048 fp32 block is 16MB and cannot be shared-memory
+resident), i.e. cooperative launch from a new CUDA extension -- excluded by the campaign's
+constraints -- or a hand-rolled Triton spin barrier, which risks hanging the ranked runner
+for no guaranteed gain. Reported as an open lever rather than attempted.

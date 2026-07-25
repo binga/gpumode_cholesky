@@ -3505,6 +3505,98 @@ def _e61_proto_v3(mat, st):
     return _e61_proto_v2(mat, st, fp16_apply=True)
 
 
+def _e61_proto_v4(mat, st):
+    """P1 hygiene + MXFP8 block-scaled left-looking GEMM (re-quantized each
+    step, because the shipped scale layout's tile index depends on total K and
+    therefore is not block-column separable -- no persistent FP8 shadow is
+    possible with it) + FP16 inverse apply."""
+    import submission as _sub
+
+    n, nb = _E61_N, _E61_NB
+    factor = st["factor"]
+    factor.zero_()
+    scratch = st["scratch"]
+    invbuf = st["invbuf"]
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            if k:
+                block = scratch[: n - k]
+                q_lhs, s_lhs = _sub._mx_quant_e4m3_blocked(factor[k:, :k])
+                q_rhs, s_rhs = _sub._mx_quant_e4m3_blocked(factor[k:j, :k])
+                product = torch._scaled_mm(
+                    q_lhs,
+                    q_rhs.t(),
+                    scale_a=s_lhs,
+                    scale_b=s_rhs,
+                    out_dtype=torch.float32,
+                )
+                torch.sub(mat[k:, k:j], product, out=block)
+                del q_lhs, q_rhs, s_lhs, s_rhs, product
+            else:
+                block = mat[:, :nb]
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if j >= n:
+                break
+            inverse = _e61_leaf_inverse(lkk, invbuf)
+            torch.mm(
+                block[nb:].to(torch.float16),
+                inverse.transpose(-1, -2).to(torch.float16),
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return factor
+
+
+def _e61_proto_v5(mat, st):
+    """P3 + the last of the fill traffic: the factor buffer is left
+    uninitialized and only its strict block-upper triangle -- the sole region
+    the loop never writes -- is zeroed, instead of memsetting all n^2."""
+    n, nb = _E61_N, _E61_NB
+    factor = st["factor"]
+    scratch = st["scratch"]
+    invbuf = st["invbuf"]
+    shadow = st["shadow"]
+    previous = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            if j < n:
+                factor[k:j, j:].zero_()
+            if k:
+                block = scratch[: n - k]
+                torch.mm(
+                    shadow[k:, :k],
+                    shadow[k:j, :k].transpose(-1, -2),
+                    out_dtype=torch.float32,
+                    out=block,
+                )
+                torch.sub(mat[k:, k:j], block, out=block)
+            else:
+                block = mat[:, :nb]
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if j >= n:
+                break
+            _e61_leaf_inverse(lkk, invbuf)
+            torch.mm(
+                block[nb:].to(torch.float16),
+                invbuf.transpose(-1, -2).to(torch.float16),
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+            shadow[k:, k:j].copy_(factor[k:, k:j])
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous
+    return factor
+
+
 def run_diag61proto(filter_ns=None):
     n, nb = _E61_N, _E61_NB
     print("== mm out_dtype / out= capability ==", flush=True)
@@ -3604,6 +3696,8 @@ def run_diag61proto(filter_ns=None):
     _bench("P1_hygiene", lambda: _e61_proto_v1(mat, st))
     _bench("P2_fp16shadow", lambda: _e61_proto_v2(mat, st))
     _bench("P3_fp16_all", lambda: _e61_proto_v3(mat, st))
+    _bench("P4_mxfp8", lambda: _e61_proto_v4(mat, st))
+    _bench("P5_nomemset", lambda: _e61_proto_v5(mat, st))
 
     base = next((r["us"] for r in rows if r["name"] == "P0_control"), None)
     if base:
