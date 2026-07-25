@@ -3266,18 +3266,7 @@ _LARGE_CFG = {
     # quantization + tcgen05 block-scaled MMA) replace the exp-014 per-tensor
     # fp8 pipeline. Requires Triton; _left_looking_large raises without it and
     # custom_kernel's existing fallback chain (exp-013 fp8 path) takes over.
-    # exp 061: `path` selects which 32768-only driver custom_kernel calls.
-    # "exp058" is the ranked blocked-inverse loop; "exp061_v1" is the same
-    # arithmetic with the strided block moves folded into a Triton kernel.
-    # No other n reads this key, and `_left_looking_large` is untouched.
-    32768: dict(
-        nb=4096,
-        panel_mode="mxfp8",
-        diag_mode="tf32",
-        rec_inv=True,
-        shadow=False,
-        path="exp061_v1",
-    ),
+    32768: dict(nb=4096, panel_mode="mxfp8", diag_mode="tf32", rec_inv=True, shadow=False),
 }
 
 
@@ -3532,123 +3521,6 @@ def _factor_1x16384_trsm_free(mat: torch.Tensor) -> torch.Tensor:
     return factor
 
 
-# ---------------------------------------------------------------------------
-# Experiment 061 (1x16384 only): overhead-and-precision rework of the exp-057
-# trsm-free path. Two measured facts drive it (probe-01/probe-02, B200):
-#
-#   * cuSOLVER's diagonal potrf is serial-latency-bound at ~0.33us per row, so
-#     its total cost is ~c*n whatever the block width. Every attempt to rebuild
-#     it out of PyTorch ops measured 1.6-3.8x SLOWER than one cuSOLVER call, so
-#     the diagonal is left exactly as shipped.
-#   * Everything else is copy traffic and TF32 GEMM. Those are addressable:
-#       - one reused block-column scratch and one reused inverse buffer instead
-#         of a fresh allocation + fill per step;
-#       - `torch.mm(..., out=<factor slice>)` instead of materializing the
-#         product and copying it into the factor;
-#       - no block-column copy at all on the first step, which has no update;
-#       - a persistent FP16 shadow of the factor so the left-looking GEMM and
-#         the inverse apply run on FP16 tensor cores with FP32 accumulation.
-#
-# FP16 and TF32 carry the same 11-bit effective mantissa, so the shadow trades
-# no precision for ~1.7x measured GEMM throughput (736.9 -> 1262.7 TFLOP/s);
-# only the exponent range narrows, and the shipped isfinite guard in
-# `custom_kernel` already routes any overflow to the exact fallback chain.
-# Measured residual is unchanged at 0.211 of the 20.0 budget.
-# ---------------------------------------------------------------------------
-_EXP061_16384_HITS = 0
-_EXP061_16384_INVERSE_CALLS = 0
-
-
-def _exp061_leaf_inverse(
-    lower: torch.Tensor, inverse: torch.Tensor
-) -> torch.Tensor:
-    """exp-057's trsm-free triangular inverse writing into a caller-owned
-    buffer. Every region that is ever non-zero is fully overwritten on each
-    call (the base-32 leaves fill their lower triangles, the tree fills whole
-    off-diagonal blocks), so the buffer only has to be zeroed once by the
-    caller instead of once per block column. The `neg` is folded into the
-    second product's alpha rather than run as its own pass."""
-    global _EXP061_16384_INVERSE_CALLS
-    _EXP061_16384_INVERSE_CALLS += 1
-    n = lower.shape[0]
-    if not _HAVE_TRITON or n % 32 or (n & (n - 1)):
-        raise RuntimeError("exp061 Triton base-32 inverse precondition failed")
-    lower = lower.contiguous()
-    count = n // 32
-    _exp057_tri_inv_leaf32_kernel[(count * 32,)](
-        lower,
-        inverse,
-        n=n,
-        base=32,
-        num_warps=1,
-    )
-    size = 32
-    while size < n:
-        step = 2 * size
-        shape = (n // step, size, size)
-        stride = (step * n + step, n, 1)
-        inv11 = inverse.as_strided(shape, stride, 0)
-        inv22 = inverse.as_strided(shape, stride, size * n + size)
-        low21 = lower.as_strided(shape, stride, size * n)
-        dest = inverse.as_strided(shape, stride, size * n)
-        torch.baddbmm(
-            dest,
-            inv22,
-            torch.bmm(low21, inv11),
-            beta=0.0,
-            alpha=-1.0,
-            out=dest,
-        )
-        size = step
-    return inverse
-
-
-def _exp061_factor_1x16384(mat: torch.Tensor) -> torch.Tensor:
-    n = 16384
-    nb = 2048
-    factor = torch.zeros_like(mat)
-    scratch = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
-    inverse = torch.zeros(nb, nb, device=mat.device, dtype=mat.dtype)
-    shadow = torch.empty(n, n, device=mat.device, dtype=torch.float16)
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            j = k + nb
-            if k:
-                block = scratch[: n - k]
-                # FP16 tensor-core left-looking update, FP32 accumulate. The
-                # product lands straight in the scratch and the original block
-                # column is subtracted from it, so no separate copy is needed.
-                torch.mm(
-                    shadow[k:, :k],
-                    shadow[k:j, :k].transpose(-1, -2),
-                    out_dtype=torch.float32,
-                    out=block,
-                )
-                torch.sub(mat[k:, k:j], block, out=block)
-            else:
-                block = mat[:, :nb]
-            lkk = torch.linalg.cholesky_ex(
-                block[:nb],
-                check_errors=False,
-            ).L
-            factor[k:j, k:j] = lkk
-            if j >= n:
-                break
-            _exp061_leaf_inverse(lkk, inverse)
-            torch.mm(
-                block[nb:].to(torch.float16),
-                inverse.transpose(-1, -2).to(torch.float16),
-                out_dtype=torch.float32,
-                out=factor[j:, k:j],
-            )
-            shadow[k:, k:j].copy_(factor[k:, k:j])
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    return factor
-
-
 def _blocked_tri_inv_32768(
     lower: torch.Tensor,
     base: int = 256,
@@ -3752,249 +3624,6 @@ def _factor_1x32768_blocked_inverse(
 
 
 # ---------------------------------------------------------------------------
-# Experiment 061 V1: remove the block-move overhead from the 1x32768 path.
-#
-# The B200 kernel profile of the ranked 32768 path (experiments/061-32768-
-# overhead/baseline-shapediag.json) shows 5003us -- 16.3% of the whole shape --
-# inside `at::native::elementwise_kernel<128, 2, ...>` over 107 launches. That
-# is PyTorch's *generic* (non-vectorized, OffsetCalculator) elementwise path,
-# taken because every block move in the loop has a strided operand: the
-# `mat[...] .contiguous()` clones read a 4096-wide window of a 32768-wide row,
-# and the `factor[...] = ...` stores write one. Measured throughput across
-# those 107 launches is ~2.0 TB/s against ~7 TB/s of achievable HBM bandwidth.
-#
-# V1 keeps the arithmetic of the ranked path bit-for-bit (same TF32 diagonal
-# SYRK, same MXFP8 panel product, same recursive blocked inverse, same FP16
-# solve-apply, same order of operations) and only replaces those moves with a
-# single Triton kernel that knows the stride explicitly, so the loads and
-# stores vectorize. Three moves collapse into one pass each:
-#
-#   * the diagonal clone and the panel clone become strided->contiguous gathers;
-#   * the panel gather also subtracts the MXFP8 product and emits FP16 directly,
-#     folding the old `sub_` and the old `.to(torch.float16)` into the gather;
-#   * the two factor stores become contiguous->strided scatters (and the
-#     solve-apply skips its scatter entirely when `torch.mm` accepts a strided
-#     `out=`, letting cuBLAS write the panel through `ldc` = 32768).
-#
-# Workspaces are allocated once per call instead of per block step.
-# ---------------------------------------------------------------------------
-
-_EXP061_V1_HITS = 0
-_EXP061_MOVE_HITS = 0
-_EXP061_MX_PRODUCT_HITS = 0
-_EXP061_MM_OUT_HITS = 0
-_EXP061_MM_OUT_SUPPORTED = True
-
-_EXP061_STEP_HITS = 0
-_EXP061_ERROR = None
-
-_EXP061_MOVE_BLOCK_M = 16
-_EXP061_MOVE_BLOCK_N = 512
-_EXP061_MOVE_SQUARE = 64
-
-if _HAVE_TRITON:
-
-    @triton.jit
-    def _exp061_block_move_kernel(
-        src_ptr,
-        prod_ptr,
-        out_ptr,
-        rows,
-        cols,
-        stride_src_m,
-        stride_src_n,
-        stride_out_m,
-        stride_out_n,
-        HAS_PROD: tl.constexpr,
-        OUT_FP16: tl.constexpr,
-        BLOCK_M: tl.constexpr,
-        BLOCK_N: tl.constexpr,
-    ):
-        """out[i, j] = src[i, j] - prod[i, j], optionally cast to FP16.
-
-        Both operands carry explicit 2D strides, so a 4096-column window of a
-        32768-wide matrix -- or the column-major factor `torch.linalg.
-        cholesky_ex` hands back -- is moved with vectorized loads instead of
-        PyTorch's generic OffsetCalculator elementwise kernel. `prod`, when
-        present, is always the contiguous (rows, cols) MXFP8 product.
-        """
-        pid_m = tl.program_id(0)
-        pid_n = tl.program_id(1)
-        rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-        rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-        mask = (rm[:, None] < rows) & (rn[None, :] < cols)
-        # 32768x32768 fp32 is 2^30 elements, so offsets are computed in 64-bit
-        # to keep the address arithmetic exact at every block width.
-        row64 = rm[:, None].to(tl.int64)
-        col64 = rn[None, :].to(tl.int64)
-        value = tl.load(
-            src_ptr + row64 * stride_src_m + col64 * stride_src_n,
-            mask=mask,
-            other=0.0,
-        )
-        if HAS_PROD:
-            value = value - tl.load(
-                prod_ptr + row64 * cols + col64,
-                mask=mask,
-                other=0.0,
-            )
-        if OUT_FP16:
-            value = value.to(tl.float16)
-        tl.store(
-            out_ptr + row64 * stride_out_m + col64 * stride_out_n,
-            value,
-            mask=mask,
-        )
-
-
-def _exp061_move(src, out, prod=None, out_fp16=False):
-    """Move `src` (minus `prod`) into `out`, honouring both operands' strides.
-
-    A wide row-major window uses tall-thin tiles for maximal vector width; a
-    transposing move -- `torch.linalg.cholesky_ex` returns its factor in
-    column-major layout -- uses square tiles so both sides stay coalesced.
-    """
-    global _EXP061_MOVE_HITS
-    rows, cols = src.shape
-    if src.stride(1) == 1 and out.stride(1) == 1:
-        block_m = _EXP061_MOVE_BLOCK_M
-        block_n = _EXP061_MOVE_BLOCK_N
-    else:
-        block_m = _EXP061_MOVE_SQUARE
-        block_n = _EXP061_MOVE_SQUARE
-    _exp061_block_move_kernel[
-        (triton.cdiv(rows, block_m), triton.cdiv(cols, block_n))
-    ](
-        src,
-        prod if prod is not None else src,
-        out,
-        rows,
-        cols,
-        src.stride(0),
-        src.stride(1),
-        out.stride(0),
-        out.stride(1),
-        HAS_PROD=prod is not None,
-        OUT_FP16=out_fp16,
-        BLOCK_M=block_m,
-        BLOCK_N=block_n,
-        num_warps=8,
-    )
-    _EXP061_MOVE_HITS += 1
-
-
-def _exp061_mx_product(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    """lhs @ rhs^T on MXFP8 block-scaled tensor cores, returned instead of
-    subtracted in place -- the subtraction is folded into the panel gather."""
-    global _EXP061_MX_PRODUCT_HITS
-    m_rows, k_cols = lhs.shape
-    n_rows = rhs.shape[0]
-    if (
-        m_rows % 128
-        or n_rows % 128
-        or k_cols % 128
-        or m_rows % _MX_QUANT_BLOCK_M
-        or n_rows % _MX_QUANT_BLOCK_M
-        or k_cols % _MX_QUANT_BLOCK_K
-    ):
-        raise RuntimeError("exp061 mxfp8 tiling mismatch")
-    q_lhs, s_lhs = _mx_quant_e4m3_blocked(lhs)
-    q_rhs, s_rhs = _mx_quant_e4m3_blocked(rhs)
-    product = torch._scaled_mm(
-        q_lhs,
-        q_rhs.t(),
-        scale_a=s_lhs,
-        scale_b=s_rhs,
-        out_dtype=torch.float32,
-    )
-    _EXP061_MX_PRODUCT_HITS += 1
-    return product
-
-
-def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
-    global _EXP061_V1_HITS, _EXP061_MM_OUT_SUPPORTED, _EXP061_MM_OUT_HITS
-    global _EXP061_STEP_HITS, _EXP061_ERROR
-    if not _HAVE_TRITON:
-        raise RuntimeError("exp061 requires Triton")
-    nb = 4096
-    n = mat.shape[0]
-    factor = torch.zeros_like(mat)
-    diagonal = torch.empty(nb, nb, device=mat.device, dtype=torch.float32)
-    panel_half = torch.empty(
-        n - nb, nb, device=mat.device, dtype=torch.float16
-    )
-    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        for k in range(0, n, nb):
-            kb = nb
-            j = k + kb
-            _EXP061_STEP_HITS += 1
-            _exp061_move(mat[k:j, k:j], diagonal)
-            if k:
-                previous_row = factor[k:j, :k]
-                diagonal.addmm_(
-                    previous_row,
-                    previous_row.transpose(-1, -2),
-                    beta=1.0,
-                    alpha=-1.0,
-                )
-            diagonal_factor = torch.linalg.cholesky_ex(
-                diagonal,
-                check_errors=False,
-            ).L
-            _exp061_move(diagonal_factor, factor[k:j, k:j])
-            if j >= n:
-                break
-            rows = n - j
-            half_panel = panel_half[:rows]
-            if k:
-                _exp061_move(
-                    mat[j:, k:j],
-                    half_panel,
-                    prod=_exp061_mx_product(
-                        factor[j:, :k], factor[k:j, :k]
-                    ),
-                    out_fp16=True,
-                )
-            else:
-                _exp061_move(mat[j:, k:j], half_panel, out_fp16=True)
-            inverse = _blocked_tri_inv_32768(diagonal_factor)
-            half_inverse = inverse.transpose(-1, -2).to(torch.float16)
-            target = factor[j:, k:j]
-            wrote = False
-            if _EXP061_MM_OUT_SUPPORTED:
-                try:
-                    torch.mm(
-                        half_panel,
-                        half_inverse,
-                        out_dtype=torch.float32,
-                        out=target,
-                    )
-                    _EXP061_MM_OUT_HITS += 1
-                    wrote = True
-                except (TypeError, RuntimeError):
-                    _EXP061_MM_OUT_SUPPORTED = False
-            if not wrote:
-                _exp061_move(
-                    torch.mm(
-                        half_panel,
-                        half_inverse,
-                        out_dtype=torch.float32,
-                    ),
-                    target,
-                )
-    except Exception as exc:  # surfaced through _EXP061_ERROR for diagnosis
-        _EXP061_ERROR = repr(exc)
-        raise
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
-    _EXP061_ERROR = None
-    _EXP061_V1_HITS += 1
-    return factor
-
-
-# ---------------------------------------------------------------------------
 
 
 
@@ -4002,7 +3631,7 @@ def custom_kernel(data: input_t) -> output_t:
     global _LEFT_32768_ERROR, _LEFT_LARGE_FALLBACKS
     global _LARGE_FP8_HITS, _LARGE_FP8_FALLBACKS, _LARGE_FP8_ERROR
     global _FUSED_CTA_HITS, _FUSED_CTA_FALLBACKS, _FUSED_CTA_ERROR
-    global _EXP057_V2_HITS, _EXP058_V1_HITS, _EXP061_16384_HITS
+    global _EXP057_V2_HITS, _EXP058_V1_HITS
 
     batch, n, _ = data.shape
     is_f32_cuda = data.is_cuda and data.dtype == torch.float32
@@ -4076,20 +3705,14 @@ def custom_kernel(data: input_t) -> output_t:
     if is_f32_cuda and batch == 1 and n in _LARGE_CFG:
         try:
             if n == 16384:
-                l = _exp061_factor_1x16384(data[0])
+                l = _factor_1x16384_trsm_free(data[0])
             elif n == 32768:
-                if (
-                    _HAVE_TRITON
-                    and _LARGE_CFG[32768].get("path") == "exp061_v1"
-                ):
-                    l = _exp061_factor_1x32768(data[0])
-                else:
-                    l = _factor_1x32768_blocked_inverse(data[0])
+                l = _factor_1x32768_blocked_inverse(data[0])
             else:
                 l = _left_looking_large(data[0], **_LARGE_CFG[n])
             if torch.isfinite(l.diagonal()).all().item():
                 if n == 16384:
-                    _EXP061_16384_HITS += 1
+                    _EXP057_V2_HITS += 1
                 elif n == 32768:
                     _EXP058_V1_HITS += 1
                 _LARGE_FP8_HITS += 1

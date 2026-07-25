@@ -1,0 +1,16 @@
+{
+  "mode": "coldimport",
+  "passed": true,
+  "torch_version": "2.13.0+cu130",
+  "cuda_version": "13.0",
+  "device": "NVIDIA B200",
+  "torch_import_seconds": 1.432469734,
+  "submission_import_seconds": 28.364636935,
+  "runner_init_seconds": 29.797151009,
+  "readiness": {
+    "_CUDA32": true,
+    "_CUDA64": true,
+    "_CUDA128": true
+  },
+  "load_errors": {}
+}

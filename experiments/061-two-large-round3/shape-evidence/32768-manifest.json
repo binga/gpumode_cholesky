@@ -1,0 +1,166 @@
+{
+  "experiment": "061-32768-overhead",
+  "shape": "batch=1 n=32768",
+  "lease": "experiments/.leases/061-1x32768.json",
+  "worktree": "/private/tmp/gpumode-cholesky-exp061-32768",
+  "branch": "codex/exp061-32768",
+  "baseline": {
+    "submission_id": 906955,
+    "commit": "c965e08",
+    "file": "baseline-906955.py",
+    "sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175"
+  },
+  "profile": {
+    "file": "baseline-shapediag.json",
+    "sha256": "3c4a5c22e2f073fe16a2572e35ad07e3de7dbf1d93ff85cd229cc13306bb1dbf",
+    "wall_us": 31245.5,
+    "device_us": 30766.2,
+    "idle_us": 479.3,
+    "launches": 422,
+    "top_components": {
+      "cholesky_ex_getrf_wo_pivot": {
+        "us": 11167.4,
+        "calls": 8,
+        "pct": 36.3
+      },
+      "generic_strided_elementwise": {
+        "us": 5002.9,
+        "calls": 107,
+        "pct": 16.3
+      },
+      "tf32_diagonal_syrk": {
+        "us": 4733.1,
+        "calls": 7,
+        "pct": 15.4
+      },
+      "mxfp8_panel_gemm": {
+        "us": 2475.3,
+        "calls": 6,
+        "pct": 8.0
+      },
+      "fp16_solve_gemm": {
+        "us": 2267.7,
+        "calls": 7,
+        "pct": 7.4
+      },
+      "mx_quantization": {
+        "us": 1021.2,
+        "calls": 12,
+        "pct": 3.3
+      },
+      "blocked_inverse_batched_trsm": {
+        "us": 855.1,
+        "calls": 28,
+        "pct": 2.8
+      },
+      "fills": {
+        "us": 647.8,
+        "calls": 16,
+        "pct": 2.1
+      },
+      "panel_sub": {
+        "us": 586.7,
+        "calls": 6,
+        "pct": 1.9
+      },
+      "fp16_casts": {
+        "us": 509.2,
+        "calls": 14,
+        "pct": 1.7
+      },
+      "triu_tril": {
+        "us": 458.5,
+        "calls": 8,
+        "pct": 1.5
+      }
+    }
+  },
+  "variants": [
+    {
+      "id": "v1",
+      "name": "triton block-move hygiene",
+      "file": "candidate-v1-triton-move.py",
+      "sha256": "9c4c167e30b960bd8a93c3a3ca594e6c776c96713cabca5b50c2d41ebd401c6f",
+      "classification": "VALIDATED_FRONTIER",
+      "mechanism": "Single Triton _exp061_block_move_kernel with explicit 2D strides on both operands replaces every strided block move that PyTorch was running through its generic OffsetCalculator elementwise kernel (5002.9us / 107 launches / ~2.0 TB/s). The panel gather also subtracts the MXFP8 product and emits FP16 in the same pass, absorbing panel.sub_() and .to(float16); the solve-apply writes straight into the strided factor view via torch.mm(out_dtype=float32, out=...) so cuBLAS uses ldc=32768 and no scatter is needed; workspaces are allocated once per call. Arithmetic unchanged.",
+      "arithmetic_change": "none",
+      "paired": {
+        "file": "variant-01-paired.json",
+        "sha256": "d45b03650bd54a53c9099829fff0c73bc33266ac38c6765e8e8f2a1ef37e957c",
+        "baseline_us": 31575.90389251709,
+        "candidate_us": 28183.712005615234,
+        "ratio_median": 1.1203600109959257,
+        "ratio_ci95": [
+          1.1198162230343733,
+          1.1216115857557825
+        ],
+        "ratio_mad_pct": 0.0129,
+        "a_vs_a_spread_pct": 0.0292,
+        "new_fallbacks": {},
+        "candidate_counters": {
+          "_LARGE_FP8_HITS": 1,
+          "_EXP058_V1_HITS": 1,
+          "_EXP061_V1_HITS": 1,
+          "_EXP061_MOVE_HITS": 23,
+          "_EXP061_MX_PRODUCT_HITS": 6,
+          "_EXP061_MM_OUT_HITS": 7,
+          "_EXP061_STEP_HITS": 8
+        },
+        "baseline_residual": 5.28,
+        "candidate_residual": 5.28,
+        "residual_budget": 20
+      },
+      "family": {
+        "file": "variant-01-familygrid.json",
+        "sha256": "d6c75b77afeb1264a1d2f229815442c8d1b4ef67712d00613ff9ed038e45e5e8",
+        "checker_ok": {
+          "dense": true,
+          "spectrum": true,
+          "diagonal": true,
+          "lowrank": true,
+          "rowscale": true,
+          "tridiagonal": true
+        },
+        "residuals": {
+          "dense": 5.29,
+          "spectrum": 0.000544,
+          "diagonal": 6.1e-05,
+          "lowrank": 0.000494,
+          "rowscale": 4.26e-05,
+          "tridiagonal": 0.00633
+        },
+        "inherited_safety_cases": [
+          "spectrum",
+          "lowrank",
+          "rowscale"
+        ],
+        "note": "Those three families take _LARGE_FP8_FALLBACKS/_LEFT_LARGE_FALLBACKS on the ranked incumbent #906955 too (experiments/060-two-large-followup/combined-v1-familygrid.json, identical residuals to 3 s.f.). Not a regression."
+      }
+    }
+  ],
+  "invalid_evidence": [
+    {
+      "run": "variant-01-paired (first attempt, overwritten)",
+      "observed": {
+        "ratio_median": 0.6308458525287908,
+        "candidate_us": 49484.0,
+        "new_fallbacks": {
+          "_LARGE_FP8_FALLBACKS": [
+            0,
+            1
+          ]
+        },
+        "counters": {
+          "_LEFT_32768_HITS": 1,
+          "_EXP061_MOVE_HITS": 1
+        }
+      },
+      "cause": "_exp061_move guarded on stride(1) == 1 and raised. torch.linalg.cholesky_ex(...).L is returned column-major (cloneBatchedColumnMajor), so its trailing stride is 4096. custom_kernel's safety chain swallowed the raise and the run measured the old _left_looking_cholesky_32768 fp8 path.",
+      "fix": "kernel takes stride_src_m/stride_src_n/stride_out_m/stride_out_n and uses 64x64 tiles for a transposing move",
+      "counted_against_variant_budget": false
+    }
+  ],
+  "not_attempted": {
+    "diagonal_factorization": "11167us / 36.3% is cuSOLVER getrf_wo_pivot at ~0.34us/row. Sibling 1x16384 worker measured twelve blocked/recursive replacements, all slower than cuSOLVER, with 500x worse accuracy on the TF32 ones. Standing user directive also forbids new cuSOLVER-based fast paths and stream overlap. Left on the shipped call."
+  }
+}
