@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "submission_id": 907267,
+  "mode": "leaderboard",
+  "source_sha256": "06799fb095b9fbccb476e7da2c0567a3d36ba57ccb09ccf278b49149db8814c2",
+  "status": "succeeded",
+  "scores_microseconds": {
+    "public": 745.7647,
+    "secret": 741.3781
+  },
+  "vs_frozen_baseline_890798_pct": {
+    "public": 7.009,
+    "secret": 12.556,
+    "mean_of_splits": 9.86
+  },
+  "vs_prior_ranked_907206_pct": {
+    "public": 0.282,
+    "secret": 3.273
+  },
+  "note": "Best result of the campaign; both splits improved together. Secret -12.556% clears the 10% goal. Full 15-shape grid was 1.00852x CI [1.00792,1.00912] all shapes ok.",
+  "raw_log": "popcorn-ranked-v2.log"
+}

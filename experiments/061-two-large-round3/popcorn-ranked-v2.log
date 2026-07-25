@@ -1,0 +1,93 @@
+Submitting to leaderboard: cholesky
+GPU: B200
+Mode: leaderboard
+File: submission.py
+
+Waiting for results...
+Submission 907267 accepted. Modal B200 queue: 0 queued jobs. Waiting for results...
+Submission 907267 status: running (0s)
+Submission 907267 status: running (5s)
+Submission 907267 status: running (10s)
+Submission 907267 status: running (15s)
+Submission 907267 status: running (20s)
+Submission 907267 status: running (25s)
+Submission 907267 status: running (30s)
+Submission 907267 status: running (35s)
+Submission 907267 status: running (40s)
+Submission 907267 status: running (45s)
+Submission 907267 status: running (50s)
+Submission 907267 status: running (55s)
+Submission 907267 status: running (60s)
+Submission 907267 status: running (65s)
+Submission 907267 status: running - Modal B200 queue: 0 queued jobs (70s)
+Submission 907267 status: succeeded - Modal B200 queue: 0 queued jobs (75s)
+
+Geomean score (public) on B200: 0.0007457647300877996 s
+Geomean score (secret) on B200: 0.0007413780954624191 s
+
+{
+  "done": true,
+  "file_name": "submission.py",
+  "job": {
+    "error": null,
+    "status": "succeeded"
+  },
+  "leaderboard": "cholesky",
+  "runs": [
+    {
+      "end_time": "2026-07-25T07:57:29.395064Z",
+      "mode": "test",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": false,
+      "start_time": "2026-07-25T07:56:55.431577Z"
+    },
+    {
+      "end_time": "2026-07-25T07:58:20.377746Z",
+      "mode": "benchmark",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": false,
+      "start_time": "2026-07-25T07:57:29.395174Z"
+    },
+    {
+      "end_time": "2026-07-25T07:58:34.017307Z",
+      "mode": "leaderboard",
+      "passed": true,
+      "runner": "B200",
+      "score": 0.0007457647300877996,
+      "secret": false,
+      "start_time": "2026-07-25T07:58:20.377994Z"
+    },
+    {
+      "end_time": "2026-07-25T07:57:29.180069Z",
+      "mode": "test",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": true,
+      "start_time": "2026-07-25T07:56:55.367824Z"
+    },
+    {
+      "end_time": "2026-07-25T07:58:19.294685Z",
+      "mode": "benchmark",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": true,
+      "start_time": "2026-07-25T07:57:29.180240Z"
+    },
+    {
+      "end_time": "2026-07-25T07:58:35.966920Z",
+      "mode": "leaderboard",
+      "passed": true,
+      "runner": "B200",
+      "score": 0.0007413780954624191,
+      "secret": true,
+      "start_time": "2026-07-25T07:58:19.294829Z"
+    }
+  ],
+  "submission_id": 907267
+}
