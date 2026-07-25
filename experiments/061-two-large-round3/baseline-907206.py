@@ -3267,8 +3267,8 @@ _LARGE_CFG = {
     # fp8 pipeline. Requires Triton; _left_looking_large raises without it and
     # custom_kernel's existing fallback chain (exp-013 fp8 path) takes over.
     # exp 061: `path` selects which 32768-only driver custom_kernel calls.
-    # "exp058" is the ranked blocked-inverse loop; "exp061_v2" adds the merged
-    # MXFP8 block-column update on top of V1's Triton block moves.
+    # "exp058" is the ranked blocked-inverse loop; "exp061_v1" is the same
+    # arithmetic with the strided block moves folded into a Triton kernel.
     # No other n reads this key, and `_left_looking_large` is untouched.
     32768: dict(
         nb=4096,
@@ -3276,7 +3276,7 @@ _LARGE_CFG = {
         diag_mode="tf32",
         rec_inv=True,
         shadow=False,
-        path="exp061_v2",
+        path="exp061_v1",
     ),
 }
 
@@ -3780,10 +3780,8 @@ def _factor_1x32768_blocked_inverse(
 # ---------------------------------------------------------------------------
 
 _EXP061_V1_HITS = 0
-_EXP061_V2_HITS = 0
 _EXP061_MOVE_HITS = 0
 _EXP061_MX_PRODUCT_HITS = 0
-_EXP061_MX_COLUMN_HITS = 0
 _EXP061_MM_OUT_HITS = 0
 _EXP061_MM_OUT_SUPPORTED = True
 
@@ -3913,50 +3911,8 @@ def _exp061_mx_product(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
     return product
 
 
-def _exp061_mx_column_product(left: torch.Tensor, nb: int) -> torch.Tensor:
-    """`left @ left[:nb].T` on MXFP8 tensor cores, quantizing the frontier once.
-
-    Experiment 061 V2 folds the diagonal block's SYRK update into the panel's
-    left-looking update. At block column k both consume the same frontier
-    `factor[k:, :k]`, and the right operand `factor[k:k+nb, :k]` is literally
-    its first nb rows, so a single quantization of `left` serves both operands.
-    `_mx_quant_e4m3_blocked` emits e8m0 scales in row-tile-major order
-    (`tile = (pid_m // 4) * (columns // 128) + pid_k`), so every tile belonging
-    to the first nb rows lands inside the first `nb * cols / 32` bytes and the
-    right operand's scale buffer is an exact prefix slice of the left one's.
-
-    This retires the TF32 SYRK -- 4733us of the baseline profile, running at
-    ~813 TFLOP/s -- in exchange for nb extra rows on a GEMM measured at
-    ~2950 TFLOP/s, and it costs no extra quantization at all: `(n - k) * k`
-    elements instead of the previous `(n - j) * k + nb * k`, the same count.
-
-    The diagonal block therefore inherits MXFP8 accuracy instead of TF32, so
-    the reconstruction residual is the gate on this variant.
-    """
-    global _EXP061_MX_COLUMN_HITS
-    rows, cols = left.shape
-    if (
-        rows % 128
-        or cols % 128
-        or nb % 128
-        or rows % _MX_QUANT_BLOCK_M
-        or cols % _MX_QUANT_BLOCK_K
-    ):
-        raise RuntimeError("exp061 mxfp8 column tiling mismatch")
-    quantized, scales = _mx_quant_e4m3_blocked(left)
-    product = torch._scaled_mm(
-        quantized,
-        quantized[:nb].t(),
-        scale_a=scales,
-        scale_b=scales[: nb * cols // 32],
-        out_dtype=torch.float32,
-    )
-    _EXP061_MX_COLUMN_HITS += 1
-    return product
-
-
 def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
-    global _EXP061_V2_HITS, _EXP061_MM_OUT_SUPPORTED, _EXP061_MM_OUT_HITS
+    global _EXP061_V1_HITS, _EXP061_MM_OUT_SUPPORTED, _EXP061_MM_OUT_HITS
     global _EXP061_STEP_HITS, _EXP061_ERROR
     if not _HAVE_TRITON:
         raise RuntimeError("exp061 requires Triton")
@@ -3974,17 +3930,15 @@ def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
             kb = nb
             j = k + kb
             _EXP061_STEP_HITS += 1
-            # One MXFP8 block-column update covers the diagonal block and the
-            # panel below it, so the TF32 SYRK disappears and the frontier is
-            # quantized once for both operands.
-            column = (
-                _exp061_mx_column_product(factor[k:, :k], kb) if k else None
-            )
-            _exp061_move(
-                mat[k:j, k:j],
-                diagonal,
-                prod=None if column is None else column[:kb],
-            )
+            _exp061_move(mat[k:j, k:j], diagonal)
+            if k:
+                previous_row = factor[k:j, :k]
+                diagonal.addmm_(
+                    previous_row,
+                    previous_row.transpose(-1, -2),
+                    beta=1.0,
+                    alpha=-1.0,
+                )
             diagonal_factor = torch.linalg.cholesky_ex(
                 diagonal,
                 check_errors=False,
@@ -3994,13 +3948,17 @@ def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
                 break
             rows = n - j
             half_panel = panel_half[:rows]
-            _exp061_move(
-                mat[j:, k:j],
-                half_panel,
-                prod=None if column is None else column[kb:],
-                out_fp16=True,
-            )
-            column = None
+            if k:
+                _exp061_move(
+                    mat[j:, k:j],
+                    half_panel,
+                    prod=_exp061_mx_product(
+                        factor[j:, :k], factor[k:j, :k]
+                    ),
+                    out_fp16=True,
+                )
+            else:
+                _exp061_move(mat[j:, k:j], half_panel, out_fp16=True)
             inverse = _blocked_tri_inv_32768(diagonal_factor)
             half_inverse = inverse.transpose(-1, -2).to(torch.float16)
             target = factor[j:, k:j]
@@ -4032,7 +3990,7 @@ def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
     finally:
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
     _EXP061_ERROR = None
-    _EXP061_V2_HITS += 1
+    _EXP061_V1_HITS += 1
     return factor
 
 
@@ -4122,7 +4080,7 @@ def custom_kernel(data: input_t) -> output_t:
             elif n == 32768:
                 if (
                     _HAVE_TRITON
-                    and _LARGE_CFG[32768].get("path") == "exp061_v2"
+                    and _LARGE_CFG[32768].get("path") == "exp061_v1"
                 ):
                     l = _exp061_factor_1x32768(data[0])
                 else:
