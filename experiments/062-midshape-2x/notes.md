@@ -159,3 +159,60 @@ back to slow routes: 4096x32 0.458x, 1024x64 0.275x, 256x128 0.478x,
 correct, only slower. The paired grid's per-shape `candidate_counters` are the
 only signal that the fast paths vanished. Always diff baseline vs candidate
 counters before trusting any merged-extension build.
+
+## Root cause of the merge failure
+
+`NameError: name '_EXP062_SOURCE' is not defined`.
+
+The combined `load_inline` runs at **import time**, ~3600 lines before the
+appended tail that defined the CUDA source string. The surrounding
+`except Exception` swallowed the NameError, set `_CUDA128 = None`, and every
+dispatch guarded by `_CUDA32/_CUDA64/_CUDA128 is not None` silently took a
+slower route. The ship build now hoists the source declaration above the
+`load_inline`.
+
+**Reusable lesson:** when merging a new kernel into the shipped combined
+extension, the CUDA source string must be defined *before* the `load_inline`
+call, not appended at the end of the module. The failure mode is invisible to
+correctness gates and only shows up as missing `candidate_counters` in the
+paired grid.
+
+## Shipped result
+
+Two ship layouts, both passing the full 15-shape paired grid against the exact
+ranked incumbent `#907267`:
+
+| build | layout | geomean | 2x2048 | 2x4096 | 13 others |
+|---|---|---:|---:|---:|---|
+| `ship-v5.py` | new kernel in its own extension | **1.0256** | 1.1482x | 1.2754x | 0.998-1.001 |
+| `ship-v6.py` | merged into the combined extension | **1.0261** | 1.1541x | 1.2690x | 0.9998-1.0020 |
+
+`all_shapes_ok: true`, every expected counter present on every shape, no new
+fallbacks, official checker passing throughout.
+
+Popcorn `--mode test` on `ship-v5` (`#909265`): **passed**, 68 seconds — the
+three-extension cold build fits the 360s budget comfortably, so exp-050's
+compile blocker does not bite here.
+
+## Honest accounting against the 10% goal
+
++10% geomean from exactly 2 of 15 equally weighted shapes requires
+`(1/0.9)^7.5 = 2.204x` **per shape**. Delivered 1.15x and 1.27x, i.e. **+2.6%**.
+
+The gap is entirely the diagonal kernel: it would have to reach **<=16.6us per
+128x128 block** and it is at 48-50us. The remaining cost is dominated by two
+single-warp serial phases:
+
+| phase | us | share |
+|---|---:|---:|
+| chain | 14.9 | 31% |
+| triinv | 14.6 | 30% |
+| everything else | 18.6 | 39% |
+
+The pivot chain is already at **63.3 ns/pivot isolated** (2x better than
+exp-050's 134 and 5x better than the vendor's ~330 ns/row), so the chain is
+near its floor for a one-warp design. Closing the rest needs either the
+triangular inverse folded into the chain (round-1's Gauss-Jordan, which was
+numerically correct) or the block's serial phases overlapped with its parallel
+phases via named barriers -- plus an fp16 trailing update to cut the ~330us /
+~850us non-diagonal driver cost.
