@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "1d657f7",
+  "baseline_submission": 907267,
+  "baseline_sha256": "06799fb095b9fbccb476e7da2c0567a3d36ba57ccb09ccf278b49149db8814c2",
+  "status": "active",
+  "task": "exp062 tiny-batch mid shapes",
+  "target_region": "batch=2,n=2048 and batch=2,n=4096",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.claude/worktrees/exp062-midbatch",
+  "owner": "claude-code-job-a7d014b6",
+  "owner_note": "Two non-overlapping mid shapes, both currently on the vendor serial path. Popcorn ranked submissions serialized under this lease."
+}

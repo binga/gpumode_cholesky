@@ -1,0 +1,113 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "diag128_block",
+      "us": 153.77,
+      "ns_per_row": 1201.3,
+      "ok": true
+    },
+    {
+      "name": "diag128_block_err",
+      "us": 0.0,
+      "abs_err": 0.0,
+      "scale": 1.093,
+      "ok": true
+    },
+    {
+      "name": "diag128_inv_err",
+      "us": 0.0,
+      "abs_err": 2.4e-07,
+      "ok": true
+    },
+    {
+      "name": "control_2x2048",
+      "us": 4543.0,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo256",
+      "us": 2733.2,
+      "speedup": 1.6622,
+      "abs_err": 7e-05,
+      "scale": 1.12,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo512",
+      "us": 2721.7,
+      "speedup": 1.6692,
+      "abs_err": 7e-05,
+      "scale": 1.12,
+      "ok": true
+    },
+    {
+      "name": "e062_2x2048_nbo1024",
+      "us": 2711.2,
+      "speedup": 1.6756,
+      "abs_err": 7e-05,
+      "scale": 1.12,
+      "ok": true
+    },
+    {
+      "name": "control_2x4096",
+      "us": 14875.3,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo256",
+      "us": 6009.9,
+      "speedup": 2.4751,
+      "abs_err": 6e-05,
+      "scale": 1.1,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo512",
+      "us": 5799.2,
+      "speedup": 2.565,
+      "abs_err": 6e-05,
+      "scale": 1.1,
+      "ok": true
+    },
+    {
+      "name": "e062_2x4096_nbo1024",
+      "us": 5703.8,
+      "speedup": 2.6079,
+      "abs_err": 6e-05,
+      "scale": 1.1,
+      "ok": true
+    },
+    {
+      "name": "control_1x4096",
+      "us": 1528.7,
+      "ok": true
+    },
+    {
+      "name": "e062_1x4096_nbo256",
+      "us": 5655.4,
+      "speedup": 0.2703,
+      "abs_err": 6e-05,
+      "scale": 1.09,
+      "ok": true
+    },
+    {
+      "name": "e062_1x4096_nbo512",
+      "us": 5620.1,
+      "speedup": 0.272,
+      "abs_err": 6e-05,
+      "scale": 1.09,
+      "ok": true
+    },
+    {
+      "name": "e062_1x4096_nbo1024",
+      "us": 5581.2,
+      "speedup": 0.2739,
+      "abs_err": 6e-05,
+      "scale": 1.09,
+      "ok": true
+    }
+  ],
+  "passed": true
+}
