@@ -575,21 +575,20 @@ if torch.cuda.is_available():
         from torch.utils.cpp_extension import load_inline
 
         _CUDA128 = load_inline(
-            name="chol3264128_exp062_combined_o3",
+            name="chol3264128_exp055_combined_o3",
             cpp_sources=(
                 "void chol32_launch(torch::Tensor, torch::Tensor);\n"
                 "void chol64_launch(torch::Tensor, torch::Tensor);\n"
                 "void chol128_launch(torch::Tensor, torch::Tensor);\n"
                 "void micro32_launch(torch::Tensor, torch::Tensor, "
                 "torch::Tensor, int64_t, int64_t, int64_t);"
-                "\nvoid e62_diag128_launch(torch::Tensor, torch::Tensor, int64_t, int64_t, torch::Tensor);"
             ),
             cuda_sources=(
                 _CUDA32_SOURCE + "\n" + _CUDA64_SOURCE + "\n" +
-                _CUDA128_SOURCE + "\n" + _EXP062_SOURCE
+                _CUDA128_SOURCE
             ),
             functions=["chol32_launch", "chol64_launch", "chol128_launch",
-                       "micro32_launch", "e62_diag128_launch"],
+                       "micro32_launch"],
             extra_cuda_cflags=["-O3"],
             verbose=False,
         )
@@ -4234,7 +4233,7 @@ def custom_kernel(data: input_t) -> output_t:
 # ---------------------------------------------------------------------------
 
 _EXP062 = None
-_EXP062_COMBINED = _CUDA128
+_EXP062_COMBINED = None
 _EXP062_ERROR = None
 _EXP062_HITS = 0
 _EXP062_FALLBACKS = 0

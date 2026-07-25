@@ -497,11 +497,14 @@ def mid_probe():
     sys.path.insert(0, "/root/reference")
     from reference import generate_input
 
+    rows = [{"name": "combined_ext", "us": 0.0,
+             "ok": _CUDA128 is not None,
+             "error": str(_CUDA128_ERROR)[:600]}]
     _load_exp062()
-    rows = []
     if _EXP062 is None:
-        return [{"name": "load_inline", "us": 0.0, "ok": False,
-                 "error": _EXP062_ERROR}]
+        rows.append({"name": "load_inline", "us": 0.0, "ok": False,
+                     "error": str(_EXP062_ERROR)[:600]})
+        return rows
 
     dev = torch.device("cuda")
     a = generate_input(batch=2, n=2048, cond=2, seed=44048)

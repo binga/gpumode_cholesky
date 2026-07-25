@@ -90,6 +90,15 @@ def build(variant: str, tail_name: str = TAIL_DEFAULT) -> str:
     if variant == "probe":
         return base + tail
 
+    if variant == "ship_sep":
+        # Dispatch patch only. The new kernel keeps its own load_inline, which
+        # is the exact arrangement every measured probe candidate used.
+        _require(base, ANCHOR_DISPATCH, "dispatch")
+        _require(base, ANCHOR_GLOBALS, "globals")
+        out = base.replace(ANCHOR_GLOBALS, ANCHOR_GLOBALS + GLOBALS_LINE)
+        out = out.replace(ANCHOR_DISPATCH, DISPATCH_BLOCK + ANCHOR_DISPATCH)
+        return out + tail
+
     if variant != "ship":
         raise SystemExit(f"unknown variant {variant!r}")
 
