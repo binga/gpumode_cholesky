@@ -1,0 +1,101 @@
+Submitting to leaderboard: cholesky
+GPU: B200
+Mode: leaderboard
+File: submission.py
+
+Waiting for results...
+Submission 907206 accepted. Modal B200 queue: 2 queued jobs. Waiting for results...
+Submission 907206 status: running (0s)
+Submission 907206 status: running (5s)
+Submission 907206 status: running (10s)
+Submission 907206 status: running (15s)
+Submission 907206 status: running (20s)
+Submission 907206 status: running (25s)
+Submission 907206 status: running (30s)
+Submission 907206 status: running (35s)
+Submission 907206 status: running (40s)
+Submission 907206 status: running (45s)
+Submission 907206 status: running (50s)
+Submission 907206 status: running (55s)
+Submission 907206 status: running (60s)
+Submission 907206 status: running (65s)
+Submission 907206 status: running (70s)
+Submission 907206 status: running (75s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (80s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (85s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (90s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (95s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (100s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (105s)
+Submission 907206 status: running - Modal B200 queue: 0 queued jobs (110s)
+Submission 907206 status: succeeded - Modal B200 queue: 0 queued jobs (115s)
+
+Geomean score (public) on B200: 0.0007478704309687958 s
+Geomean score (secret) on B200: 0.0007664679264021157 s
+
+{
+  "done": true,
+  "file_name": "submission.py",
+  "job": {
+    "error": null,
+    "status": "succeeded"
+  },
+  "leaderboard": "cholesky",
+  "runs": [
+    {
+      "end_time": "2026-07-25T07:47:54.836346Z",
+      "mode": "test",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": false,
+      "start_time": "2026-07-25T07:47:19.909341Z"
+    },
+    {
+      "end_time": "2026-07-25T07:48:46.521011Z",
+      "mode": "benchmark",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": false,
+      "start_time": "2026-07-25T07:47:54.836463Z"
+    },
+    {
+      "end_time": "2026-07-25T07:49:00.065303Z",
+      "mode": "leaderboard",
+      "passed": true,
+      "runner": "B200",
+      "score": 0.0007478704309687958,
+      "secret": false,
+      "start_time": "2026-07-25T07:48:46.521332Z"
+    },
+    {
+      "end_time": "2026-07-25T07:48:12.256849Z",
+      "mode": "test",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": true,
+      "start_time": "2026-07-25T07:47:20.751235Z"
+    },
+    {
+      "end_time": "2026-07-25T07:49:28.932065Z",
+      "mode": "benchmark",
+      "passed": true,
+      "runner": "B200",
+      "score": null,
+      "secret": true,
+      "start_time": "2026-07-25T07:48:12.257026Z"
+    },
+    {
+      "end_time": "2026-07-25T07:49:48.527917Z",
+      "mode": "leaderboard",
+      "passed": true,
+      "runner": "B200",
+      "score": 0.0007664679264021157,
+      "secret": true,
+      "start_time": "2026-07-25T07:49:28.932270Z"
+    }
+  ],
+  "submission_id": 907206
+}

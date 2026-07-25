@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "submission_id": 907206,
+  "mode": "leaderboard",
+  "source_sha256": "d9a4c4012e9c0ee81d34248b16a5b78a5e71069a48cfaa6c898737e61a45612c",
+  "status": "succeeded",
+  "scores_microseconds": {
+    "public": 747.8704309687957,
+    "secret": 766.4679264021157
+  },
+  "vs_incumbent_906955_pct": {
+    "public": 1.649,
+    "secret": -1.104
+  },
+  "vs_frozen_baseline_890798_pct": {
+    "public": 6.747,
+    "secret": 9.597
+  },
+  "note": "Public moved -1.649% against a paired-grid prediction of -1.71% (close agreement). Secret moved +1.104%, inside the known ~2.6% secret-split run-to-run variance. Full 15-shape paired grid was 1.01710x CI [1.01639,1.01781] with all shapes ok and no new fallbacks, so the source is genuinely faster and the secret movement is treated as noise.",
+  "popcorn_test": 907200,
+  "raw_log": "popcorn-ranked-v1.log"
+}
