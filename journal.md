@@ -2811,3 +2811,105 @@ it: chain ~11us against parallel phases ~14us, so concurrency approaches `max`
 rather than `sum`, ~25us/block (~195 ns/row) against today's 37.9us. At that
 rate a 2048 diagonal built from 128-blocks finally beats cuSOLVER's 630us, and
 the same kernel carries five mid shapes.
+
+---
+
+## Session 53 — 2026-07-26 — Experiment 065: the two least-improved shapes
+
+**Question (user):** since the competition began, `1x4096` has moved 1.06x and
+`1x8192` 1.17x while the median shape moved 3.2x. Attack them — via Triton,
+reduced precision, or anything else.
+
+**Verdict: FOUR LEVERS, FOUR REJECTIONS. Nothing ranked, incumbent unchanged
+at `#913511`.** The deliverable is a measured model of `1x4096` and the
+elimination of every config-level option on both shapes.
+
+### The profile settles the approach question before any candidate is built
+
+`results/inc-890798-shapediag.json`, `batch=1 n=4096`: **6 kernel launches,
+0.2% idle, 91% of device time in a single `getrf_wo_pivot` call (1391.8us).**
+Zero cutlass. Zero nvjet. cuSOLVER does not block `n=4096` at all — the shape
+is one serial per-row dependency chain at 338 ns/row, and there is no GEMM in
+it to demote. That structurally voids both of the user's named approaches:
+
+- **reduced precision** has nothing to act on (the purest instance of the
+  documented fp16 null results), and
+- **Triton** is the wrong tool for a loop-carried dependency inside one kernel
+  (exp 029: ~16us/launch for serial Triton loops, persistent kernels dead).
+  Triton's wins here have all been bandwidth-shaped — the exp-034 quantizer,
+  the exp-061 block mover — and this shape has no such work.
+
+Also corrected: the comment at `submission.py:3686` claiming 8192 "stays on
+cuSOLVER" is **stale dead code**. The `batch == 1 and n in _LARGE_CFG` gate
+above it catches 8192 first, so `1x8192` has been on `_left_looking_large`
+(nb=2048, tf32) all along. `1x4096` is the only single-matrix shape still on
+stock cuSOLVER. The comment was left untouched rather than edit the ranked
+source for a documentation fix.
+
+### Results — all one-line diffs off exact `#913511`, all paired B200 probes
+
+| # | change | shape | ratio | CI95 | verdict |
+|---|---|---|---:|---|---|
+| v1 | `_LARGE_CFG[8192]` `rec_inv=True` | 8192 | **0.9460** | [0.9459, 0.9465] | 5.4% slower |
+| v3 | `_LARGE_CFG[8192]` `panel_mode="mxfp8"` | 8192 | 1.0023 | [1.0020, 1.0028] | numerics |
+| v4 | enroll `(1, 4096)` in `_EXP062_SHAPES` | 4096 | **0.7232** | [0.7223, 0.7239] | 38% slower |
+
+**v1.** The exact flag that won 1.4177x at `1x16384` in exp 057 *loses* 5.4% at
+`1x8192` (5755.5 -> 6084.2us). `_tri_inv_recursive(2048)` costs the same per
+panel at both n, but 8192 has 4 panels with trailing heights 6144/4096/2048
+against 16384's 8 panels up to 14336. Not enough trailing rows to amortize the
+inverse against the `solve_triangular` it replaces. **`rec_inv` is an
+n>=16384 lever, not a large-n lever.**
+
+**v3.** +0.23% (5768.7 -> 5754.0us), real but negligible — and the residual
+goes **0.19 -> 13.7 against a tolerance of 20**. 72x the error for a quarter
+percent, leaving 1.45x of margin on a shape whose secret-split conditioning we
+do not control. Rejected on risk. The panel GEMMs are only ~16% of this shape
+and already tf32, so quantization overhead eats the demotion gain.
+
+**v4 — the headline.** Enrolling `1x4096` in the exp-062/063 blocked path:
+
+| | batch=1 | batch=2 |
+|---|---:|---:|
+| cuSOLVER (`#913511`) | **1528.7us** | 2280.6us |
+| exp-062 blocked path | 2113.8us | 2280.9us |
+| ratio | **0.7232** | 0.9998 |
+
+`(2, 4096)` is already enrolled and is unmoved (0.9998), so the isolation is
+clean. The marginal cost of the *second* matrix is **167us** (2280.9 - 2113.8):
+the pivot chain is essentially the entire cost and does not shrink with batch.
+The blocked path runs **516 ns/row** in situ at batch=1 against cuSOLVER's
+fused **373 ns/row**, because it adds explicit `baddbmm` trailing updates and
+per-block panel `bmm`s that cuSOLVER keeps inside one launch.
+
+**Standing lesson: for a single matrix, cuSOLVER's unblocked fused potrf is the
+fastest implementation in this repo. Enrolling any `batch == 1` shape into a
+blocked path is a regression until the block kernel's in-situ ns/row beats
+373.** The exp-062 path's whole advantage — "paying the pivot chain once for
+the whole batch" — is unavailable at batch=1 by construction.
+
+### One item closed without spending a run
+
+Exp 063's plan item 1, "fix the fused chain+inverse correctness bug"
+(`inv_err 0.573`), is **superseded**. That fusion measured 325.9 ns/row and the
+v2 "panel + fused inverse" 312.3 ns/row — both slower than the v3 kernel that
+actually shipped in `#912756` at 296 ns/row. Repairing it would be fixing a
+design v3 already beats. (Exp 063's `state.json` still reads
+`AWAITING_RANKED_SUBMISSION`; it is stale — v3 did ship, as `#912756`, which
+exp 064 then built on.)
+
+### Next lever — unchanged, and now the only one
+
+Look-ahead / named-barrier overlap inside the 128x32 diagonal block kernel:
+chain ~11us against parallel phases ~14us of a 37.9us block, concurrency
+approaching `max` not `sum`, ~25us/block = **~195 ns/row**. It lifts the five
+already-enrolled shapes, and at 195 ns/row a blocked `1x4096` would be 799us of
+chain against cuSOLVER's 1528.7us — the first design with real margin at
+batch=1. This is a warp-specialization rewrite, not a config change, and wants
+its own experiment.
+
+**Cost:** three subset-filtered B200 `pairedgrid` sandbox runs. No full 15-shape
+grid (the ladder only spends that after a credible subset win), no Popcorn test,
+no ranked quota.
+
+Artifacts: `experiments/065-4096-8192/`.

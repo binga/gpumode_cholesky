@@ -1,0 +1,95 @@
+{
+  "experiment": "065-4096-8192",
+  "status": "REJECTED",
+  "goal": "improve the two least-improved shapes since the competition began, 1x4096 (1.06x) and 1x8192 (1.17x)",
+  "baseline": {
+    "submission": 913511,
+    "source": "experiments/065-4096-8192/baseline-913511.py",
+    "sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+    "public_us": 672.3831929770458,
+    "secret_us": 655.4226483316047
+  },
+  "candidates": [
+    {
+      "id": "v1",
+      "change": "_LARGE_CFG[8192] rec_inv=False -> True",
+      "shape": "1x8192",
+      "ratio_median": 0.9459831066055092,
+      "ci95": [0.9459337931489694, 0.9464580947053269],
+      "baseline_us": 5755.5201053619385,
+      "candidate_us": 6084.167957305908,
+      "artifact": "results/exp065-v1-probe8192.json",
+      "verdict": "REJECT",
+      "reason": "5.4% slower; _tri_inv_recursive(2048) does not amortize over 8192's 4 panels (trailing heights 6144/4096/2048) the way it does over 16384's 8 panels. rec_inv is an n>=16384 lever."
+    },
+    {
+      "id": "v3",
+      "change": "_LARGE_CFG[8192] panel_mode=\"tf32\" -> \"mxfp8\"",
+      "shape": "1x8192",
+      "ratio_median": 1.0023113743792753,
+      "ci95": [1.0019798051668851, 1.0027713558678206],
+      "baseline_us": 5768.711805343628,
+      "candidate_us": 5754.040002822876,
+      "residual": {"baseline": 0.19, "candidate": 13.7, "tolerance": 20},
+      "counters": {"_MXFP8_HITS": 2},
+      "artifact": "results/exp065-v3-probe8192.json",
+      "verdict": "REJECT",
+      "reason": "+0.23% speed for a 72x residual increase, leaving 1.45x margin to tolerance on a shape whose secret-split conditioning is not controlled. Panel GEMMs are only ~16% of the shape and already tf32."
+    },
+    {
+      "id": "v2",
+      "change": "v1 + v3 combined",
+      "verdict": "NOT_RUN",
+      "reason": "v1 is a measured loss; combining is pointless"
+    },
+    {
+      "id": "v4",
+      "change": "add (1, 4096): 1024 to _EXP062_SHAPES",
+      "shape": "1x4096",
+      "ratio_median": 0.7232024757103659,
+      "ci95": [0.7222575353764618, 0.7238515797026249],
+      "baseline_us": 1528.6880135536194,
+      "candidate_us": 2113.7759685516357,
+      "control_2x4096_ratio": 0.9997509731384419,
+      "counters": {"_EXP062_HITS": 1},
+      "artifact": "results/exp065-v4-probe4096.json",
+      "verdict": "REJECT",
+      "reason": "38% slower. exp-062 path is 516 ns/row in situ at batch=1 vs cuSOLVER's fused 373 ns/row. Marginal cost of a 2nd matrix is only 167us (2280.9-2113.8), so the pivot chain is the whole cost and does not shrink with batch; batch=1 has nothing to amortize."
+    }
+  ],
+  "gates": {
+    "free": {"py_compile": "ok on all candidates", "one_line_diffs": "verified against HEAD:submission.py"},
+    "pairedgrid_subset": "run for v1/v3/v4; all shapes checker-ok, new_fallbacks empty everywhere",
+    "pairedgrid_full_15": "NOT RUN - program ladder only spends it after a credible subset win",
+    "popcorn_test": "not run",
+    "popcorn_ranked": "not run - no quota consumed"
+  },
+  "profile_model": {
+    "1x4096": {
+      "artifact": "results/inc-890798-shapediag.json",
+      "wall_us": 1527.2,
+      "kernel_launches": 6,
+      "idle_pct": 0.2,
+      "getrf_wo_pivot_us": 1391.8,
+      "share_pct": 91.0,
+      "gemm_kernels": 0,
+      "ns_per_row_cusolver": 338,
+      "ns_per_row_exp062_in_situ": 516,
+      "finding": "single unblocked serial per-row chain; no GEMM exists to demote, so precision and Triton levers are both structurally void here"
+    },
+    "1x8192": {
+      "path": "_left_looking_large via _LARGE_CFG[8192], NOT cuSOLVER",
+      "getrf_pct": 46.8,
+      "trsm_right_pct": 25.2,
+      "tf32_gemm_pct": 16.0,
+      "note": "the 'stays on cuSOLVER' comment at submission.py:3686 is stale dead code; the n in _LARGE_CFG gate above it wins"
+    }
+  },
+  "superseded_without_running": {
+    "item": "exp 063 plan item 1 - fix the fused chain+inverse correctness bug (inv_err 0.573)",
+    "reason": "that fusion measured 325.9 ns/row and the v2 'panel + fused inverse' 312.3 ns/row, both slower than the v3 kernel already shipped in #912756 at 296 ns/row"
+  },
+  "next_action": "Scope look-ahead / named-barrier overlap in the 128x32 diagonal block kernel as its own experiment. Measured budget: chain ~11us vs parallel phases ~14us of a 37.9us block; concurrent execution approaches max not sum, ~25us/block = ~195 ns/row. Lifts the five enrolled shapes and is the first design that could make batch=1 blocked factorization beat cuSOLVER's 373 ns/row.",
+  "adopted": false,
+  "incumbent_unchanged": 913511
+}
