@@ -232,3 +232,32 @@ So the plan's ~120 ns/row is not reachable by parallelising the serial phase;
 (**overlap**): with the chain at ~11us and the parallel phases at ~14us, a
 look-ahead schedule running them concurrently would approach `max` rather than
 `sum`, i.e. ~25us/block (~195 ns/row) against today's 37.9us.
+
+## Ranked outcome — `#912756` (adopted)
+
+Source `ship-v2.py`, sha `6f602db3b3e7ced63918fe484c9ce7873ad1619589c4079aa5d061264a8e72d6`.
+All six Popcorn runs passed.
+
+| | public | secret |
+|---|---:|---:|
+| `#909488` | 682.912us | 686.145us |
+| **`#912756`** | **675.753us** | **674.448us** |
+
+-1.05% public, -1.70% secret.
+
+### Campaign total
+
+| | `#907267` (start) | `#912756` |
+|---|---:|---:|
+| public | 745.765us | **675.753us** (-9.4%) |
+| secret | 741.378us | **674.448us** (-9.0%) |
+
+### The launch-count hypothesis gains a second data point
+
+`#912756` was predicted to *track* its paired grid rather than beat it, because
+variant 3 changes device time only and leaves launch count untouched. Grid said
+1.0321; the board delivered 1.011 public / 1.017 secret — close, and nothing
+like the 2.4x under-prediction seen on the enrollment change, which *did* cut
+launch count. Two points now support the reading that **the paired grid
+systematically undervalues launch-count reductions and tracks pure device-time
+changes accurately.** Worth one controlled experiment before it is relied on.
