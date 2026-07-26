@@ -1,0 +1,74 @@
+{
+  "experiment": "064-large-two",
+  "status": "GATES_IN_PROGRESS",
+  "goal": "reduce latency of the two biggest shapes (1x16384, 1x32768) and rank the result",
+  "baseline": {
+    "submission": 912756,
+    "commit": "e267fd3",
+    "sha256": "6f602db3b3e7ced63918fe484c9ce7873ad1619589c4079aa5d061264a8e72d6",
+    "public_us": 675.753,
+    "secret_us": 674.448
+  },
+  "measured_incumbent_walls_us": {
+    "1x16384": 8748.4,
+    "1x32768": 24384.2
+  },
+  "profile": {
+    "artifact": "results/exp064-inc-shapediag.json",
+    "1x16384": {
+      "getrf_wo_pivot_us": 5037.9,
+      "share_pct": 59.6,
+      "generic_elementwise_us": 1216.3,
+      "share_pct_elementwise": 14.4
+    },
+    "1x32768": {
+      "getrf_wo_pivot_us": 11154.0,
+      "share_pct": 46.9,
+      "mxfp8_gemm_us": 3330.9,
+      "fp16_gemm_us": 2179.1,
+      "generic_elementwise_us": 1484.1,
+      "mx_quant_us": 1112.5,
+      "block_move_us": 1035.6,
+      "batch_trsm_us": 850.5,
+      "fill_us": 647.1
+    }
+  },
+  "finding": "Diagonal potrf dominates both shapes and is at a measured wall: cuSOLVER runs 308-340 ns/row and exp063's best custom block kernel ended at 296 ns/row, so substitution is a wash. Attack the non-diagonal 40-53% instead.",
+  "gates": {
+    "free": {
+      "py_compile": "ok",
+      "verify_local": "10/10",
+      "git_diff_check": "clean",
+      "source_policy": "cusolver/cuSOLVER/stream/queue token counts byte-identical to baseline"
+    },
+    "pairedgrid": {
+      "artifact": "results/exp064-v1-pairedgrid.json",
+      "geomean": 1.0073138766926581,
+      "ci95": [
+        1.0067666419391426,
+        1.0078614088992905
+      ],
+      "ci_excludes_1": true,
+      "all_shapes_ok": true,
+      "per_shape": {
+        "1x16384": 1.0485,
+        "1x32768": 1.0679,
+        "other_13": "0.9978-1.0009"
+      },
+      "counter_diff": "new counters only (_EXP061_MOVE_HITS 38 on 16384, _EXP064_TRSMFREE_HITS 7 on 32768); new_fallbacks empty on both",
+      "residual": {
+        "1x16384": "0.211 -> 0.211",
+        "1x32768": "6.44 -> 6.45 (tolerance 20)"
+      }
+    }
+  },
+  "next_action": "familygrid on 16384,32768 -> popcorn --mode test 17/17 -> one ranked submission -> adopt/commit/push/PR",
+  "candidate": {
+    "source": "experiments/064-large-two/candidate-v1.py",
+    "sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+    "changes": [
+      "16384: all strided block moves via exp-061 Triton mover + reused fp16 panel buffer",
+      "32768: trsm-free base-32 leaf inverse with caller-owned buffer (_EXP064_TRSM_FREE)"
+    ]
+  }
+}

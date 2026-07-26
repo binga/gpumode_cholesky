@@ -1,0 +1,171 @@
+{
+  "mode": "largephase",
+  "device": "NVIDIA B200",
+  "shapes": [
+    {
+      "spec": "batch=1 n=16384 case=dense",
+      "n": 16384,
+      "phases": {
+        "update": 1346.7733301998428,
+        "diagonal": 5594.400068124135,
+        "inverse": 781.3760116696358,
+        "panel": 918.6986684799194
+      },
+      "phase_sum_us": 8641.248078473533,
+      "variants": [
+        {
+          "name": "control_shipped",
+          "us": 8822.666645050049,
+          "best_us": 8762.11166381836,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+          "tol_frac": 0.010574126616120338
+        },
+        {
+          "name": "nb1024",
+          "us": 9200.28273264567,
+          "best_us": 9174.240112304688,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.226; batch=1; n=16384",
+          "tol_frac": 0.011307457461953163
+        },
+        {
+          "name": "nb2048",
+          "us": 8810.101191202799,
+          "best_us": 8692.272186279297,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+          "tol_frac": 0.010574126616120338
+        },
+        {
+          "name": "nb4096",
+          "us": 9542.365392049154,
+          "best_us": 9511.93618774414,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.181; batch=1; n=16384",
+          "tol_frac": 0.009057327173650265
+        },
+        {
+          "name": "v2_move_nb2048_zeros",
+          "us": 8317.245324452719,
+          "best_us": 8292.559623718262,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+          "tol_frac": 0.010574126616120338
+        },
+        {
+          "name": "v2_move_nb2048_upper",
+          "us": 8441.941261291504,
+          "best_us": 8410.320281982422,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.211; batch=1; n=16384",
+          "tol_frac": 0.010574126616120338
+        },
+        {
+          "name": "v2_move_nb4096_zeros",
+          "us": 9089.232126871744,
+          "best_us": 9057.87181854248,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.181; batch=1; n=16384",
+          "tol_frac": 0.009057327173650265
+        },
+        {
+          "name": "v2_move_nb4096_upper",
+          "us": 9156.359990437826,
+          "best_us": 9126.031875610352,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.181; batch=1; n=16384",
+          "tol_frac": 0.009057327173650265
+        }
+      ]
+    },
+    {
+      "spec": "batch=1 n=32768 case=dense",
+      "n": 32768,
+      "phases": {
+        "update": 4800.47996994108,
+        "move_diag": 269.79200293620426,
+        "diagonal": 12514.314691225685,
+        "move_panel": 692.8746675451597,
+        "inverse": 3322.9973316192627,
+        "panel": 2296.159987648328
+      },
+      "phase_sum_us": 23896.618650915716,
+      "variants": [
+        {
+          "name": "control_shipped",
+          "us": 25279.06036376953,
+          "best_us": 24439.456939697266,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.44; batch=1; n=32768",
+          "tol_frac": 0.32198938727378845
+        },
+        {
+          "name": "nb2048_mxfp8",
+          "us": 31273.688793182373,
+          "best_us": 31204.240798950195,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.87; batch=1; n=32768",
+          "tol_frac": 0.34356480836868286
+        },
+        {
+          "name": "nb2048_fp16",
+          "us": 34168.739318847656,
+          "best_us": 34079.53643798828,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.114; batch=1; n=32768",
+          "tol_frac": 0.005705809220671654
+        },
+        {
+          "name": "nb4096_mxfp8",
+          "us": 24434.32378768921,
+          "best_us": 24364.57633972168,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.44; batch=1; n=32768",
+          "tol_frac": 0.32198938727378845
+        },
+        {
+          "name": "nb4096_fp16",
+          "us": 28770.232677459717,
+          "best_us": 28255.504608154297,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=0.106; batch=1; n=32768",
+          "tol_frac": 0.0053255874663591385
+        },
+        {
+          "name": "v2_nb4096_trsmfree_zeros",
+          "us": 22872.432231903076,
+          "best_us": 22796.016693115234,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.45; batch=1; n=32768",
+          "tol_frac": 0.32255253195762634
+        },
+        {
+          "name": "v2_nb4096_trsmfree_upper",
+          "us": 23298.707962036133,
+          "best_us": 23231.216430664062,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.45; batch=1; n=32768",
+          "tol_frac": 0.32255253195762634
+        },
+        {
+          "name": "v2_nb4096_trsm_zeros",
+          "us": 24442.252159118652,
+          "best_us": 24365.760803222656,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.44; batch=1; n=32768",
+          "tol_frac": 0.32198938727378845
+        },
+        {
+          "name": "v2_nb4096_trsm_upper",
+          "us": 24854.788303375244,
+          "best_us": 24778.1925201416,
+          "checker_ok": true,
+          "checker_msg": "scaled_reconstruction_residual=6.44; batch=1; n=32768",
+          "tol_frac": 0.32198938727378845
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

@@ -3604,73 +3604,46 @@ def _exp061_leaf_inverse(
 
 
 def _exp061_factor_1x16384(mat: torch.Tensor) -> torch.Tensor:
-    """Experiment 064: every strided block move goes through the exp-061
-    Triton mover.
-
-    The exp-061 driver reached this shape with four strided operations per
-    block step still on PyTorch's generic (OffsetCalculator) elementwise
-    kernel: the `torch.sub` against a 2048-column window of a 16384-wide row,
-    the `factor[k:j, k:j] = lkk` store, the whole-panel `.to(torch.float16)`
-    temporary, and the `shadow[...].copy_(factor[...])` down-cast. The B200
-    profile (`results/exp064-inc-shapediag.json`) charges 1,216us over 38
-    launches to that kernel -- 14% of the shape -- at roughly 2 TB/s against
-    ~7 TB/s of achievable bandwidth.
-
-    This is the same defect experiment 061 diagnosed and fixed on `1x32768`;
-    the fix is simply ported. The mover knows both operands' strides, so the
-    loads and stores vectorize, and the subtract and the fp16 down-cast fold
-    into the gather that was already reading the data. The arithmetic and the
-    order of operations are unchanged, so the reconstruction residual is
-    identical (`tol_frac` 0.0106 either way).
-
-    Measured: 8,810.1us -> 8,317.2us, 1.059x (`results/exp064-largephase-v1.json`).
-    """
     n = 16384
     nb = 2048
     factor = torch.zeros_like(mat)
-    product = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
-    block = torch.empty(n, nb, device=mat.device, dtype=mat.dtype)
+    scratch = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
     inverse = torch.zeros(nb, nb, device=mat.device, dtype=mat.dtype)
-    panel16 = torch.empty(n - nb, nb, device=mat.device, dtype=torch.float16)
     shadow = torch.empty(n, n, device=mat.device, dtype=torch.float16)
     previous_tf32 = torch.backends.cuda.matmul.allow_tf32
     try:
         torch.backends.cuda.matmul.allow_tf32 = True
         for k in range(0, n, nb):
             j = k + nb
-            rows = n - k
-            active = block[:rows]
             if k:
-                # FP16 tensor-core left-looking update, FP32 accumulate.
+                block = scratch[: n - k]
+                # FP16 tensor-core left-looking update, FP32 accumulate. The
+                # product lands straight in the scratch and the original block
+                # column is subtracted from it, so no separate copy is needed.
                 torch.mm(
                     shadow[k:, :k],
                     shadow[k:j, :k].transpose(-1, -2),
                     out_dtype=torch.float32,
-                    out=product[:rows],
+                    out=block,
                 )
-                # Strided gather and subtract in one vectorized pass.
-                _exp061_move(mat[k:, k:j], active, prod=product[:rows])
+                torch.sub(mat[k:, k:j], block, out=block)
             else:
-                _exp061_move(mat[:, :nb], active)
+                block = mat[:, :nb]
             lkk = torch.linalg.cholesky_ex(
-                active[:nb],
+                block[:nb],
                 check_errors=False,
             ).L
-            _exp061_move(lkk, factor[k:j, k:j])
-            _exp061_move(lkk, shadow[k:j, k:j], out_fp16=True)
+            factor[k:j, k:j] = lkk
             if j >= n:
                 break
             _exp061_leaf_inverse(lkk, inverse)
-            # Emit the fp16 panel operand straight into a reused buffer instead
-            # of allocating a fresh `.to(float16)` copy of the whole panel.
-            _exp061_move(active[nb:], panel16[: n - j], out_fp16=True)
             torch.mm(
-                panel16[: n - j],
+                block[nb:].to(torch.float16),
                 inverse.transpose(-1, -2).to(torch.float16),
                 out_dtype=torch.float32,
                 out=factor[j:, k:j],
             )
-            _exp061_move(factor[j:, k:j], shadow[j:, k:j], out_fp16=True)
+            shadow[k:, k:j].copy_(factor[k:, k:j])
     finally:
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
     return factor
@@ -3816,15 +3789,6 @@ _EXP061_MM_OUT_SUPPORTED = True
 
 _EXP061_STEP_HITS = 0
 _EXP061_ERROR = None
-
-# Experiment 064: 1x32768 takes the trsm-free base-32 leaf inverse instead of
-# the base-256 `solve_triangular` leaves. Counters make the fast path provable
-# in the paired-grid counter diff; the flag allows an exact A/B without a
-# source edit.
-_EXP064_TRSM_FREE = True
-_EXP064_TRSMFREE_HITS = 0
-_EXP064_TRSMFREE_FALLBACKS = 0
-_EXP064_TRSMFREE_ERROR = None
 
 _EXP061_MOVE_BLOCK_M = 16
 _EXP061_MOVE_BLOCK_N = 512
@@ -3994,8 +3958,6 @@ def _exp061_mx_column_product(left: torch.Tensor, nb: int) -> torch.Tensor:
 def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
     global _EXP061_V2_HITS, _EXP061_MM_OUT_SUPPORTED, _EXP061_MM_OUT_HITS
     global _EXP061_STEP_HITS, _EXP061_ERROR
-    global _EXP064_TRSMFREE_HITS, _EXP064_TRSMFREE_FALLBACKS
-    global _EXP064_TRSMFREE_ERROR
     if not _HAVE_TRITON:
         raise RuntimeError("exp061 requires Triton")
     nb = 4096
@@ -4005,10 +3967,6 @@ def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
     panel_half = torch.empty(
         n - nb, nb, device=mat.device, dtype=torch.float16
     )
-    # Experiment 064: caller-owned inverse buffer for the trsm-free leaf
-    # inverse. Zeroed once here; `_exp061_leaf_inverse` fully overwrites every
-    # region that is ever non-zero on each call.
-    inverse_buf = torch.zeros(nb, nb, device=mat.device, dtype=torch.float32)
     previous_tf32 = torch.backends.cuda.matmul.allow_tf32
     try:
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -4043,23 +4001,7 @@ def _exp061_factor_1x32768(mat: torch.Tensor) -> torch.Tensor:
                 out_fp16=True,
             )
             column = None
-            # Experiment 064: the trsm-free base-32 leaf inverse that the
-            # 16384 path already uses. `_blocked_tri_inv_32768` bottoms out at
-            # 256-wide `solve_triangular` leaves, which the B200 profile
-            # charges 850us of `batch_trsm_left_kernel` over 28 launches; the
-            # base-32 Triton leaf replaces those with a single kernel and
-            # leaves the recursive tree's GEMMs untouched. Measured on the
-            # whole shape: 24,434.3us -> 22,872.4us, 1.068x.
-            if _EXP064_TRSM_FREE:
-                try:
-                    inverse = _exp061_leaf_inverse(diagonal_factor, inverse_buf)
-                    _EXP064_TRSMFREE_HITS += 1
-                except Exception as exc:  # pragma: no cover - safety net
-                    _EXP064_TRSMFREE_ERROR = repr(exc)
-                    _EXP064_TRSMFREE_FALLBACKS += 1
-                    inverse = _blocked_tri_inv_32768(diagonal_factor)
-            else:
-                inverse = _blocked_tri_inv_32768(diagonal_factor)
+            inverse = _blocked_tri_inv_32768(diagonal_factor)
             half_inverse = inverse.transpose(-1, -2).to(torch.float16)
             target = factor[j:, k:j]
             wrote = False

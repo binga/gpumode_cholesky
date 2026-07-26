@@ -2966,6 +2966,15 @@ def run_familygrid(filter_ns=None):
         ("rowscale", 4),
         ("tridiagonal", 1),
     ]
+    # Optional `families=a,b,c` argv token. `spectrum` builds its input with a
+    # QR of an n x n matrix, which at n=16384/32768 costs far more than the
+    # factorization under test and cannot finish inside the sandbox timeout;
+    # excluding it is the only way to gate the two largest shapes at all.
+    for token in sys.argv[1:]:
+        if token.startswith("families="):
+            wanted = {x.strip() for x in token.split("=", 1)[1].split(",") if x.strip()}
+            family_cases = [fc for fc in family_cases if fc[0] in wanted]
+            break
     specs = [s for s in BENCH_SPECS if not filter_ns or s["n"] in filter_ns]
     rows = []
     for spec in specs:
@@ -3020,10 +3029,475 @@ def run_familygrid(filter_ns=None):
     }
 
 
+# ---------------------------------------------------------------------------
+# largephase (experiment 064): where does each of the two biggest shapes spend
+# its wall clock, phase by phase, and what do the cheap structural variants of
+# the same driver cost?
+#
+# The kernel-name view from `shapediag` cannot separate the diagonal potrf from
+# the trailing GEMM once both land in vendor kernels, and it cannot price a
+# block width that is not shipped. This mode re-runs the *exact* shipped driver
+# logic with CUDA events between phases, then re-runs it with one structural
+# knob changed at a time. Every variant is checked with the official checker and
+# reports its reconstruction-tolerance fraction, so an accuracy regression can
+# never be mistaken for a win.
+# ---------------------------------------------------------------------------
+class _PhaseClock:
+    """Accumulates device time between successive marks on the default stream."""
+
+    def __init__(self):
+        self._marks = []
+
+    def mark(self, label):
+        event = torch.cuda.Event(enable_timing=True)
+        event.record()
+        self._marks.append((label, event))
+
+    def totals(self):
+        torch.cuda.synchronize()
+        out = {}
+        for index in range(1, len(self._marks)):
+            label = self._marks[index][0]
+            delta = (
+                self._marks[index - 1][1].elapsed_time(self._marks[index][1])
+                * 1e3
+            )
+            out[label] = out.get(label, 0.0) + delta
+        return out
+
+
+def _phase_16384(mat, nb=2048, clock=None):
+    """`_exp061_factor_1x16384` with an optional block width and phase marks."""
+    import submission as sub
+
+    n = mat.shape[0]
+    factor = torch.zeros_like(mat)
+    scratch = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
+    inverse = torch.zeros(nb, nb, device=mat.device, dtype=mat.dtype)
+    shadow = torch.empty(n, n, device=mat.device, dtype=torch.float16)
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    if clock:
+        clock.mark("start")
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            if k:
+                block = scratch[: n - k]
+                torch.mm(
+                    shadow[k:, :k],
+                    shadow[k:j, :k].transpose(-1, -2),
+                    out_dtype=torch.float32,
+                    out=block,
+                )
+                torch.sub(mat[k:, k:j], block, out=block)
+            else:
+                block = mat[:, :nb]
+            if clock:
+                clock.mark("update")
+            lkk = torch.linalg.cholesky_ex(block[:nb], check_errors=False).L
+            factor[k:j, k:j] = lkk
+            if clock:
+                clock.mark("diagonal")
+            if j >= n:
+                break
+            sub._exp061_leaf_inverse(lkk, inverse)
+            if clock:
+                clock.mark("inverse")
+            torch.mm(
+                block[nb:].to(torch.float16),
+                inverse.transpose(-1, -2).to(torch.float16),
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+            shadow[k:, k:j].copy_(factor[k:, k:j])
+            if clock:
+                clock.mark("panel")
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    return factor
+
+
+def _phase_32768(mat, nb=4096, column_mode="mxfp8", clock=None):
+    """`_exp061_factor_1x32768` with an optional block width, an optional
+    fp16 replacement for the MXFP8 block-column product, and phase marks."""
+    import submission as sub
+
+    n = mat.shape[0]
+    factor = torch.zeros_like(mat)
+    diagonal = torch.empty(nb, nb, device=mat.device, dtype=torch.float32)
+    panel_half = torch.empty(n - nb, nb, device=mat.device, dtype=torch.float16)
+    shadow = (
+        torch.empty(n, n, device=mat.device, dtype=torch.float16)
+        if column_mode == "fp16"
+        else None
+    )
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    if clock:
+        clock.mark("start")
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            kb = nb
+            j = k + kb
+            if k:
+                if column_mode == "fp16":
+                    column = torch.mm(
+                        shadow[k:, :k],
+                        shadow[k:j, :k].transpose(-1, -2),
+                        out_dtype=torch.float32,
+                    )
+                else:
+                    column = sub._exp061_mx_column_product(factor[k:, :k], kb)
+            else:
+                column = None
+            if clock:
+                clock.mark("update")
+            sub._exp061_move(
+                mat[k:j, k:j],
+                diagonal,
+                prod=None if column is None else column[:kb],
+            )
+            if clock:
+                clock.mark("move_diag")
+            diagonal_factor = torch.linalg.cholesky_ex(
+                diagonal, check_errors=False
+            ).L
+            sub._exp061_move(diagonal_factor, factor[k:j, k:j])
+            if clock:
+                clock.mark("diagonal")
+            if j >= n:
+                break
+            rows = n - j
+            half_panel = panel_half[:rows]
+            sub._exp061_move(
+                mat[j:, k:j],
+                half_panel,
+                prod=None if column is None else column[kb:],
+                out_fp16=True,
+            )
+            column = None
+            if clock:
+                clock.mark("move_panel")
+            inverse = sub._blocked_tri_inv_32768(diagonal_factor)
+            half_inverse = inverse.transpose(-1, -2).to(torch.float16)
+            if clock:
+                clock.mark("inverse")
+            torch.mm(
+                half_panel,
+                half_inverse,
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+            if shadow is not None:
+                shadow[k:, k:j].copy_(factor[k:, k:j])
+            if clock:
+                clock.mark("panel")
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    return factor
+
+
+def _zero_upper_blocks(factor, nb):
+    """Zero only the strict upper *block* triangle of `factor`.
+
+    The drivers write every block in the lower block triangle in full (the
+    diagonal blocks receive a lower-triangular `lkk` whose own upper half is
+    already zero), so a full `zeros_like` writes the whole matrix when only the
+    blocks above the block diagonal are actually needed. At 32768 that fill is
+    4 GB and costs ~647us of pure HBM write; this touches ~44% of it.
+    """
+    n = factor.shape[0]
+    for k in range(nb, n, nb):
+        factor[:k, k : k + nb].zero_()
+    return factor
+
+
+def _phase_16384_v2(mat, nb=2048, fill="zeros"):
+    """16384 driver with exp-061's strided Triton move on every block move.
+
+    The shipped 16384 path still routes four strided operations per step
+    through PyTorch's generic (OffsetCalculator) elementwise kernel -- the
+    profile shows 1216us across 38 launches, 14% of the shape. That is the same
+    defect exp 061 already fixed on 32768; this ports the fix.
+    """
+    import submission as sub
+
+    n = mat.shape[0]
+    if fill == "zeros":
+        factor = torch.zeros_like(mat)
+    else:
+        factor = _zero_upper_blocks(torch.empty_like(mat), nb)
+    product = torch.empty(n - nb, nb, device=mat.device, dtype=mat.dtype)
+    block = torch.empty(n, nb, device=mat.device, dtype=mat.dtype)
+    inverse = torch.zeros(nb, nb, device=mat.device, dtype=mat.dtype)
+    panel16 = torch.empty(n - nb, nb, device=mat.device, dtype=torch.float16)
+    shadow = torch.empty(n, n, device=mat.device, dtype=torch.float16)
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            j = k + nb
+            rows = n - k
+            active = block[:rows]
+            if k:
+                torch.mm(
+                    shadow[k:, :k],
+                    shadow[k:j, :k].transpose(-1, -2),
+                    out_dtype=torch.float32,
+                    out=product[:rows],
+                )
+                # Fused strided gather + subtract, replacing torch.sub on a
+                # strided operand.
+                sub._exp061_move(mat[k:, k:j], active, prod=product[:rows])
+            else:
+                sub._exp061_move(mat[:, :nb], active)
+            lkk = torch.linalg.cholesky_ex(active[:nb], check_errors=False).L
+            sub._exp061_move(lkk, factor[k:j, k:j])
+            sub._exp061_move(lkk, shadow[k:j, k:j], out_fp16=True)
+            if j >= n:
+                break
+            sub._exp061_leaf_inverse(lkk, inverse)
+            # Emit the fp16 panel operand directly instead of allocating a
+            # fresh `.to(float16)` temporary of the whole panel each step.
+            sub._exp061_move(active[nb:], panel16[: n - j], out_fp16=True)
+            torch.mm(
+                panel16[: n - j],
+                inverse.transpose(-1, -2).to(torch.float16),
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+            sub._exp061_move(factor[j:, k:j], shadow[j:, k:j], out_fp16=True)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    return factor
+
+
+def _phase_32768_v2(mat, nb=4096, trsm_free=True, fill="zeros"):
+    """32768 driver with the base-32 trsm-free inverse and an optional
+    upper-block-only fill.
+
+    The profile shows 850us of `batch_trsm_left_kernel` from
+    `_blocked_tri_inv_32768`'s base-256 `solve_triangular` leaves, plus 647us
+    of `FillFunc` from `zeros_like` on a 4 GB matrix. The 16384 path already
+    runs a trsm-free base-32 Triton leaf inverse; this reuses it.
+    """
+    import submission as sub
+
+    n = mat.shape[0]
+    if fill == "zeros":
+        factor = torch.zeros_like(mat)
+    else:
+        factor = _zero_upper_blocks(torch.empty_like(mat), nb)
+    diagonal = torch.empty(nb, nb, device=mat.device, dtype=torch.float32)
+    panel_half = torch.empty(n - nb, nb, device=mat.device, dtype=torch.float16)
+    inverse_buf = torch.zeros(nb, nb, device=mat.device, dtype=torch.float32)
+    previous_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        for k in range(0, n, nb):
+            kb = nb
+            j = k + kb
+            column = sub._exp061_mx_column_product(factor[k:, :k], kb) if k else None
+            sub._exp061_move(
+                mat[k:j, k:j],
+                diagonal,
+                prod=None if column is None else column[:kb],
+            )
+            diagonal_factor = torch.linalg.cholesky_ex(
+                diagonal, check_errors=False
+            ).L
+            sub._exp061_move(diagonal_factor, factor[k:j, k:j])
+            if j >= n:
+                break
+            rows = n - j
+            half_panel = panel_half[:rows]
+            sub._exp061_move(
+                mat[j:, k:j],
+                half_panel,
+                prod=None if column is None else column[kb:],
+                out_fp16=True,
+            )
+            column = None
+            if trsm_free:
+                inverse = sub._exp061_leaf_inverse(diagonal_factor, inverse_buf)
+            else:
+                inverse = sub._blocked_tri_inv_32768(diagonal_factor)
+            half_inverse = inverse.transpose(-1, -2).to(torch.float16)
+            torch.mm(
+                half_panel,
+                half_inverse,
+                out_dtype=torch.float32,
+                out=factor[j:, k:j],
+            )
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_tf32
+    return factor
+
+
+def _largephase_measure(name, driver, data_list, iters, rows):
+    """Check a variant with the official checker, then time it."""
+    try:
+        outputs = [driver(data[0]).unsqueeze(0) for data in data_list]
+        torch.cuda.synchronize()
+    except Exception as exc:
+        rows.append({"name": name, "error": repr(exc)})
+        print(f"  {name:<28} ERROR {exc!r}", flush=True)
+        return None
+    checks = [
+        check_implementation(data, output)
+        for data, output in zip(data_list, outputs, strict=True)
+    ]
+    ok = all(good for good, _ in checks)
+    margin = max(_recon_margin(d, o) for d, o in zip(data_list, outputs, strict=True))
+    del outputs
+    torch.cuda.empty_cache()
+    timing = _time_callable_rotating(
+        lambda data: driver(data[0]), data_list, warmup=1, iters=iters
+    )
+    row = {
+        "name": name,
+        "us": timing["mean_us"],
+        "best_us": timing["best_us"],
+        "checker_ok": ok,
+        "checker_msg": checks[0][1],
+        "tol_frac": margin,
+    }
+    rows.append(row)
+    print(
+        f"  {name:<28} {timing['mean_us']:10.1f}us  ok={ok} tol={margin:.4f}",
+        flush=True,
+    )
+    return row
+
+
+def run_largephase(filter_ns=None):
+    import submission as sub
+
+    targets = [
+        {"batch": 1, "n": 16384, "cond": 2, "seed": 48284},
+        {"batch": 1, "n": 32768, "cond": 2, "seed": 48368},
+    ]
+    if filter_ns:
+        targets = [t for t in targets if t["n"] in filter_ns]
+
+    out = {
+        "mode": "largephase",
+        "device": torch.cuda.get_device_name(0),
+        "shapes": [],
+    }
+
+    for spec in targets:
+        n = spec["n"]
+        data_list = []
+        args = dict(spec)
+        for _ in range(2):
+            data_list.append(generate_input(**args))
+            args["seed"] += 42
+        iters = 6 if n == 16384 else 4
+        print(f"=== batch=1 n={n}", flush=True)
+
+        # Phase breakdown of the shipped driver, averaged over 3 runs.
+        phase_driver = _phase_16384 if n == 16384 else _phase_32768
+        shipped_nb = 2048 if n == 16384 else 4096
+        for _ in range(2):
+            phase_driver(data_list[0][0], nb=shipped_nb)
+        torch.cuda.synchronize()
+        phase_totals = {}
+        runs = 3
+        for _ in range(runs):
+            clock = _PhaseClock()
+            phase_driver(data_list[0][0], nb=shipped_nb, clock=clock)
+            for key, value in clock.totals().items():
+                phase_totals[key] = phase_totals.get(key, 0.0) + value / runs
+        phase_sum = sum(phase_totals.values())
+        print(f"  phases (sum {phase_sum:.1f}us):", flush=True)
+        for key, value in sorted(phase_totals.items(), key=lambda kv: -kv[1]):
+            print(
+                f"    {key:<12} {value:9.1f}us  {100.0 * value / phase_sum:5.1f}%",
+                flush=True,
+            )
+
+        rows = []
+        _largephase_measure(
+            "control_shipped",
+            lambda mat: sub.custom_kernel(mat.unsqueeze(0))[0],
+            data_list,
+            iters,
+            rows,
+        )
+        if n == 16384:
+            for nb in (1024, 2048, 4096):
+                _largephase_measure(
+                    f"nb{nb}",
+                    lambda mat, nb=nb: _phase_16384(mat, nb=nb),
+                    data_list,
+                    iters,
+                    rows,
+                )
+            for nb in (2048, 4096):
+                for fill in ("zeros", "upper"):
+                    _largephase_measure(
+                        f"v2_move_nb{nb}_{fill}",
+                        lambda mat, nb=nb, fl=fill: _phase_16384_v2(
+                            mat, nb=nb, fill=fl
+                        ),
+                        data_list,
+                        iters,
+                        rows,
+                    )
+        else:
+            for nb in (2048, 4096):
+                for column_mode in ("mxfp8", "fp16"):
+                    _largephase_measure(
+                        f"nb{nb}_{column_mode}",
+                        lambda mat, nb=nb, cm=column_mode: _phase_32768(
+                            mat, nb=nb, column_mode=cm
+                        ),
+                        data_list,
+                        iters,
+                        rows,
+                    )
+            for trsm_free in (True, False):
+                for fill in ("zeros", "upper"):
+                    _largephase_measure(
+                        f"v2_nb4096_{'trsmfree' if trsm_free else 'trsm'}_{fill}",
+                        lambda mat, tf=trsm_free, fl=fill: _phase_32768_v2(
+                            mat, nb=4096, trsm_free=tf, fill=fl
+                        ),
+                        data_list,
+                        iters,
+                        rows,
+                    )
+
+        out["shapes"].append(
+            {
+                "spec": _spec_label(spec),
+                "n": n,
+                "phases": phase_totals,
+                "phase_sum_us": phase_sum,
+                "variants": rows,
+            }
+        )
+        del data_list
+        torch.cuda.empty_cache()
+
+    out["passed"] = all(
+        row.get("checker_ok") for shape in out["shapes"] for row in shape["variants"]
+    )
+    return out
+
+
 def main():
     # argv may contain the mode, an optional comma-separated shapes filter, and
     # an optional `emu` token (handled at import time). Ignore `emu` here.
-    args = [a for a in sys.argv[1:] if a.strip() and a != "emu"]
+    # `emu` and `key=value` tokens (e.g. `families=...`) are consumed elsewhere;
+    # only the mode and the shapes filter are positional here.
+    args = [
+        a
+        for a in sys.argv[1:]
+        if a.strip() and a != "emu" and "=" not in a
+    ]
     mode = args[0] if args else "verify"
     filter_ns = None
     if len(args) > 1 and args[1].strip():
@@ -3070,6 +3544,8 @@ def main():
         result = run_coopphase(filter_ns)
     elif mode == "microprobe":
         result = run_microprobe(filter_ns)
+    elif mode == "largephase":
+        result = run_largephase(filter_ns)
     elif mode == "shapediag":
         result = run_shapediag(filter_ns)
     elif mode == "midprobe":

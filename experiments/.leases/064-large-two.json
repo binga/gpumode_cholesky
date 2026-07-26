@@ -1,0 +1,10 @@
+{
+  "task": "exp064-large-two",
+  "owner": "claude-code-bg-job-4c103791",
+  "baseline_commit": "e267fd3",
+  "baseline_submission": 912756,
+  "baseline_sha256": "6f602db3b3e7ced63918fe484c9ce7873ad1619589c4079aa5d061264a8e72d6",
+  "target_region": "batch=1 n=16384 and batch=1 n=32768 dispatch only",
+  "created": "2026-07-26",
+  "heartbeat": "2026-07-26"
+}

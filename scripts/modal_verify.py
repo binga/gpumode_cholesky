@@ -130,6 +130,7 @@ def main() -> int:
             "pairedgrid",
             "familygrid",
             "shapediag",
+            "largephase",
             "midprobe",
             "microprobe",
             "asmprobe",
@@ -164,6 +165,12 @@ def main() -> int:
         help="comma-separated n values to restrict the benchmark grid (cost saver), e.g. 32,64,128",
     )
     parser.add_argument(
+        "--families",
+        default=None,
+        help="comma-separated family names to restrict familygrid (cost saver); "
+        "spectrum needs an n x n QR and is intractable at n>=16384",
+    )
+    parser.add_argument(
         "--emu",
         action="store_true",
         help="enable cuBLAS BF16x9 FP32 emulation (CUBLAS_FP32_EMULATED_BF16X9_MATH=1) in the sandbox",
@@ -191,6 +198,8 @@ def main() -> int:
     runner_args = ["python", "-u", "/root/_gpu_runner.py", args.mode]
     if args.shapes:
         runner_args.append(args.shapes)
+    if args.families:
+        runner_args.append(f"families={args.families}")
     if args.emu:
         runner_args.append("emu")
 
