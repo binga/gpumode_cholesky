@@ -25,6 +25,14 @@ and auditable.
 6. **`git commit`** the experiment folder (+ root `submission.py`/`journal.md`/`README.md`
    if changed) with a message like `exp NNN: <slug> — <one-line result>`.
 
+## See also
+
+- `docs/workflow.md` — the outer and inner loop drawn out, with gate ordering.
+- `docs/experiment-matrix.md` — every experiment × the strategies it used, with
+  the latency it moved. **Add a row there when an experiment closes.**
+- `docs/lever-ladder.md` — the standing backlog of levers to pick from, ported
+  from the QR project, with measured ROI estimates.
+
 ## Log
 
 | # | approach | geomean | ranked id | verdict |
