@@ -85,12 +85,13 @@ experiment, ranked public geomean for an integration.
 | 062 | ✓ | | | ✓ | | | | | | | 733.5us public / 721.8us secret (-1.64%) | **adopted** |
 | 063 | | | | ✓ | ✓ | | | | | | 675.8us public / 674.4us secret (-9.4% / -9.0%) | **adopted** |
 | 064 | | ✓ | | | ✓ | | | | | ✓ | full grid **1.0073x** CI95 excludes 1.0 | **adopted** |
+| 065 | | | | ✓ | | ✓ | | | | | block 45.669→39.742us = **1.149x**; grid **1.0122x** CI95 excludes 1.0; public **−3.79%** but secret **+5.71%** | **rejected at LB** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 11 | 17 | 8 | 20 | 21 | 9 | 4 | 5 | **4** | 9 |
+| experiments | 11 | 17 | 8 | 21 | 21 | 10 | 4 | 5 | **4** | 9 |
 
 ## What the matrix says
 
@@ -121,3 +122,11 @@ experiment, ranked public geomean for an integration.
    30 experiments; 1084 → 675.8us took 25 more. Recent adoptions are 1.007–1.04x
    grid wins. The board is asking for a new lever, not another increment on the
    large shapes.
+
+6. **Device-time wins do not automatically survive the secret split.** Exp 065
+   is the cleanest instance on the board: 1.149x on the kernel, 1.0122 on the
+   full grid with CI95 excluding 1.0, identical counters, zero fallbacks,
+   correctness bit-identical to the control — and the secret split still
+   regressed 5.71% while public improved 3.79%. Three experiments now show this
+   (022, 035, 065), and 035 was *adopted* on the same signature 065 was rejected
+   on. Read `program.md`'s secret-split section before spending a ranked slot.
