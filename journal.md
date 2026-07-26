@@ -1,199 +1,23 @@
-# Journal — GPU MODE `cholesky` leaderboard
+# Cholesky optimization journal
 
-Running log of work, results, and findings. Newest entries at the top.
+**Narrative archive — append-only.** One dated entry per experiment, adopted or
+rejected: hypotheses, variants, component profiles, paired means, speedups,
+numerical margins, failures, Popcorn ids, public/secret scores, costs, insights.
 
-The **Optimization Tracker** immediately below is a *living* document (not a
-dated session entry): update its cells as paths are shipped, rejected, or newly
-identified. The dated session log starts after it.
+This file is *not* read during the loop. It is where you go to reconstruct why a
+past decision was made. The loop reads:
 
----
+| | |
+|---|---|
+| what is ranked now | `docs/STATUS.md` |
+| how the loop runs | `program.md` |
+| what to try next | `docs/levers.md` |
+| what has been tried | `docs/experiments.md` |
+| what we learned | `docs/lessons.md` |
 
-## Required end-to-end experiment workflow
-
-The canonical triggerable version of this workflow, including standing Modal
-profiling authorization and promotion gates, is in `program.md`.
-
-Every experiment, whether **adopted or rejected**, is complete only after this
-entire workflow has run and the result is present on GitHub:
-
-1. **Synchronize** — start from a clean checkout and `git pull --ff-only` so the
-   experiment is based on the latest remote history.
-2. **Frame the goal** — record the current ranked baseline, target shapes,
-   hypothesis, success threshold, correctness constraints, cost/submission
-   guardrails, and a bounded fallback ladder in `docs/goal-expNNN-*.md`.
-3. **Isolate one change** — preserve the baseline and every serious candidate in
-   `experiments/NNN-*/`; do not bundle unrelated optimizations before the first
-   causal measurement.
-4. **Run free checks first** — property/correctness tests, syntax/compile checks,
-   artifact parsing, and `git diff --check` must pass before remote GPU spend.
-5. **Measure progressively** — use paired same-process B200 probes on the smallest
-   representative target first; expand to expensive shapes only after a credible
-   win. Record raw JSON and compare against the current shipped path.
-6. **Validate the changed dispatch region** — cover dense, diagonal, spectrum,
-   low-rank, row-scaled, and tridiagonal families, including every fallback path.
-7. **Run the full grid** — a credible finalist must pass all 15 ranked shapes and
-   must not regress shapes outside its dispatch region.
-8. **Use Popcorn gates in order** — require test mode 17/17, then make at most one
-   justified ranked submission and wait for the leaderboard result. Rejected or
-   unpromising experiments do not spend a ranked submission.
-9. **Adopt or reject explicitly** — copy a winner to root `submission.py`, or
-   leave it isolated if rejected. Update experiment notes/artifacts, the root
-   README, `experiments/README.md`, this journal's Optimization Tracker, and a
-   dated session entry with results, costs, failures, insights, and next ideas.
-10. **Commit the complete experiment** — stage only the experiment's code,
-    artifacts, goal, harness changes, and documentation; run final checks; create
-    one descriptive commit (or a clearly documented follow-up completion commit).
-11. **Push and verify GitHub** — `git push origin <branch>` and verify the remote
-    branch contains the experiment commit. A local commit, successful leaderboard
-    run, or journal entry alone is **not done**. Record the commit and publication
-    state in the session entry.
-
-The supervising task owns the terminal gates: prevent duplicate ranked
-submissions, recover transient failures, ensure documentation is complete, and
-do not report success until both the ranked/adoption decision and GitHub push are
-confirmed.
-
----
-
-## Optimization Tracker (living — update on progress/regress)
-
-This tracker is per **shape**. For the per-**experiment** view — which strategy
-each experiment used and what latency it moved — see `docs/experiment-matrix.md`.
-For the standing backlog of untried levers and their estimated ROI, see
-`docs/lever-ladder.md`. For the loop itself, see `docs/workflow.md`.
-
-Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
-
-- **✓** — shipped / current winning path for that shape (see the referenced session).
-- **TBD** — plausible lever, not yet conclusively tried (a path worth exploring).
-- **✗** — tried and rejected, or not applicable / no expected benefit for this shape.
-
-Current adopted source: **`#890798` = 801.977μs public / 847.836μs secret
-(Session 43, exp 047)**. It improves `#890659` by 0.504% public on a paired
-grid of 1.012106x. Exact SHA-256:
-`fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.
-Previously: **`#890659` = 806.037μs public / 806.396μs secret (Session 42,
-exp 046)**.
-Previously: **`#890089` = 810.246μs public (Session 41, exp 045
-= exp 044 carried onto the 64x256 winner `#890037`)**. Previously: **`#889994`
-= 852.746μs public / 847.396μs secret (Session 40)**. Previously: **`#888996` = 916.5768129471865μs public /
-863.8500740634134μs secret** (Session 39). `#888867` remains the best public
-score at 899.124686138768μs; `#888996` is adopted because its same-process full
-grid improves 1.04787x and its secret score improves 4.812%. Experiments 039,
-041, and 042 replace all three campaign shapes with cuSOLVER-free CUDA kernels;
-every stage-specific control exceeds 2x.
-`nb` = block size.
-
-| Shape (b×n) | Batched cuSOLVER | Per-matrix loop | Triton kernel | Custom CUDA (tcgen05/CUTLASS) | Blocked / tiled | TF32 trailing | BF16x9 FP32-emu | FP8 / MXFP8 + iter-refine | CUDA Graphs |
-|---|---|---|---|---|---|---|---|---|---|
-| 4096×32  | ✗ | ✗ | ✗ superseded (S16b/S22) | **✓ rank-2 warp CUDA** (S36, 2.269×) | ✗ | ✗ | ✗ | ✗ | ✗ graph copy cost (S16b) |
-| 1024×64  | ✗ (S15) | ✗ | ✗ (S2/S15 0.67×; S28 split32 route 0.998×) | **✓ two-warp rank-2 CUDA** (S38, ~3.80× end-to-end) | ✗ | ✗ | TBD | TBD | ✗ superseded (S15) |
-| 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
-| 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
-| 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64); fused resident panel locally gated but B200-pending (S45/exp049) | ✗ full-resident cluster, one-CTA persistent, atomic CTA groups, and rank-128 superpanels (S45; best 0.697×) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
-| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | TBD | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cooperative + cluster/DSM persistent paths rejected (S44/exp048, best dense 1.167× and family-invalid) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
-| 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + **✓ fused resident panel + merged diag step** (S43, 1.092×) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
-| 8×2048   | ✗ (S9) | ✗ (S5) | **✓** (S20, panel-inner 64×64, 1.055× vs S19); ✗ fused resident panel (S43, 0.907× — needs uniform NB=128, loses exp 032's NB=256) | ✗ | **✓** (S20) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
-| 1×4096   | **✓** | — | ✗ (S15 cand-B 0.18–0.97×) | ✗ cooperative six-path bound (S37, best 0.376×) | ✗ (S15) | TBD | TBD | TBD | ✗ (S15, 0.97×) |
-| 2×4096   | ✗ | **✓** (S4) | ✗ (S15 cand-B) | ✗ | ✗ (S15) | TBD | TBD | TBD | TBD |
-| 1×8192   | **✓** | — | ✗ | ✗ | ✗ 1.07× (S6) | ✗ 1.07× (S6) | ✗ 0.95× (S7) | TBD | ✗ |
-| 1×16384  | ✗ | — | ✗ | ✗ | **✓ left-looking** (S10) | **✓ active-panel** (S10) | ✗ 1.15× (S7) | TBD | ✗ |
-| 1×32768  | ✗ | — | ✗ (S13/S14 no-cusolver potrf) | ✗ (S13/S14) | **✓ left-looking** (S10) | **✓ diagonal** (S10) | ✗ (S7, extrap.) | **✓ native FP8 panel + fused quantization** (S10/S14, 1.084×) | ✗ (S13 two-level) |
-
-Notes: **CUDA streams** win several launch-bound shapes but are **banned** by
-popcorn's static source scan (S4/S6) — not a column. FP16/BF16 (plain, not
-BF16x9) were tried in the blocked path and **lost to TF32** on B200 (S6), so
-they're folded into the TF32 result rather than tracked separately.
-
-**Panel precision / width (S30).** `8×2048` now factors with an NB=256 uniform
-panel schedule (halves the panel count; the one shape where fewer launches beat
-the `_trailing_nb` spill — L2/exp 032). `4×1024`, `60×1024`, `8×2048` now use
-plain **tf32 (1-pass) panels** instead of tf32x3 (L4/exp 033); safe only at large
-n because the `20·n·eps·‖A‖` gate grows with n (smaller shapes lack margin —
-256×128 dense *fails* under tf32 panels). **fp16x3 emulated-fp32 panels rejected**
-(register spill in the tight panel kernels). Panel precision/width is not yet a
-tracker column; recorded here.
-
-**Per-call fixed overhead** (copy-in/clone-out ~9μs + finite-check chain
-~12–15μs) is a top-3 cost on every sub-400μs shape (S28) but is not yet a
-column, because no variant has been *measured* — S29's cheap finite check was
-refuted on a free gate before any GPU spend. Standing constraint for this
-lever: the finite check may be made cheaper but **never weaker**. Shrinking it
-to the last diagonal entry is invalid — `finite/Inf == 0`, so an overflowed
-pivot is absorbed into a zero column and never reaches `L[n-1][n-1]` (S29). The
-open variant is an in-kernel flag written at *pivot* time, which is both cheaper
-and strictly stronger than the shipped full-diagonal reduction.
-
-### Transfer opportunities — build and leaderboard-test queue
-
-Build each opportunity in priority order against the exact current ranked
-source. Run free checks, paired same-process B200 timing, all six families for
-every changed shape, and the full 15-shape grid. Only an aggregate improvement
-may proceed to Popcorn test 17/17 and then exactly one leaderboard submission;
-leave losing shapes on their current ranked route.
-
-| Priority | Technique with positive evidence | Proven shapes | Untried transfer targets | Expected opportunity |
-|---:|---|---|---|---|
-| 1 | 64×64 panel-inner subtiling | `4×1024` **1.089×**, `8×2048` **1.055×** (S20); `64×256` **1.047×**, `16×512` **1.078×**, `640×512` **1.128×** (S21) | None | **COMPLETED.** S21 ranked at `#882958`; `60×1024` was measured and excluded after conflicting `1.055×` isolated / `0.977×` grid evidence. |
-| 2 | Rank-4 pivot processing | Six split32 shapes **1.05–1.26×** (S17); standalone `4096×32` **1.077×** Modal (S22) | None | **COMPLETED, NOT ADOPTED.** Ranked `#882969` regressed public 1.510% while improving secret 1.440%; current source stays rank-2. |
-| 3 | Reciprocal multiply replacing divides | `4×1024` **1.007×**; `8×2048` **1.005×** (S19) | None | **COMPLETED, REJECTED at `60×1024`.** Two correct probes measured `1.007×` then `0.994×`; below route noise, so no LB run. |
-| 4 | Dynamic E4M3 panel products with fused quantization | `1×32768` **1.373×**, then another **1.084×** from fused amax/quantization (S12/S14) | None | **COMPLETED, REJECTED at `1×16384`.** S24 passed 6/6 but measured `0.997×`; ~1.17ms quantization overhead erased the gain. |
-| 5 | FP8 or MXFP8 trailing Schur updates | FP8 wins at `1×32768`; FP16 trailing wins on five split32 shapes | MXFP8/refined variants remain | **FP8 ARCHITECTURE REJECTED.** S25 native tile-local E4M3 at `8×2048` was incorrect/fallback-only (0.513× invalid timing); no LB run. |
-| 6 | Recursive triangular inversion | `1×16384` **1.055×**; `1×32768` **1.028×** (S16a/S17) | None | **COMPLETED, REJECTED at `1×8192`.** Clean `nb=2048` isolation passed 6/6 but measured `0.954×` (S26). |
-| 7 | First-touch eager execution | Strongest at `640×512`; also shipped at `60×1024` (S17) | None | **COMPLETED, REJECTED at `8×2048`.** S27 passed 6/6 but measured `0.336×`; `4×1024` has less copy traffic and was closed by the stronger negative proxy. |
-| 8 | Graph-captured per-matrix loop | Graph replay wins at `1024×64`, `256×128`, and blocked mid shapes | Ineligible | **NOT BUILT:** would create a new cuSOLVER-based fast path for `2×2048`/`2×4096`, prohibited by the standing owner boundary. |
-
-Do not reopen already measured losses as transfers: rank-4 split32 at
-`2×2048`/`2×4096` (**0.764×/0.784×**), split32 at `1024×64`/`256×128`
-(**0.788×/0.904×**), graphed `4096×32` (**0.845×**), FP8 panels at
-`1×8192` versus its faster TF32 path, or fixed-scale FP8-shadow stacks at
-16384/32768 (≤1.0×).
-
-### Blackwell B200-specific candidate solutions (the "what else")
-
-These are the levers that are *specific to* / most leveraged by the B200
-(sm_100, 5th-gen tensor cores, `tcgen05.mma`, block-scaled MX formats). Ordered
-roughly by expected ROI given the loose accuracy gate (`‖A−LLᵀ‖₁ ≤ 20·n·eps·‖A‖₁`,
-which *grows with n* → the huge shapes have the most numerical headroom).
-
-1. **BF16x9 FP32 emulation on tensor cores** — ✗ **REJECTED (S7).** Engages on the
-   B200 via `CUBLAS_EMULATE_SINGLE_PRECISION=1` + `CUBLAS_FP32_EMULATED_BF16X9_MATH=1`
-   (the BF16X9 var alone does nothing; the PyTorch `fp32_precision` knob only exposes
-   ieee/tf32, no BF16x9). Confirmed engaged (standalone 8192 FP32 matmul 16.7→6.3ms,
-   2.6×) and ≈FP32-accurate (margins 65k–139k× vs TF32's ~100–210×; and *robust* where
-   TF32 NaNs on lowrank). **But slower than the shipped paths:** 8192 0.95× vs cuSOLVER,
-   16384 bf16x9 1.15× vs TF32's 1.60×. Reason: BF16x9 ≈ 6–9 BF16 products per FP32
-   GEMM, so ~3× slower than a single-product TF32 GEMM — TF32 tensor cores are the real
-   bar, not native FP32. Speed order TF32 > BF16x9 > native FP32. See exp 007.
-2. **FP8 / MXFP8 trailing update + mixed-precision iterative refinement** —
-   ◐ **PARTIALLY SHIPPED (S10/S14).** Native E4M3 FP8 panel products with FP32
-   accumulation in the left-looking `1×32768` path passed all six families and
-   improved the exp-009 path by **1.373×**. Experiment 014 fused both operands'
-   tiled amax reductions and E4M3 scale/cast passes, improving that shipped path
-   another **1.084×** and producing ranked `#880770`. The dense scaled residual
-   remains 4.52/20 (22.6% of tolerance). MXFP8, iterative refinement, and an FP8
-   path for `1×16384` remain genuinely untested.
-3. **CUTLASS 3.x Blackwell fused kernel (`tcgen05.mma`, TMA, 2-SM MMA)** — a
-   warp-specialized collective kernel that fuses panel + trailing SYRK, using the
-   Tensor Memory Accelerator for async bulk copies and CTA-pair (2-SM) MMA. Beats
-   the PyTorch-op blocked path by avoiding per-step launch + global-memory
-   materialization. See CUTLASS example 78 (`blackwell_emulated_bf16x9_gemm`).
-   High effort. *Target: large-n; possibly a real n=64/128 blocked kernel.*
-4. **CUDA Graphs (legal — not streams)** — capture the many small launches in the
-   blocked path and the per-matrix loop into a graph to amortize launch overhead.
-   Cheap, shippable, Blackwell-agnostic but complementary. *Target: launch-bound
-   small-n shapes, the Python-loop blocked path, 1×32768 (2-level).*
-5. **Latest cuSOLVER + expert `cusolverDnXpotrf[Batched]` API** — ensure the
-   toolkit ships Blackwell-tuned `potrf`; try algorithm selection / the 64-bit
-   expert API vs `cholesky_ex`. Low effort, may quietly improve mid-batch shapes.
-6. **Two-level blocked scheme for 1×32768** — recurse the diagonal `potrf` so the
-   FP32 diagonal factorization also becomes tensor-core work. Diminishing returns
-   (S6) but 32768 is ~76% of the clock, so even a few % moves the geomean most.
-7. **Thread-block clusters / distributed shared memory (sm_90+/sm_100)** — a
-   cluster-wide-shared-memory panel kernel could finally crack the mid-n shapes
-   (n=256–1024) currently stuck on saturated cuSOLVER. Speculative.
+The per-shape Optimization Tracker that used to live here is now Part 1 of
+`docs/levers.md`. The workflow restatement that used to live here is deleted;
+`program.md` was always the canonical copy.
 
 ---
 

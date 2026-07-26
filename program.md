@@ -130,6 +130,137 @@ view for all targeted or changed shapes:
 Use same-process paired evidence where available. Label missing or cross-context
 numbers rather than silently mixing leaderboard and local/Modal measurements.
 
+## The loop
+
+```
+                        THE 15-SHAPE GRID  (scripts/_gpu_runner.py BENCH_SPECS)
+      small / high-batch            mid shapes                large-n / batch-1
+      4096x32    21.9us         640x512  1355.5us          1x4096   1536.0us
+      1024x64    35.3us           4x1024  713.8us          2x4096   3210.3us
+       256x128   73.8us          60x1024 1282.0us          1x8192   5804.5us
+        64x256  115.1us           2x2048 1358.3us          1x16384 15058.8us
+        16x512  405.1us           8x2048 1598.4us          1x32768 42331.5us
+      score = GEOMEAN over all 15 -> an additive constant costs more than a
+      multiplicative win on the biggest shape
+
+╔═══════════════════════════════════════ OUTER LOOP ═══════════════════════════════════════╗
+║                                                                                          ║
+║  [O1] SYNC          git fetch origin/main; read ranked incumbent id, commit,             ║
+║   ^                 sha256, public/secret score. Lower is better.                        ║
+║   |                                  |                                                   ║
+║   |                                  v                                                   ║
+║   |  [O2] PICK TARGETS  modal_verify.py benchmark -> per-shape us                        ║
+║   |                     latency_budget.py -> measured = max(dram,math) + residual        ║
+║   |                     docs/experiment-matrix.md -> what is already spent               ║
+║   |                     rank by (residual x geomean weight), not by raw us               ║
+║   |                                  |                                                   ║
+║   |          +-----------------------+-----------------------+                           ║
+║   |          v                       v                       v                           ║
+║   |   ┌────────────┐          ┌────────────┐          ┌────────────┐                     ║
+║   |   │ INNER LOOP │          │ INNER LOOP │          │ INNER LOOP │   parallel:         ║
+║   |   │  shape A   │          │  shape B   │          │  shape C   │   one lease each,   ║
+║   |   │ lease+wtree│          │ lease+wtree│          │ lease+wtree│   non-overlapping   ║
+║   |   └─────┬──────┘          └─────┬──────┘          └─────┬──────┘   dispatch regions  ║
+║   |         |  WINNER / PROMOTABLE FRONTIER only            |                            ║
+║   |         +-----------------------+-----------------------+                           ║
+║   |                                 v                                                    ║
+║   |  [O3] INTEGRATE     new experiments/NNN-* from the LATEST ranked winner.              ║
+║   |                     Merge only non-overlapping dispatch regions.                      ║
+║   |                     Combined source = a NEW compile risk. Re-gate from scratch.       ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [O4] FULL GRID     15 shapes paired vs the exact ranked source.                      ║
+║   |                     all pass? geomean improved? no off-target regression?             ║
+║   |                     (1x32768 alone is 57% of grid wall time -- gate it last)          ║
+║   |                          fail --> back to inner loops                                 ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [O5] COLD BUILD    clean sandbox, no warm extension cache,                           ║
+║   |                     must finish in <80% of the Popcorn service timeout.               ║
+║   |                     an exact-boundary timeout is COMPILE_BUDGET_FAILURE,              ║
+║   |                     NOT evidence of bad arithmetic.                                   ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [O6] POPCORN TEST  require 17/17 on the exact source.                                ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [O7] POPCORN RANK  EXACTLY ONE in flight, globally. Monitor to terminal               ║
+║   |                     public AND secret.                                                ║
+║   |                                 |                                                    ║
+║   |                    both splits improved?                                              ║
+║   |                 no /                    \ yes                                        ║
+║   |                  v                       v                                           ║
+║   |          keep old winner,        [O8] ADOPT: copy to root submission.py,              ║
+║   |          record rejection,             journal.md entry, matrix row,                  ║
+║   |          no blind retry                commit, push main, verify remote               ║
+║   |                  |                       |                                           ║
+║   +------------------+-----------------------+                                           ║
+║                          new incumbent becomes the baseline                              ║
+╚══════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔═══════════════════════ INNER LOOP  (one shape worker, one lease) ════════════════════════╗
+║                                                                                          ║
+║  lease: experiments/.leases/NNN-<shape>.json  (owner, baseline sha, heartbeat)           ║
+║  worktree: isolated, branched from the exact verified incumbent                          ║
+║                                    |                                                     ║
+║                                    v                                                     ║
+║  [I1] PICK A LEVER   from docs/lever-ladder.md, cross-checked against                    ║
+║   ^                  docs/experiment-matrix.md so a closed path is not re-run.           ║
+║   |                  Pe is 5-for-5 negative. CU/LP are saturated at 20/21.               ║
+║   |                  Ov has 4 entries and zero clean measurements.                       ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I2] WRITE CODE                                                                     ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I3] FREE GATES    ~seconds, $0                                                     ║
+║   |                     py_compile, syntax, git diff --check, source-policy scan,        ║
+║   |                     artifact parse, snapshot compare                                  ║
+║   |                     fail --> fix. NO GPU SPENT. (exp 031 died here, correctly)       ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I4] CORRECTNESS   ~1-2 min   modal_verify.py verify --filter <shape>               ║
+║   |                     dense / spectrum / lowrank / rowscale / diagonal / tridiagonal   ║
+║   |                     + official reconstruction checker + every fallback path           ║
+║   |                     tolerance is NEVER weakened; closeness is enough                  ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I5] PAIRED LATENCY ~2-5 min   _gpu_runner.py pairedgrid                            ║
+║   |                     candidate vs exact ranked source, ONE process, rotated inputs    ║
+║   |                     MUST prove the intended backend ran: counters, load/compile      ║
+║   |                     status, zero fallbacks.                                           ║
+║   |                     >>> fallback timing is INVALID, not a slow data point <<<        ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I6] PROFILE       ~3-8 min    ncu_profile.py  -> dram% sm% tensor% occ%            ║
+║   |                                                    stall_long_scoreboard / wait /    ║
+║   |                                                    barrier / imc_miss                ║
+║   |                                  latency_budget.py -> dram vs math vs residual       ║
+║   |                        dram-bound -> fewer passes, smaller dtype                     ║
+║   |                        math-bound -> faster pipe (tf32 -> fp8)                       ║
+║   |                        residual   -> more parallelism / shorter dependent chain      ║
+║   |                                      (completely DEAF to precision work)             ║
+║   |                     skippable when I5 already shows a decisive win                    ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I7] CLASSIFY                                                                       ║
+║   |         WINNER               >= 2.00x paired          --+                            ║
+║   |         PROMOTABLE FRONTIER  < 2x, aggregate positive  --+--> hand to OUTER [O3]     ║
+║   |         FRONTIER             faster, banked for later --+                            ║
+║   |         REJECTED             slower / wrong / fallback-only                          ║
+║   |         EXHAUSTED            6 distinct variants, no winner                          ║
+║   |                                 |                                                    ║
+║   |                                 v                                                    ║
+║   |  [I8] RECORD        manifest + state.json (atomic) + journal.md                      ║
+║   |                     + one row in docs/experiment-matrix.md                           ║
+║   |                                 |                                                    ║
+║   +---------------------------------+   next lever, until WINNER or EXHAUSTED            ║
+║                                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+
 ## Workflow
 
 1. **Synchronize the current winner**
@@ -382,45 +513,6 @@ Two things follow, and neither is optional:
    split evaluates inputs this repository cannot see. Treat a sub-1.5% paired
    grid as insufficient grounds to spend a ranked slot unless the goal
    explicitly accepts a coin-flip on secret.
-
-## Cheap gates that are still under-used
-
-- **Compute the Amdahl ceiling before opening a shape.** It costs nothing and it
-  classifies the outcome in advance. Exp 065: the diagonal is ~55% of a mid
-  shape and the best predicted block speedup was 1.52x, so
-  `1 / (0.45 + 0.55/1.52)` = 1.23x was the ceiling — correctly ruling out the
-  2.00x research target before any GPU spend, and correctly predicting a
-  frontier rather than a winner. Record the ceiling in the goal.
-- **Reuse the candidate's own probe hook rather than writing a harness.**
-  `mid_probe()` plus a variant-templated kernel gave, in **one** Modal run:
-  per-block timing, the phase-cycle breakdown, `abs_err`/`inv_err` against an
-  in-source control, and whole-shape speedups on five shapes. Restrict the
-  variant tuple to (control, candidate) — probing the whole ladder every time
-  multiplies the bill for rows the decision does not turn on.
-- **The previous experiment's "next levers" section is load-bearing.** Exp 065
-  took one variant instead of six because exp 064 had already named the lever
-  and costed it. Keep those sections quantitative; they are the cheapest input
-  the next experiment gets.
-
-## Blackwell kernel technique notes
-
-- **`bar.sync <id>, <count>` gives a partial-block barrier.** When a subset of
-  warps must synchronise while other warps are elsewhere in the kernel,
-  `__syncthreads()` deadlocks — it is barrier 0 over every thread in the block.
-  A named barrier with an explicit participant count (a multiple of the warp
-  size) is the primitive. Exp 065 used id 1 over 224 threads so warps 1-7 could
-  synchronise between staging and the trailing update while warp 0 sat inside
-  the triangular inverse.
-- **Overlap is available wherever one warp holds a serial phase and the others
-  idle** — but only after proving the memory footprints are disjoint. Exp 065's
-  three regions (`S[kk:kk+32,kk:kk+32]` read-only, `S[lwid:,kk:kk+32]` -> `P`,
-  `P` -> `S[lwid:,lwid:]`) provably do not alias, which is why the arithmetic
-  came out bit-identical to the control. Establish that first; the win is
-  scheduling, and a scheduling change that alters results is a bug.
-- **Expect the overlapped serial phase to get slightly slower.** Exp 065's
-  `triinv` grew 2% (37019 -> 40341 cycles) from shared-memory contention with
-  the seven warps now working behind it. That is the price of the overlap, not
-  a defect, and it is small next to the phases that leave the timeline.
 
 ## Non-negotiable promotion rules
 
