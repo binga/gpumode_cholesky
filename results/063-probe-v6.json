@@ -1,0 +1,457 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "combined_ext",
+      "us": 0.0,
+      "ok": true,
+      "error": "None"
+    },
+    {
+      "name": "v0_diag128_block",
+      "us": 47.954,
+      "ns_per_row": 374.6,
+      "ok": true
+    },
+    {
+      "name": "v0_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_load",
+      "us": 2.445,
+      "cycles": 6291,
+      "pct": 5.1,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_chain",
+      "us": 14.742,
+      "cycles": 37925,
+      "pct": 30.7,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_triinv",
+      "us": 15.506,
+      "cycles": 39891,
+      "pct": 32.3,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_panel",
+      "us": 2.26,
+      "cycles": 5813,
+      "pct": 4.7,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_stageP+Qt",
+      "us": 4.323,
+      "cycles": 11121,
+      "pct": 9.0,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_commit",
+      "us": 1.319,
+      "cycles": 3393,
+      "pct": 2.8,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_trailing+inv",
+      "us": 5.807,
+      "cycles": 14938,
+      "pct": 12.1,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_store",
+      "us": 1.551,
+      "cycles": 3991,
+      "pct": 3.2,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_block",
+      "us": 42.4,
+      "ns_per_row": 331.3,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_err",
+      "us": 0.0,
+      "abs_err": 0.0490309,
+      "inv_err": 0.57271028,
+      "ok": false,
+      "bad_count": 7320,
+      "first_bad": [
+        [
+          9,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          10
+        ]
+      ],
+      "row_err": [
+        0.0,
+        2.6e-05,
+        0.003961,
+        0.006567,
+        0.048723,
+        0.016985,
+        0.012823,
+        0.01366,
+        0.015638,
+        0.008017,
+        0.027906,
+        0.014342,
+        0.011732,
+        0.019028,
+        0.009056,
+        0.024897
+      ],
+      "col_err": [
+        0.0,
+        0.027849,
+        0.048723,
+        0.028003,
+        0.005883,
+        0.006791,
+        0.017473,
+        0.020577,
+        0.002003,
+        0.005373,
+        0.030099,
+        0.019593,
+        0.002997,
+        0.003307,
+        0.007212,
+        0.005874
+      ]
+    },
+    {
+      "name": "v1_phase_load",
+      "us": 3.192,
+      "cycles": 6268,
+      "pct": 7.5,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_chain",
+      "us": 19.537,
+      "cycles": 38363,
+      "pct": 46.1,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_triinv",
+      "us": 0.0,
+      "cycles": 0,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_panel",
+      "us": 2.728,
+      "cycles": 5357,
+      "pct": 6.4,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_stageP+Qt",
+      "us": 5.792,
+      "cycles": 11372,
+      "pct": 13.7,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_commit",
+      "us": 1.575,
+      "cycles": 3093,
+      "pct": 3.7,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_trailing+inv",
+      "us": 7.462,
+      "cycles": 14653,
+      "pct": 17.6,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_store",
+      "us": 2.113,
+      "cycles": 4149,
+      "pct": 5.0,
+      "ok": true
+    },
+    {
+      "name": "v2_diag128_block",
+      "us": 42.901,
+      "ns_per_row": 335.2,
+      "ok": true
+    },
+    {
+      "name": "v2_diag128_err",
+      "us": 0.0,
+      "abs_err": 0.0178214,
+      "inv_err": 0.08539226,
+      "ok": false,
+      "bad_count": 7249,
+      "first_bad": [
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          6
+        ]
+      ],
+      "row_err": [
+        0.0,
+        0.000674,
+        0.002635,
+        0.004006,
+        0.005199,
+        0.005233,
+        0.00469,
+        0.003311,
+        0.006587,
+        0.005372,
+        0.005957,
+        0.006261,
+        0.011792,
+        0.007129,
+        0.00492,
+        0.008006
+      ],
+      "col_err": [
+        0.0,
+        0.00347,
+        0.004317,
+        0.007557,
+        0.000895,
+        0.001534,
+        0.005936,
+        0.005857,
+        0.001035,
+        0.003103,
+        0.004406,
+        0.00805,
+        0.001518,
+        0.00251,
+        0.00414,
+        0.003934
+      ]
+    },
+    {
+      "name": "v2_phase_load",
+      "us": 3.195,
+      "cycles": 6246,
+      "pct": 7.4,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_chain",
+      "us": 22.714,
+      "cycles": 44404,
+      "pct": 52.9,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_triinv",
+      "us": 0.0,
+      "cycles": 0,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_panel",
+      "us": 0.004,
+      "cycles": 8,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_stageP+Qt",
+      "us": 5.779,
+      "cycles": 11298,
+      "pct": 13.5,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_commit",
+      "us": 1.487,
+      "cycles": 2907,
+      "pct": 3.5,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_trailing+inv",
+      "us": 7.641,
+      "cycles": 14937,
+      "pct": 17.8,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_store",
+      "us": 2.081,
+      "cycles": 4069,
+      "pct": 4.9,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x2048",
+      "us": 1370.3,
+      "ok": true
+    },
+    {
+      "name": "v0_2x2048_nbo1024",
+      "us": 1151.4,
+      "speedup": 1.1902,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_2x2048_nbo1024",
+      "us": 1047.1,
+      "speedup": 1.3087,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_2x4096",
+      "us": 3221.3,
+      "ok": true
+    },
+    {
+      "name": "v0_2x4096_nbo1024",
+      "us": 2489.1,
+      "speedup": 1.2942,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_2x4096_nbo1024",
+      "us": 2288.6,
+      "speedup": 1.4076,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_8x2048",
+      "us": 1577.9,
+      "ok": true
+    },
+    {
+      "name": "v0_8x2048_nbo1024",
+      "us": 1357.4,
+      "speedup": 1.1625,
+      "abs_err": 7.5e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_8x2048_nbo1024",
+      "us": 1276.8,
+      "speedup": 1.2358,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_4x1024",
+      "us": 696.5,
+      "ok": true
+    },
+    {
+      "name": "v0_4x1024_nbo1024",
+      "us": 570.6,
+      "speedup": 1.2206,
+      "abs_err": 0.000108,
+      "ok": true
+    },
+    {
+      "name": "v2_4x1024_nbo1024",
+      "us": 529.0,
+      "speedup": 1.3166,
+      "abs_err": NaN,
+      "ok": false
+    },
+    {
+      "name": "shipped_16x512",
+      "us": 404.0,
+      "ok": true
+    },
+    {
+      "name": "v0_16x512_nbo512",
+      "us": 316.1,
+      "speedup": 1.2781,
+      "abs_err": 0.000146,
+      "ok": true
+    },
+    {
+      "name": "v2_16x512_nbo512",
+      "us": 279.5,
+      "speedup": 1.4454,
+      "abs_err": NaN,
+      "ok": false
+    }
+  ],
+  "passed": false
+}

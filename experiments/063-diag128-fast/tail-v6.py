@@ -262,6 +262,138 @@ __device__ __forceinline__ void e62_chain32_fused(float* __restrict__ Sb,
 }
 
 // --------------------------------------------------------------------------
+// Variant 2 -- 256-thread panel factorization.
+//
+// Variants 0 and 1 both leave 61% of the block on ONE warp, and a single warp
+// cannot hide shared-memory latency: the measured chain sits at 119-146
+// ns/pivot against a ~63 ns/pivot instruction-issue estimate, because every
+// pivot's staging store -> barrier -> load is exposed end to end.
+//
+// This variant hands the serial phase to all eight warps instead. The whole
+// 128x32 column panel is factored together, which subsumes THREE phases at
+// once -- the 32x32 pivot chain, its triangular inverse, and the panel solve
+// that applied that inverse to the rows below -- because a right-looking
+// rank-1 update over 128 rows produces L21 directly.
+//
+//   thread -> tr = tid >> 3 (0..31, rows 4tr..4tr+3)
+//             tc = tid & 7  (0..7,  panel columns 4tc..4tc+3)
+//   t[4][4]  = S[4tr+u][kk+4tc+v]
+//   mt[4][4] = inv(L11)[4tr+u-kk][4tc+v], carried only by the eight row
+//              groups that lie inside the pivot block
+//
+// One `__syncthreads()` per pivot, not two: the staging buffers are double
+// buffered, so pivot k+1 writes the buffer pivot k did not read. A thread can
+// only reach pivot k+2's store after barrier k+1, which every thread's pivot-k
+// read precedes.
+//
+// The pivot column is staged RAW and scaled after the barrier, so the
+// reciprocal square root does not have to be known before the staging store --
+// that is what removes the second barrier.
+// --------------------------------------------------------------------------
+__device__ __forceinline__ void e62_panel32(float* __restrict__ S,
+                                            float* __restrict__ Qi,
+                                            float* __restrict__ Scr,
+                                            int tid, int kk)
+{
+    const int tr = tid >> 3;
+    const int tc = tid & 7;
+    const int r0 = tr << 2;
+    const int c0 = kk + (tc << 2);
+    const int ib = kk >> 2;
+    const bool inv_thread = (tr >= ib) && (tr < ib + 8);
+    const int mrow0 = r0 - kk;
+
+    float t[4][4];
+    float mt[4][4];
+    #pragma unroll
+    for (int u = 0; u < 4; ++u) {
+        const float4 x = *(const float4*)(S + (r0 + u) * E62_LD + c0);
+        t[u][0] = x.x; t[u][1] = x.y; t[u][2] = x.z; t[u][3] = x.w;
+        #pragma unroll
+        for (int v = 0; v < 4; ++v)
+            mt[u][v] = (inv_thread && (mrow0 + u) == ((tc << 2) + v))
+                       ? 1.0f : 0.0f;
+    }
+
+    for (int kq = 0; kq < 8; ++kq) {          // deliberately NOT unrolled
+        const bool colown = (tc == kq);
+        const bool rowown = (tr == ib + kq);
+        #pragma unroll
+        for (int kv = 0; kv < 4; ++kv) {
+            const int kl = (kq << 2) + kv;
+            const int k  = kk + kl;
+            float* Lc = Scr + ((kl & 1) << 7);
+            float* Mr = Scr + 256 + ((kl & 1) << 5);
+
+            if (colown) {
+                float4 lv;
+                lv.x = (r0 + 0 >= k) ? t[0][kv] : 0.0f;
+                lv.y = (r0 + 1 >= k) ? t[1][kv] : 0.0f;
+                lv.z = (r0 + 2 >= k) ? t[2][kv] : 0.0f;
+                lv.w = (r0 + 3 >= k) ? t[3][kv] : 0.0f;
+                *(float4*)(Lc + r0) = lv;
+            }
+            if (rowown) {
+                *(float4*)(Mr + (tc << 2)) =
+                    make_float4(mt[kv][0], mt[kv][1], mt[kv][2], mt[kv][3]);
+            }
+            __syncthreads();
+
+            const float d  = rsqrtf(Lc[k]);
+            const float d2 = d * d;
+            const float4 rw = *(const float4*)(Lc + r0);
+            const float4 cw = *(const float4*)(Lc + c0);
+            const float rowv[4] = {rw.x, rw.y, rw.z, rw.w};
+            float colv[4] = {cw.x, cw.y, cw.z, cw.w};
+            if (colown) colv[kv] = 0.0f;
+
+            float rr[4];
+            #pragma unroll
+            for (int u = 0; u < 4; ++u) rr[u] = rowv[u] * d2;
+            #pragma unroll
+            for (int u = 0; u < 4; ++u)
+                #pragma unroll
+                for (int v = 0; v < 4; ++v)
+                    t[u][v] -= rr[u] * colv[v];
+            if (colown) {
+                #pragma unroll
+                for (int u = 0; u < 4; ++u) t[u][kv] = rowv[u] * d;
+            }
+
+            if (inv_thread) {
+                const float4 mw = *(const float4*)(Mr + (tc << 2));
+                const float mrv[4] = {mw.x * d, mw.y * d, mw.z * d, mw.w * d};
+                float rm[4];
+                #pragma unroll
+                for (int u = 0; u < 4; ++u)
+                    rm[u] = ((r0 + u) == k) ? 0.0f : rowv[u] * d;
+                #pragma unroll
+                for (int u = 0; u < 4; ++u)
+                    #pragma unroll
+                    for (int v = 0; v < 4; ++v)
+                        mt[u][v] -= rm[u] * mrv[v];
+                if (rowown) {
+                    #pragma unroll
+                    for (int v = 0; v < 4; ++v) mt[kv][v] = mrv[v];
+                }
+            }
+        }
+    }
+
+    #pragma unroll
+    for (int u = 0; u < 4; ++u)
+        *(float4*)(S + (r0 + u) * E62_LD + c0) =
+            make_float4(t[u][0], t[u][1], t[u][2], t[u][3]);
+    if (inv_thread) {
+        #pragma unroll
+        for (int u = 0; u < 4; ++u)
+            #pragma unroll
+            for (int v = 0; v < 4; ++v)
+                Qi[(mrow0 + u) * E62_QLD + (tc << 2) + v] = mt[u][v];
+    }
+}
+
+// --------------------------------------------------------------------------
 
 template <int VAR>
 __global__ __launch_bounds__(E62_NT, 1)
@@ -308,7 +440,7 @@ void e62_diag128(float* __restrict__ A, float* __restrict__ Dinv,
         const int nrow  = E62_TB - lwid;
         float* Sb = S + kk * E62_LD + kk;
 
-        // ---- 1+2. pivot chain and its inverse (warp 0) ----
+        // ---- 1+2(+3). pivot chain and its inverse ----
         if (VAR == 0) {
             if (warp == 0) e62_chain32_reg(Sb, lane);
             __syncwarp();
@@ -316,32 +448,39 @@ void e62_diag128(float* __restrict__ A, float* __restrict__ Dinv,
             if (warp == 0) e62_tri_inv32(Sb, Qi, Tp, lane);
             __syncthreads();
             if (prof) { ph[2] += clock64() - t0; t0 = clock64(); }
-        } else {
+        } else if (VAR == 1) {
             if (warp == 0) e62_chain32_fused(Sb, Qi, Tp, lane);
+            __syncthreads();
+            if (prof) { ph[1] += clock64() - t0; t0 = clock64(); }
+        } else {
+            e62_panel32(S, Qi, Tp, tid, kk);
             __syncthreads();
             if (prof) { ph[1] += clock64() - t0; t0 = clock64(); }
         }
 
         // ---- 3. panel solve: S[r][kk:kk+32] <- S[r][kk:kk+32] * inv(L11)^T
-        for (int r0 = lwid + warp * 4; r0 < E62_TB; r0 += E62_NW * 4) {
-            const float* q  = Qi + lane * E62_QLD;
-            const float* s0 = S + r0 * E62_LD + kk;
-            float a0 = 0.f, a1 = 0.f, a2 = 0.f, a3 = 0.f;
-            #pragma unroll 8
-            for (int u = 0; u < 32; ++u) {
-                const float qv = q[u];
-                a0 += s0[u] * qv;
-                a1 += s0[E62_LD + u] * qv;
-                a2 += s0[2 * E62_LD + u] * qv;
-                a3 += s0[3 * E62_LD + u] * qv;
+        //         Variant 2 already produced L21 inside the panel factorization.
+        if (VAR != 2) {
+            for (int r0 = lwid + warp * 4; r0 < E62_TB; r0 += E62_NW * 4) {
+                const float* q  = Qi + lane * E62_QLD;
+                const float* s0 = S + r0 * E62_LD + kk;
+                float a0 = 0.f, a1 = 0.f, a2 = 0.f, a3 = 0.f;
+                #pragma unroll 8
+                for (int u = 0; u < 32; ++u) {
+                    const float qv = q[u];
+                    a0 += s0[u] * qv;
+                    a1 += s0[E62_LD + u] * qv;
+                    a2 += s0[2 * E62_LD + u] * qv;
+                    a3 += s0[3 * E62_LD + u] * qv;
+                }
+                __syncwarp();
+                S[r0 * E62_LD + kk + lane]       = a0;
+                S[(r0 + 1) * E62_LD + kk + lane] = a1;
+                S[(r0 + 2) * E62_LD + kk + lane] = a2;
+                S[(r0 + 3) * E62_LD + kk + lane] = a3;
             }
-            __syncwarp();
-            S[r0 * E62_LD + kk + lane]       = a0;
-            S[(r0 + 1) * E62_LD + kk + lane] = a1;
-            S[(r0 + 2) * E62_LD + kk + lane] = a2;
-            S[(r0 + 3) * E62_LD + kk + lane] = a3;
+            __syncthreads();
         }
-        __syncthreads();
         if (prof) { ph[3] += clock64() - t0; t0 = clock64(); }
 
         // ---- 4. stage P[t][x] = S[x][kk+t] ----
@@ -481,7 +620,7 @@ void e62_diag128(float* __restrict__ A, float* __restrict__ Dinv,
     }
 }
 
-#define E62_DEFAULT_VAR 1
+#define E62_DEFAULT_VAR 0
 
 static void e62_configure()
 {
@@ -495,6 +634,10 @@ static void e62_configure()
             (const void*)e62_diag128<1>,
             cudaFuncAttributeMaxDynamicSharedMemorySize, E62_SMEM_B);
         TORCH_CHECK(a1 == cudaSuccess, cudaGetErrorString(a1));
+        cudaError_t a2 = cudaFuncSetAttribute(
+            (const void*)e62_diag128<2>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize, E62_SMEM_B);
+        TORCH_CHECK(a2 == cudaSuccess, cudaGetErrorString(a2));
         configured = true;
     }
 }
@@ -509,8 +652,11 @@ static void e62_run(torch::Tensor A, torch::Tensor Dinv, int64_t n, int64_t j,
     if (variant == 0) {
         e62_diag128<0><<<dim3(batch), dim3(E62_NT), E62_SMEM_B>>>(
             A.data_ptr<float>(), Dinv.data_ptr<float>(), prof, (int)n, (int)j);
-    } else {
+    } else if (variant == 1) {
         e62_diag128<1><<<dim3(batch), dim3(E62_NT), E62_SMEM_B>>>(
+            A.data_ptr<float>(), Dinv.data_ptr<float>(), prof, (int)n, (int)j);
+    } else {
+        e62_diag128<2><<<dim3(batch), dim3(E62_NT), E62_SMEM_B>>>(
             A.data_ptr<float>(), Dinv.data_ptr<float>(), prof, (int)n, (int)j);
     }
     cudaError_t status = cudaGetLastError();
@@ -546,7 +692,7 @@ def _load_exp062():
         from torch.utils.cpp_extension import load_inline
 
         _EXP062 = load_inline(
-            name="chol_exp063_diag128_v5",
+            name="chol_exp063_diag128_v6",
             cpp_sources=(
                 "void e62_diag128_launch(torch::Tensor, torch::Tensor, "
                 "int64_t, int64_t, torch::Tensor);\n"
@@ -652,7 +798,8 @@ def _shipped(x):
 _PHASE_NAMES = ("load", "chain", "triinv", "panel", "stageP+Qt", "commit",
                 "trailing+inv", "store")
 
-_E62_VARIANTS = (0, 1)
+_E62_VARIANTS = (0, 1, 2)
+_E62_SHAPE_VARIANTS = (0, 2)
 
 
 def mid_probe():
@@ -702,10 +849,23 @@ def mid_probe():
         inv_err = float(
             (dinv[0] @ l11[0] - torch.eye(128, device=dev)).abs().max().item()
         )
-        rows.append({"name": f"v{var}_diag128_err", "us": 0.0,
-                     "abs_err": round(err, 7),
-                     "inv_err": round(inv_err, 8),
-                     "ok": err < 1e-3 and inv_err < 1e-3})
+        row = {"name": f"v{var}_diag128_err", "us": 0.0,
+               "abs_err": round(err, 7),
+               "inv_err": round(inv_err, 8),
+               "ok": err < 1e-3 and inv_err < 1e-3}
+        if not row["ok"]:
+            # Localise the failure instead of paying another Modal run for it:
+            # which rows and columns of L first diverge from the reference.
+            ref = torch.linalg.cholesky(a[:, :128, :128].double())[0].float()
+            de = (l11[0] - ref).abs()
+            bad = (de > 1e-4).nonzero()
+            row["bad_count"] = int(bad.shape[0])
+            row["first_bad"] = bad[:8].tolist()
+            row["row_err"] = [round(v, 6) for v in
+                              de.amax(dim=1)[::8].tolist()]
+            row["col_err"] = [round(v, 6) for v in
+                              de.amax(dim=0)[::8].tolist()]
+        rows.append(row)
         cyc = profbuf[:8].tolist()
         total = max(sum(cyc), 1)
         for name, c in zip(_PHASE_NAMES, cyc):
@@ -724,7 +884,7 @@ def mid_probe():
         base = _e62_time(_shipped, a, iters=8, warmup=3)
         rows.append({"name": f"shipped_{batch}x{n}", "us": round(base, 1),
                      "ok": True})
-        for var in _E62_VARIANTS:
+        for var in _E62_SHAPE_VARIANTS:
             for nbo in (1024,):
                 if nbo > n:
                     nbo = n
