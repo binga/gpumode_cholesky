@@ -1,0 +1,51 @@
+{
+  "experiment": "063-diag128-fast",
+  "status": "AWAITING_RANKED_SUBMISSION",
+  "baseline": {
+    "submission": 909488,
+    "source": "experiments/063-diag128-fast/ship-v1.py",
+    "sha256": "57da792a8c5b126fdfe9ff9495a03f1cd16dbe0f4aeaaf00ae1f12a3b9f4b3c2",
+    "public_us": 682.912,
+    "secret_us": 686.145
+  },
+  "candidate": {
+    "source": "experiments/063-diag128-fast/ship-v2.py",
+    "sha256": "6f602db3b3e7ced63918fe484c9ce7873ad1619589c4079aa5d061264a8e72d6",
+    "kernel_variant": 3,
+    "description": "256-thread L-only panel factorization (e62_panel32<0>) replacing the one-warp pivot chain and the panel solve; 32x32 triangular inverse left on the shipped routine."
+  },
+  "gates": {
+    "pairedgrid": {
+      "artifact": "results/063-ship-v2-pairedgrid.json",
+      "geomean": 1.0321317884973724,
+      "ci95": [1.0316934951742471, 1.032570268020215],
+      "ci_excludes_1": true,
+      "all_shapes_ok": true,
+      "counter_diff": "identical on all 15 shapes; new_fallbacks empty everywhere",
+      "worst_a_vs_a_spread": 0.0034
+    },
+    "familygrid": {
+      "artifact": "results/063-ship-v2-familygrid.json",
+      "checker_ok_rows": "48/48",
+      "worst_residual": 9.59,
+      "tolerance": 20,
+      "fallbacks": "spectrum/lowrank only, identical to the incumbent's own behaviour"
+    },
+    "popcorn_test": {
+      "submission": 912740,
+      "result": "passed",
+      "build_seconds": 34
+    },
+    "source_policy": "cusolver/stream token counts byte-identical to the ranked source; nothing added"
+  },
+  "per_shape_paired_ratio": {
+    "16x512": 1.1128,
+    "4x1024": 1.1079,
+    "2x2048": 1.0985,
+    "8x2048": 1.0940,
+    "2x4096": 1.0908,
+    "other_10": "0.9987-1.0003"
+  },
+  "next_lever": "Plan item 2 (look-ahead overlap). Chain ~11us vs parallel phases ~14us per block; running them concurrently approaches max instead of sum, ~25us/block (~195 ns/row) against today's 37.9us.",
+  "blocked_on": "Coordinator submits --mode leaderboard; this agent no longer does ranked submissions."
+}
