@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task": "/root",
+  "baseline_commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+  "baseline_submission": 904546,
+  "baseline_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "candidate_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+  "target_region": "serialized Popcorn test and at most one ranked submission for experiment 060 v1",
+  "status": "active",
+  "created_at": "2026-07-25T01:25:00+05:30",
+  "last_heartbeat": "2026-07-25T01:28:00+05:30",
+  "test_submission": 904674,
+  "test_status": "succeeded_17_of_17",
+  "worktree": "/private/tmp/gpumode-cholesky-exp060-two-large",
+  "owner_note": "Popcorn test #904674 passed 17/17 on the exact source. Lease remains active for one serialized ranked submission."
+}

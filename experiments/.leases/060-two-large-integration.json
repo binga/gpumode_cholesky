@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "/root",
+  "baseline_commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+  "baseline_submission": 904546,
+  "baseline_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "target_region": "follow-up integration of batch=1,n=16384 and batch=1,n=32768 only",
+  "status": "active",
+  "created_at": "2026-07-25T01:02:00+05:30",
+  "last_heartbeat": "2026-07-25T01:02:00+05:30",
+  "worktree": "/private/tmp/gpumode-cholesky-exp060-two-large",
+  "owner_note": "Second incremental checkpoint from ranked #904546; shape-local workers retain non-overlapping leases and Popcorn remains serialized."
+}

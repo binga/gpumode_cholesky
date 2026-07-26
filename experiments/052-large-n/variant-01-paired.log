@@ -1,0 +1,119 @@
+submission -> /Users/phani/projects/gpumode_cholesky/experiments/052-large-n/baseline-890798.py
+candidate  -> /Users/phani/projects/gpumode_cholesky/experiments/052-large-n/candidate-v1.py
+[33mBuilding image im-OwwuaeqLWz24bypBfmqEKL[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.76s[0m
+
+[33mBuilt image im-OwwuaeqLWz24bypBfmqEKL in 3.26s[0m
+
+
+[33mBuilding image im-sH1Tulos38oFMOo3wJW90b[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 715.82ms[0m
+
+[33mBuilt image im-sH1Tulos38oFMOo3wJW90b in 1.84s[0m
+
+
+[33mBuilding image im-33iuzmFaTNPs3d4YAUY6DQ[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.45s[0m
+
+[33mBuilt image im-33iuzmFaTNPs3d4YAUY6DQ in 3.18s[0m
+
+
+[33mBuilding image im-W4bsY0ehoHKZhgA9DdO3Ww[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 655.67ms[0m
+
+[33mBuilt image im-W4bsY0ehoHKZhgA9DdO3Ww in 1.45s[0m
+
+
+[33mBuilding image im-rBpFRjjKCq4NBh3ZkE2V4Q[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 674.49ms[0m
+
+[33mBuilt image im-rBpFRjjKCq4NBh3ZkE2V4Q in 1.92s[0m
+
+
+[33mBuilding image im-JkxRK9NYoaBo16ENm974Og[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 689.05ms[0m
+
+[33mBuilt image im-JkxRK9NYoaBo16ENm974Og in 1.60s[0m
+
+
+[33mBuilding image im-47Ft1plEdFBa5uF2ky5hOo[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.25s[0m
+
+[33mBuilt image im-47Ft1plEdFBa5uF2ky5hOo in 2.47s[0m
+
+
+[33mBuilding image im-dDovcww2FbqtMEXyO2bNYS[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 611.35ms[0m
+
+[33mBuilt image im-dDovcww2FbqtMEXyO2bNYS in 1.71s[0m
+
+
+torch=2.13.0+cu130 cuda=13.0 device=NVIDIA B200
+BF16x9_EMU=OFF
+custom_cuda_loaded=False
+pairedgrid: baseline=/root/submission.py candidate=/root/candidate.py byte_identical=False shapes=3
+batch=1 n=8192 case=dense          ratio=1.0062 CI=[1.0054,1.0063] mad=0.01% AvA=0.05% base=5800.9us cand=5767.3us ok=True
+batch=1 n=16384 case=dense         ratio=1.0624 CI=[1.0616,1.0631] mad=0.04% AvA=0.05% base=15192.0us cand=14304.1us ok=True
+batch=1 n=32768 case=dense         ratio=1.2944 CI=[1.2940,1.2951] mad=0.02% AvA=0.05% base=42346.8us cand=32710.3us ok=True
+
+geomean(ratio) = 1.1143 CI95=[1.1140,1.1147] excludes_1.0=True
+noise floor: worst per-shape deviation 29.44%, worst A-vs-A spread 0.05%
+RESULT_JSON:{"mode": "pairedgrid", "byte_identical": false, "shapes": [{"n": 8192, "batch": 1, "spec": "batch=1 n=8192 case=dense", "ratio_median": 1.0061616400217182, "ratio_ci95": [1.0053506178879046, 1.006250721993567], "ratio_mad": 0.00014177577628893268, "ratios": [1.00656, 1.00623, 1.00616, 1.00535, 1.00523, 1.00625, 1.00602], "baseline_us": 5800.9278774261475, "candidate_us": 5767.303943634033, "order_spread_median": 0.0004799215552680886, "ratio_first_half": 1.0062265245005813, "ratio_second_half": 1.0056852410666668, "repeats": 7, "iters_per_block": 5, "rotating_inputs": 2, "baseline_ok": true, "candidate_ok": true, "baseline_msg": "scaled_reconstruction_residual=0.19; batch=1; n=8192", "candidate_msg": "scaled_reconstruction_residual=0.355; batch=1; n=8192", "baseline_counters": {"_LARGE_FP8_HITS": 1}, "candidate_counters": {"_LARGE_FP8_HITS": 1}, "new_fallbacks": {}, "ok": true}, {"n": 16384, "batch": 1, "spec": "batch=1 n=16384 case=dense", "ratio_median": 1.0624331620461531, "ratio_ci95": [1.0616467942414543, 1.0631191913219784], "ratio_mad": 0.0004014098639522068, "ratios": [1.06165, 1.06243, 1.06203, 1.06312, 1.06265], "baseline_us": 15192.016124725342, "candidate_us": 14304.111957550049, "order_spread_median": 0.0004924220807278716, "ratio_first_half": 1.0620399781438037, "ratio_second_half": 1.0626500194803312, "repeats": 5, "iters_per_block": 3, "rotating_inputs": 1, "baseline_ok": true, "candidate_ok": true, "baseline_msg": "scaled_reconstruction_residual=0.213; batch=1; n=16384", "candidate_msg": "scaled_reconstruction_residual=0.213; batch=1; n=16384", "baseline_counters": {"_LARGE_FP8_HITS": 1}, "candidate_counters": {"_LARGE_FP8_HITS": 1}, "new_fallbacks": {}, "ok": true}, {"n": 32768, "batch": 1, "spec": "batch=1 n=32768 case=dense", "ratio_median": 1.2943549626295554, "ratio_ci95": [1.2940302509962736, 1.2950792784791094], "ratio_mad": 0.0002329062558059647, "ratios": [1.29403, 1.29459, 1.29508, 1.29422, 1.29435], "baseline_us": 42346.79985046387, "candidate_us": 32710.27183532715, "order_spread_median": 0.0005085685605546082, "ratio_first_half": 1.2943090599408174, "ratio_second_half": 1.2943549626295554, "repeats": 5, "iters_per_block": 3, "rotating_inputs": 1, "baseline_ok": true, "candidate_ok": true, "baseline_msg": "scaled_reconstruction_residual=5.26; batch=1; n=32768", "candidate_msg": "scaled_reconstruction_residual=5.28; batch=1; n=32768", "baseline_counters": {"_MXFP8_HITS": 6, "_LARGE_FP8_HITS": 1}, "candidate_counters": {"_MXFP8_HITS": 6, "_LARGE_FP8_HITS": 1}, "new_fallbacks": {}, "ok": true}], "geomean_ratio": 1.1143140052625957, "geomean_ci95": [1.1139727010210367, 1.1146554140745677], "geomean_ci_excludes_1": true, "worst_shape_deviation": 0.2943549626295554, "worst_order_spread": 0.0005085685605546082, "all_shapes_ok": true, "passed": true}
+
+wrote /Users/phani/projects/gpumode_cholesky/experiments/052-large-n/variant-01-paired.json

@@ -7,3 +7,9 @@ __pycache__/
 # Keep committed JSON summaries under results/, ignore raw run dumps
 results/*
 !results/*.json
+# macOS junk
+.DS_Store
+# Agent scratch: .claude/ holds git worktrees (recursive repo copies, ~400M)
+.claude/
+.codex/
+*.bak

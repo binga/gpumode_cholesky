@@ -1,0 +1,189 @@
+submission -> /Users/phani/projects/gpumode_cholesky/experiments/052-large-n/candidate-v1.py
+[33mBuilding image im-VV2tOvFBGUEZim3hIrhyeI[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 715.27ms[0m
+
+[33mBuilt image im-VV2tOvFBGUEZim3hIrhyeI in 1.42s[0m
+
+
+[33mBuilding image im-QkYCBfGI0dAqb7dEJ5auZK[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 551.97ms[0m
+
+[33mBuilt image im-QkYCBfGI0dAqb7dEJ5auZK in 1.39s[0m
+
+
+[33mBuilding image im-r0A2LtZC8HbXnYMyDIFjUV[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 645.13ms[0m
+
+[33mBuilt image im-r0A2LtZC8HbXnYMyDIFjUV in 1.54s[0m
+
+
+[33mBuilding image im-1sT8xNURVj60XUNK8Sxb4t[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.67s[0m
+
+[33mBuilt image im-1sT8xNURVj60XUNK8Sxb4t in 2.43s[0m
+
+
+[33mBuilding image im-fsFAeHZVCvcKTbRb0DGmu5[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.86s[0m
+
+[33mBuilt image im-fsFAeHZVCvcKTbRb0DGmu5 in 3.04s[0m
+
+
+[33mBuilding image im-fWhN2tbxBxboZuYYmq1z4y[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 686.74ms[0m
+
+[33mBuilt image im-fWhN2tbxBxboZuYYmq1z4y in 1.65s[0m
+
+
+[33mBuilding image im-jUldjYS32vtd4hR7UhocEC[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.45s[0m
+
+[33mBuilt image im-jUldjYS32vtd4hR7UhocEC in 2.57s[0m
+
+
+[33mBuilding image im-UTGSXMrvUIdgUejSlDBEOd[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 1.24s[0m
+
+[33mBuilt image im-UTGSXMrvUIdgUejSlDBEOd in 2.26s[0m
+
+
+[33mBuilding image im-1PUgMNgzAGtClOGpeU7lmE[0m
+
+[33mUsing legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.[0m
+
+[33m=> Step 0: FROM base[0m
+
+[33m=> Step 1: COPY . /[0m
+[33mSaving image...[0m
+[33mImage saved, took 976.98ms[0m
+
+[33mBuilt image im-1PUgMNgzAGtClOGpeU7lmE in 1.96s[0m
+
+
+torch=2.13.0+cu130 cuda=13.0 device=NVIDIA B200
+BF16x9_EMU=OFF
+custom_cuda_loaded=False
+batch=1 n=8192: wall=5774.9us device=5527.3us idle=247.6us (4.3%) launches=132 wall/launch=43.749us
+     45.6%   2521.90us    4 calls  630.474us/call  void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,
+     33.6%   1858.01us   24 calls   77.417us/call  void kernel_trsm_l_mul32<float, 8, true, true, false, false>(int, int,
+      8.6%    474.30us   39 calls   12.162us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      7.2%    397.53us    6 calls   66.254us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+      1.1%     61.53us    4 calls   15.382us/call  void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda
+      0.9%     51.58us    7 calls    7.369us/call  void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc
+      0.9%     47.81us    6 calls    7.968us/call  cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12
+      0.6%     32.91us    6 calls    5.485us/call  cutlass3x_sm100_tensorop_s128x64x8tf32gemm_f32_f32_f32_f32_f32_128x64x
+      0.5%     29.04us    6 calls    4.839us/call  void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig
+      0.3%     17.77us    9 calls    1.974us/call  void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern
+      0.2%     10.52us    8 calls    1.315us/call  Memset (Device)
+      0.1%      4.30us    4 calls    1.074us/call  xxtrf4_set_info_ker(int, int*)
+      0.1%      4.06us    3 calls    1.355us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      0.1%      3.55us    1 calls    3.552us/call  Memcpy DtoH (Device -> Pinned)
+      0.1%      3.29us    1 calls    3.285us/call  void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp
+      0.1%      3.13us    1 calls    3.126us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      0.1%      3.01us    1 calls    3.008us/call  void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::
+      0.0%      1.57us    1 calls    1.568us/call  void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFu
+batch=1 n=16384: wall=14340.2us device=13861.1us idle=479.1us (3.3%) launches=290 wall/launch=49.449us
+     36.4%   5038.66us    8 calls  629.833us/call  void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,
+     31.3%   4343.94us   56 calls   77.570us/call  void kernel_trsm_l_mul32<float, 8, true, true, false, false>(int, int,
+     13.1%   1818.99us   12 calls  151.582us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+      9.9%   1366.23us   87 calls   15.704us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      4.6%    633.89us    2 calls  316.944us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+      1.3%    177.48us   15 calls   11.832us/call  void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc
+      0.9%    123.55us    8 calls   15.444us/call  void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda
+      0.8%    110.86us   14 calls    7.918us/call  cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12
+      0.6%     77.25us   14 calls    5.518us/call  cutlass3x_sm100_tensorop_s128x64x8tf32gemm_f32_f32_f32_f32_f32_128x64x
+      0.5%     67.73us   14 calls    4.838us/call  void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig
+      0.3%     41.80us   21 calls    1.991us/call  void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern
+      0.2%     24.46us   18 calls    1.359us/call  Memset (Device)
+      0.1%      9.56us    7 calls    1.365us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      0.1%      9.07us    8 calls    1.133us/call  xxtrf4_set_info_ker(int, int*)
+      0.0%      4.07us    1 calls    4.075us/call  void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::
+      0.0%      3.66us    1 calls    3.659us/call  Memcpy DtoH (Device -> Pinned)
+      0.0%      3.39us    1 calls    3.392us/call  void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp
+      0.0%      3.30us    1 calls    3.296us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+batch=1 n=32768: wall=32759.4us device=32132.1us idle=627.3us (1.9%) launches=409 wall/launch=80.096us
+     34.6%  11126.30us    8 calls 1390.787us/call  void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,
+     23.5%   7555.65us   10 calls  755.565us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+     15.5%   4977.80us  107 calls   46.521us/call  void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp
+      6.8%   2178.57us    5 calls  435.714us/call  nvjet_sm100_qqsss_128x256_128x6_2x1_2cta_v_bz_Avec32UE8M0_Bvec32UE8M0_
+      4.5%   1449.62us    4 calls  362.405us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+      3.1%   1011.31us   12 calls   84.276us/call  _mx_quant_e4m3_blocked_kernel
+      2.6%    846.16us   28 calls   30.220us/call  void batch_trsm_left_kernel<float, 64, 4, 3, false, true, true>(cublas
+      2.0%    644.79us   16 calls   40.299us/call  void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc
+      1.8%    582.73us    6 calls   97.122us/call  void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunc
+      1.4%    455.37us    8 calls   56.921us/call  void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda
+      1.2%    371.96us   14 calls   26.568us/call  cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25
+      0.9%    273.46us    1 calls  273.459us/call  nvjet_sm100_qqsss_128x256_128x6_2x2_2cta_h_bz_Avec32UE8M0_Bvec32UE8M0_
+      0.5%    154.91us   14 calls   11.065us/call  cutlass3x_sm100_tensorop_s256x128x8tf32gemm_f32_f32_f32_f32_f32_256x12
+      0.3%     92.78us   14 calls    6.627us/call  cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12
+      0.3%     81.51us   28 calls    2.911us/call  void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern
+      0.2%     72.49us   14 calls    5.178us/call  void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig
+      0.2%     67.63us   42 calls    1.610us/call  void offsetPointerArray_kernel<float>(float**, float const**, int, int
+      0.2%     64.20us   14 calls    4.586us/call  void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_16x6_tn_alig
+RESULT_JSON:{"mode": "shapediag", "device": "NVIDIA B200", "shapes": [{"spec": "batch=1 n=8192", "batch": 1, "n": 8192, "wall_us": 5774.9, "device_us": 5527.3, "idle_us": 247.6, "idle_pct": 4.3, "kernel_launches": 132, "us_per_launch_wall": 43.749, "kernels": [{"kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,", "us": 2521.9, "calls": 4, "us_per_call": 630.474, "pct_device": 45.6}, {"kernel": "void kernel_trsm_l_mul32<float, 8, true, true, false, false>(int, int,", "us": 1858.01, "calls": 24, "us_per_call": 77.417, "pct_device": 33.6}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 474.3, "calls": 39, "us_per_call": 12.162, "pct_device": 8.6}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 397.53, "calls": 6, "us_per_call": 66.254, "pct_device": 7.2}, {"kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda", "us": 61.53, "calls": 4, "us_per_call": 15.382, "pct_device": 1.1}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc", "us": 51.58, "calls": 7, "us_per_call": 7.369, "pct_device": 0.9}, {"kernel": "cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12", "us": 47.81, "calls": 6, "us_per_call": 7.968, "pct_device": 0.9}, {"kernel": "cutlass3x_sm100_tensorop_s128x64x8tf32gemm_f32_f32_f32_f32_f32_128x64x", "us": 32.91, "calls": 6, "us_per_call": 5.485, "pct_device": 0.6}, {"kernel": "void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig", "us": 29.04, "calls": 6, "us_per_call": 4.839, "pct_device": 0.5}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern", "us": 17.77, "calls": 9, "us_per_call": 1.974, "pct_device": 0.3}, {"kernel": "Memset (Device)", "us": 10.52, "calls": 8, "us_per_call": 1.315, "pct_device": 0.2}, {"kernel": "xxtrf4_set_info_ker(int, int*)", "us": 4.3, "calls": 4, "us_per_call": 1.074, "pct_device": 0.1}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 4.06, "calls": 3, "us_per_call": 1.355, "pct_device": 0.1}, {"kernel": "Memcpy DtoH (Device -> Pinned)", "us": 3.55, "calls": 1, "us_per_call": 3.552, "pct_device": 0.1}, {"kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp", "us": 3.29, "calls": 1, "us_per_call": 3.285, "pct_device": 0.1}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 3.13, "calls": 1, "us_per_call": 3.126, "pct_device": 0.1}, {"kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::", "us": 3.01, "calls": 1, "us_per_call": 3.008, "pct_device": 0.1}, {"kernel": "void at::native::vectorized_elementwise_kernel<8, at::native::AUnaryFu", "us": 1.57, "calls": 1, "us_per_call": 1.568, "pct_device": 0.0}]}, {"spec": "batch=1 n=16384", "batch": 1, "n": 16384, "wall_us": 14340.2, "device_us": 13861.1, "idle_us": 479.1, "idle_pct": 3.3, "kernel_launches": 290, "us_per_launch_wall": 49.449, "kernels": [{"kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,", "us": 5038.66, "calls": 8, "us_per_call": 629.833, "pct_device": 36.4}, {"kernel": "void kernel_trsm_l_mul32<float, 8, true, true, false, false>(int, int,", "us": 4343.94, "calls": 56, "us_per_call": 77.57, "pct_device": 31.3}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 1818.99, "calls": 12, "us_per_call": 151.582, "pct_device": 13.1}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 1366.23, "calls": 87, "us_per_call": 15.704, "pct_device": 9.9}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 633.89, "calls": 2, "us_per_call": 316.944, "pct_device": 4.6}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc", "us": 177.48, "calls": 15, "us_per_call": 11.832, "pct_device": 1.3}, {"kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda", "us": 123.55, "calls": 8, "us_per_call": 15.444, "pct_device": 0.9}, {"kernel": "cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12", "us": 110.86, "calls": 14, "us_per_call": 7.918, "pct_device": 0.8}, {"kernel": "cutlass3x_sm100_tensorop_s128x64x8tf32gemm_f32_f32_f32_f32_f32_128x64x", "us": 77.25, "calls": 14, "us_per_call": 5.518, "pct_device": 0.6}, {"kernel": "void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig", "us": 67.73, "calls": 14, "us_per_call": 4.838, "pct_device": 0.5}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern", "us": 41.8, "calls": 21, "us_per_call": 1.991, "pct_device": 0.3}, {"kernel": "Memset (Device)", "us": 24.46, "calls": 18, "us_per_call": 1.359, "pct_device": 0.2}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 9.56, "calls": 7, "us_per_call": 1.365, "pct_device": 0.1}, {"kernel": "xxtrf4_set_info_ker(int, int*)", "us": 9.07, "calls": 8, "us_per_call": 1.133, "pct_device": 0.1}, {"kernel": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<bool, at::", "us": 4.07, "calls": 1, "us_per_call": 4.075, "pct_device": 0.0}, {"kernel": "Memcpy DtoH (Device -> Pinned)", "us": 3.66, "calls": 1, "us_per_call": 3.659, "pct_device": 0.0}, {"kernel": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_imp", "us": 3.39, "calls": 1, "us_per_call": 3.392, "pct_device": 0.0}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 3.3, "calls": 1, "us_per_call": 3.296, "pct_device": 0.0}]}, {"spec": "batch=1 n=32768", "batch": 1, "n": 32768, "wall_us": 32759.4, "device_us": 32132.1, "idle_us": 627.3, "idle_pct": 1.9, "kernel_launches": 409, "us_per_launch_wall": 80.096, "kernels": [{"kernel": "void kernel<getrf_wo_pivot_params_<float, 0, 256, 1, 64, 64, 68, 8, 1,", "us": 11126.3, "calls": 8, "us_per_call": 1390.787, "pct_device": 34.6}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 7555.65, "calls": 10, "us_per_call": 755.565, "pct_device": 23.5}, {"kernel": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_imp", "us": 4977.8, "calls": 107, "us_per_call": 46.521, "pct_device": 15.5}, {"kernel": "nvjet_sm100_qqsss_128x256_128x6_2x1_2cta_v_bz_Avec32UE8M0_Bvec32UE8M0_", "us": 2178.57, "calls": 5, "us_per_call": 435.714, "pct_device": 6.8}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 1449.62, "calls": 4, "us_per_call": 362.405, "pct_device": 4.5}, {"kernel": "_mx_quant_e4m3_blocked_kernel", "us": 1011.31, "calls": 12, "us_per_call": 84.276, "pct_device": 3.1}, {"kernel": "void batch_trsm_left_kernel<float, 64, 4, 3, false, true, true>(cublas", "us": 846.16, "calls": 28, "us_per_call": 30.22, "pct_device": 2.6}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunc", "us": 644.79, "calls": 16, "us_per_call": 40.299, "pct_device": 2.0}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunc", "us": 582.73, "calls": 6, "us_per_call": 97.122, "pct_device": 1.8}, {"kernel": "void at::native::triu_tril_kernel<float, int, false, 2, true>(at::cuda", "us": 455.37, "calls": 8, "us_per_call": 56.921, "pct_device": 1.4}, {"kernel": "cutlass3x_sm100_tensorop_s256x256x8tf32gemm_f32_f32_f32_f32_f32_256x25", "us": 371.96, "calls": 14, "us_per_call": 26.568, "pct_device": 1.2}, {"kernel": "nvjet_sm100_qqsss_128x256_128x6_2x2_2cta_h_bz_Avec32UE8M0_Bvec32UE8M0_", "us": 273.46, "calls": 1, "us_per_call": 273.459, "pct_device": 0.9}, {"kernel": "cutlass3x_sm100_tensorop_s256x128x8tf32gemm_f32_f32_f32_f32_f32_256x12", "us": 154.91, "calls": 14, "us_per_call": 11.065, "pct_device": 0.5}, {"kernel": "cutlass3x_sm100_tensorop_s128x128x8tf32gemm_f32_f32_f32_f32_f32_128x12", "us": 92.78, "calls": 14, "us_per_call": 6.627, "pct_device": 0.3}, {"kernel": "void at::native::vectorized_elementwise_kernel<4, at::native::neg_kern", "us": 81.51, "calls": 28, "us_per_call": 2.911, "pct_device": 0.3}, {"kernel": "void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_32x6_nn_alig", "us": 72.49, "calls": 14, "us_per_call": 5.178, "pct_device": 0.2}, {"kernel": "void offsetPointerArray_kernel<float>(float**, float const**, int, int", "us": 67.63, "calls": 42, "us_per_call": 1.61, "pct_device": 0.2}, {"kernel": "void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_64x64_16x6_tn_alig", "us": 64.2, "calls": 14, "us_per_call": 4.586, "pct_device": 0.2}]}], "passed": true}--- stderr ---
+USDT:2026-07-24 18:10:17 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-24 18:10:17 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-24 18:10:17 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-24 18:10:17 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+USDT:2026-07-24 18:10:21 2:2 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-07-24 18:10:21 2:2 SyncActivityProfilerHandler.cpp:59] profiler_stop
+
+
+
+wrote /Users/phani/projects/gpumode_cholesky/experiments/052-large-n/variant-01-shapediag.json

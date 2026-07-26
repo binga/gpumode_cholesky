@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "name": "example-gpu-kernel",
+  "adapter": {
+    "argv": [
+      "python3",
+      "audit_adapter.py",
+      "--contract",
+      "{contract}",
+      "--mode",
+      "{mode}",
+      "--output",
+      "{output}"
+    ],
+    "timeout_seconds": 1800
+  },
+  "workloads": [
+    {"id": "small", "weight": 0.5},
+    {"id": "medium", "weight": 0.3},
+    {"id": "large", "weight": 0.2}
+  ],
+  "measurement": {
+    "maximum_cv": 0.03
+  },
+  "acceptance": {
+    "minimum_improvement_fraction": 0.02,
+    "maximum_case_regression_fraction": 0.05,
+    "require_same_environment": true
+  },
+  "classification": {
+    "short_kernel_us": 10.0,
+    "host_gpu_active_max": 0.70,
+    "host_cuda_api_fraction_min": 0.20,
+    "host_short_kernel_fraction_min": 0.50,
+    "dependency_gpu_active_max": 0.70,
+    "dependency_max_concurrency": 1,
+    "dependency_min_launches": 10,
+    "memory_throughput_min": 0.75,
+    "memory_stall_min": 0.30,
+    "compute_throughput_min": 0.75,
+    "tensor_utilization_min": 0.75,
+    "barrier_stall_min": 0.20,
+    "occupancy_low_max": 0.30,
+    "synchronization_fraction_min": 0.10,
+    "memcpy_fraction_min": 0.10
+  },
+  "integrity": {
+    "protected_paths": [
+      "kernel-audit.json",
+      "audit_adapter.py",
+      "tests"
+    ],
+    "expected_sha256": {}
+  }
+}

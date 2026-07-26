@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "c965e08",
+  "baseline_submission": 906955,
+  "baseline_sha256": "003fa60d1b59f6cd31656aaa069e3f02b0693d7af4f536585335e6f81d7ab175",
+  "status": "released",
+  "created_at": "2026-07-25T12:06:01+05:30",
+  "last_heartbeat": "2026-07-25T13:30:34+05:30",
+  "task": "/root/shape_32768",
+  "target_region": "batch=1,n=32768",
+  "worktree": "/private/tmp/gpumode-cholesky-exp061-32768",
+  "owner": "claude-code-job-2497f360",
+  "owner_note": "Experiment 061 shape worker. Non-overlapping shape lease; Popcorn stays serialized under the orchestrator.",
+  "progress": {
+    "variants_measured": 2,
+    "best_variant": "v2",
+    "best_file": "experiments/061-32768-overhead/candidate-v2-merged-column.py",
+    "best_sha256": "e99f2accee1ec25f95d63de0e596509b430e03d3591b0b0de4531fccddf4e9ad",
+    "best_paired_speedup": 1.2798785156695822,
+    "commits": [
+      "3f47ad0",
+      "c281199"
+    ],
+    "status_note": "v1 banked and integrated into ranked #907206; v2 measured and committed, awaiting rebase onto the new incumbent."
+  },
+  "released_at": "2026-07-25T13:30:34+05:30",
+  "result": "V1 Triton block-move 1.12036x then V2 merged-column 1.27988x paired (31602.7->24692.0us), committed 3f47ad0 and c281199, V2 sha e99f2acc. Shipped in ranked #907267. Residual 5.28->6.44/20 (margin 3.1x). Stopped at 2 of 6 variants: remaining addressable work sums to at most ~1.12x over four sub-3% pieces."
+}

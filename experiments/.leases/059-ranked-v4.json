@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "task": "/root",
+  "baseline_commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+  "baseline_submission": 890798,
+  "baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+  "candidate_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "target_region": "one Popcorn ranked submission for experiment 059 v4",
+  "status": "released",
+  "created_at": "2026-07-25T00:45:00+05:30",
+  "last_heartbeat": "2026-07-25T00:51:28+05:30",
+  "worktree": "/private/tmp/gpumode-cholesky-exp059-two-large",
+  "ranked_submission": 904546,
+  "ranked_status": "succeeded",
+  "public_us": 764.8768308865492,
+  "secret_us": 785.8614260468765,
+  "released_at": "2026-07-25T00:51:28+05:30",
+  "owner_note": "Exact source passed paired, family, full-grid, cold-build, and Popcorn test #904530 17/17. Ranked #904546 completed successfully and this serialized-ranked lease is released."
+}

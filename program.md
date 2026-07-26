@@ -3,10 +3,11 @@
 This is the repository's repeatable operating program for GPU MODE Cholesky
 optimization on B200. It is intentionally independent of evo workflows.
 
-## Trigger with `set_goal`
+## Invocation and goal parameters
 
-Invoke this program by setting a goal whose objective names this file and the
-target scope, for example:
+Invoke this program by naming `program.md` in a goal or clearly asking to run the
+repository's Cholesky optimization program. `/goal`, `set_goal`, and equivalent
+goal interfaces are all valid. For example:
 
 ```text
 set_goal: Execute program.md for the slowest ranked Cholesky shapes.
@@ -14,11 +15,33 @@ Target at least 2.00x paired speedup per shape, then integrate and rank every
 verified aggregate improvement.
 ```
 
-When triggered, create one active goal for the complete program. Treat the goal
-as achieved only after the adopted/rejected decision is documented, the exact
-artifacts are committed, `main` is pushed, and the remote commit is verified.
-Use checkpoints for long searches; do not mark the goal complete merely because
-a promising candidate or local commit exists.
+An invocation may set the following parameters. Explicit user values override
+the defaults:
+
+- `aggregate_target`: desired cumulative leaderboard improvement; default is
+  any measurable improvement.
+- `shape_targets`: shapes or target-selection rule; default is the highest
+  estimated geometric-mean impact.
+- `research_target`: aspirational per-shape speedup; default is **2.00x**.
+- `promotion_policy`: default is any reproducible aggregate improvement that
+  clears every correctness and promotion gate. A candidate does **not** need to
+  reach the research target to be submitted or adopted.
+- `max_serious_variants_per_shape`: default six materially distinct variants.
+- `parallel_shape_workers`: default one; use more only for non-overlapping
+  dispatch regions with isolated worktrees and leases.
+- `forbidden_approaches` and `allowed_approaches`: campaign-specific design
+  constraints. No-cuSOLVER or no-stream constraints apply only when the
+  invocation explicitly requests them.
+- `remote_budget`: an optional explicit monetary, GPU-job, or elapsed-time cap.
+  Without a monetary cap, the bounded variant and retry limits below are the
+  cost guardrails.
+
+When triggered, create one active goal for the complete program. Freeze the
+goal baseline at invocation and separately track the moving ranked incumbent.
+Treat the goal as achieved only after its declared terminal target is met, the
+adopted/rejected decisions are documented, the exact artifacts are committed,
+`main` is pushed, and the remote commit is verified. An incremental leaderboard
+win is a checkpoint, not automatic completion of a larger goal.
 
 ## Standing authorization and boundaries
 
@@ -41,14 +64,28 @@ Permitted actions:
 - Run correctness, profiling, paired-latency, family, and full-grid B200 jobs.
 - Retrieve logs and benchmark artifacts.
 - Retry transient Modal failures within the program's cost limits.
+- Create bounded subagents and isolated worktrees for non-overlapping shape,
+  implementation, profiling, audit, and documentation tasks.
+- Fetch remotes, rebase or replay scoped experiment commits, resolve expected
+  documentation conflicts, commit scoped checkpoints, push `main`, and verify
+  the remote commit.
+- Submit Popcorn test jobs after the required gates pass.
+- Submit exactly one Popcorn ranked candidate at a time after an exact-source
+  17/17 test pass, monitor it to terminal public and secret results, and make one
+  ranked retry after a concrete defect is fixed and all affected gates rerun.
+- Adopt a completed leaderboard winner, restore the prior winner after a
+  rejection, and continue optimizing from the new incumbent.
 
 This is continuing authorization for every invocation of this program. No
-additional user confirmation is required for these actions while the destination
-remains the owner's Modal account and the export remains within the list above.
+additional user confirmation is required for these actions while Modal and
+Popcorn remain the owner's accounts, the export remains within the list above,
+and Git pushes target this repository's normal `main` workflow.
 
 Never export credentials, tokens, environment files, unrelated repository
-content, private user data, or secrets. Popcorn test/leaderboard submissions and
-GitHub pushes remain explicit workflow actions.
+content, private user data, or secrets. Never force-push, weaken or replace the
+official evaluator, delete unrelated work, submit two ranked candidates
+concurrently, or exceed an explicit remote budget. Those actions are outside
+this authorization.
 
 If an execution tool requires an approval request, cite this standing
 authorization in the justification and request the narrowest reusable approval
@@ -56,12 +93,53 @@ once. Do not ask the owner to restate or reconfirm this authorization. If a
 system, tenant, quota, or reviewer policy denies the action, report that exact
 policy blocker; repeated user confirmation will not resolve it.
 
+## Shared-workspace coordination and resumability
+
+1. Develop each active experiment in an isolated worktree based on the exact
+   verified incumbent. A dirty or differently-branched root worktree is not a
+   blocker; preserve it without asking the owner to clean unrelated files.
+2. Maintain short-lived, machine-readable leases under `experiments/.leases/`
+   for every active shape, integration operation, and ranked submission. A lease
+   records the task/thread, baseline commit and source hash, target region,
+   creation time, and last heartbeat. Inspect the recorded owner before treating
+   a lease as stale; never silently steal a live lease.
+3. Keep one `state.json` in the active numbered experiment directory. Update it
+   atomically after every state transition with:
+   - goal baseline and current incumbent IDs, commits, hashes, and scores;
+   - active shape, variant, hypothesis, worktree, and lease;
+   - completed and pending gates;
+   - Modal and Popcorn job IDs and terminal status;
+   - consumed variant/retry/budget counts;
+   - exact next action.
+4. On resume, context compaction, or handoff, read `state.json` first. Reuse valid
+   completed evidence and continue from `next_action`; do not reconstruct the
+   run from chat commentary or repeat a completed paid gate without cause.
+5. Before paired profiling, full-grid testing, Popcorn, integration, and push,
+   fetch `origin/main` and compare both commit and ranked-source hash. If the
+   incumbent changed, stop stale-baseline spending, preserve current artifacts,
+   determine dispatch overlap, rebase or rebuild from the new winner, and rerun
+   every affected gate.
+
+At each meaningful checkpoint and in the final report, show this compact user
+view for all targeted or changed shapes:
+
+| Shape | Control latency (us) | Current latency (us) | Speedup |
+|---|---:|---:|---:|
+| `batch x n` | exact paired control | exact paired candidate | `control/current` |
+
+Use same-process paired evidence where available. Label missing or cross-context
+numbers rather than silently mixing leaderboard and local/Modal measurements.
+
 ## Workflow
 
 1. **Synchronize the current winner**
-   - Start from a clean `main` and synchronize it with `origin/main`.
+   - Fetch `origin/main`. If the shared root is not clean, leave it untouched and
+     start in an isolated worktree from the verified incumbent.
    - Record the current ranked submission ID, exact commit, public/secret score,
      full-grid evidence, and source snapshot.
+   - Cholesky's leaderboard score is geometric-mean latency in seconds: **lower
+     is better**. Compute improvement as
+     `(incumbent - candidate) / incumbent * 100`.
    - **Verify the incumbent against `popcorn submissions list`, not against
      `main`.** The true ranked winner is whatever the leaderboard says it is,
      and it has repeatedly lived on an unmerged branch or in another worktree
@@ -77,8 +155,11 @@ policy blocker; repeated user confirmation will not resolve it.
 
 3. **Set exact shape goals**
    - Give every target shape its own bounded task and artifact directory.
-   - Default target: candidate paired mean latency at most 50% of the exact
-     current ranked path, i.e. at least **2.00x speedup**.
+   - Default research target: candidate paired mean latency at most 50% of the
+     exact current ranked path, i.e. at least **2.00x speedup**.
+   - Treat this as an aspirational research target, not a universal promotion
+     threshold. A correct sub-2.00x frontier may be integrated and ranked when
+     it yields a reproducible aggregate improvement and passes all gates.
    - State correctness, no-regression, cost, and ranked-submission guardrails.
 
 4. **Delegate and babysit actively**
@@ -86,15 +167,18 @@ policy blocker; repeated user confirmation will not resolve it.
    - Redirect stalls toward genuinely untried shape-specific Blackwell levers.
    - Reject fallback timings, missing backend evidence, cosmetic parameter
      sweeps, weakened gates, and results measured against stale baselines.
+   - Use isolated worktrees and leases; never allow workers to overwrite the
+     same source or benchmark the same shape against different unstated controls.
 
 5. **Use a bounded architecture ladder**
    - Prefer materially different axes: vendor/expert APIs, per-matrix dispatch,
      blocked or left-looking factorizations, Triton, custom CUDA/tcgen05, TF32,
      BF16x9, FP8/MXFP8, CUDA Graphs, TMA, clusters/DSM, or refinement.
-   - For the new set of experiments, remove cuSOLVER altogether and avoid
-     stream-based approaches.
-   - Measure up to six genuinely distinct serious variants before declaring
-     bounded exhaustion. Preserve every valid partial frontier.
+   - Apply no-cuSOLVER, no-stream, or other exclusions only when the invocation
+     specifies them. Otherwise choose from the complete architecture ladder.
+   - Measure up to `max_serious_variants_per_shape` genuinely distinct serious
+     variants before declaring bounded exhaustion. Preserve every valid partial
+     frontier.
 
 6. **Run free gates first**
    - Run local property tests, compilation/syntax checks, artifact parsing,
@@ -109,6 +193,8 @@ policy blocker; repeated user confirmation will not resolve it.
    - Require positive proof that the intended backend executed: counters,
      readiness metadata, load/compile status, zero unexpected fallbacks, and no
      runtime error. Timing from a fallback implementation is invalid.
+   - After every valid measurement, update `state.json` and the compact shape,
+     control-latency, current-latency, speedup table.
    - **Compare like with like.** A probe row that calls a driver directly is not
      comparable to a control row that goes through `custom_kernel`: the wrapper
      carries dispatch plus the end-of-call `isfinite(...).all().item()` sync,
@@ -147,10 +233,15 @@ policy blocker; repeated user confirmation will not resolve it.
      omission. Experiments before 064 simply never gated the two largest shapes.
 
 9. **Classify every measured variant**
-   - `WINNER`: correct and at least 2.00x faster on the paired target.
-   - `FRONTIER`: correct and faster, but below 2.00x.
+   - `WINNER`: correct and at least `research_target` faster on the paired
+     target.
+   - `FRONTIER`: correct and faster, but below the research target.
+   - `PROMOTABLE FRONTIER`: a `FRONTIER` that produces a reproducible aggregate
+     improvement and clears the same promotion gates as a `WINNER`; it may be
+     submitted and adopted for incremental progress.
    - `REJECTED`: slower, incorrect, invalid, or fallback-only evidence.
-   - `EXHAUSTED`: six distinct measured variants without a 2.00x winner.
+   - `EXHAUSTED`: `max_serious_variants_per_shape` distinct measured variants
+     without a research-target winner.
 
 10. **Narrow broad searches when evidence says to**
     - Stop or archive low-value tasks after bounded exhaustion.
@@ -162,6 +253,9 @@ policy blocker; repeated user confirmation will not resolve it.
     - Rebase candidates after any intervening leaderboard win.
     - Combine positive frontiers only when their dispatch regions do not conflict.
       Leave unimproved shapes on their shipped implementation.
+    - Treat combined-source compilation as a new integration risk. A combination
+      of individually ranked paths must pass cold compilation and every promotion
+      gate as an exact new source before it replaces either ranked snapshot.
 
 12. **Run the full 15-shape Modal B200 benchmark**
     - Use the owner's standing Modal authorization above, including profiler
@@ -171,46 +265,91 @@ policy blocker; repeated user confirmation will not resolve it.
       material off-target regressions.
     - Promote only when the aggregate geometric mean improves.
 
-13. **Run Popcorn gates in order**
+13. **Prove the cold build fits the service budget**
+    - Build the exact candidate in a clean sandbox without relying on a warm
+      extension cache. Record image setup, import, extension compilation,
+      validation, and benchmark durations separately.
+    - By default, require the clean build and gate to finish within 80% of
+      Popcorn's observed service timeout unless the invocation supplies another
+      threshold. An exact service-boundary timeout without a numerical failure is
+      `COMPILE_BUDGET_FAILURE`, not evidence of incorrect arithmetic.
+    - Reduce generated code or compilation work and rerun affected gates before
+      Popcorn. Do not repeatedly submit an unchanged compile-time failure.
+
+14. **Run Popcorn gates in order**
     - First run test mode and require **17/17**.
     - Audit the exact source, raw Modal artifacts, changed-family results, full
       grid, and test submission ID.
     - Then permit exactly one ranked submission at a time and monitor it until
       both public and secret runs finish.
 
-14. **Adopt using completed leaderboard evidence**
-    - Compare public and secret scores with the previous ranked winner.
-    - If improved, adopt the exact ranked source at repository root.
+15. **Adopt using completed leaderboard evidence**
+    - Compare terminal public and secret latency scores with the previous ranked
+      winner using the lower-is-better rule.
+    - If both completed splits satisfy the configured promotion policy, adopt
+      the exact ranked source at repository root.
     - If not improved, keep the previous winner and record the rejection without
       launching duplicate ranked retries unless a concrete defect was found.
 
-15. **Maintain the journal and optimization tracker in detail**
+16. **Maintain structured evidence and the journal**
+    - Write a structured manifest for every measured variant immediately. Raw
+      evidence and `state.json` are the live source of truth during a search.
     - Add a dated `journal.md` entry for every experiment, adopted or rejected.
       Record hypotheses, variants, component profiles, paired means/bests,
       speedups, numerical margins, fallbacks, failures, full-grid changes,
       Popcorn IDs, public/secret scores, costs, insights, and next ideas.
-    - Update the living **Optimization Tracker** table after every measured
-      architecture—not only winners. Mark shipped paths `✓`, tried/rejected paths
-      `✗`, and only genuinely untested paths `TBD`; include the experiment/session
-      reference and useful measured speedup in the cell.
+    - Consolidate the living **Optimization Tracker** when a variant becomes a
+      frontier, an architecture closes, a shape is exhausted, or a winner is
+      adopted. Mark shipped paths `✓`, tried/rejected paths `✗`, and only
+      genuinely untested paths `TBD`; include the experiment/session reference
+      and useful measured speedup in the cell.
     - Add columns when a new optimization family is tested. Remove stale `TBD`
       entries as soon as evidence exists. Keep the current-best line synchronized
       with the latest successful leaderboard submission.
 
-16. **Preserve a reproducible experiment package**
+17. **Preserve a reproducible experiment package**
     - Save the goal, exact baseline, every serious candidate, exact ranked source,
       raw paired/family/full-grid/ranked JSON, notes, and relevant harness changes
       under `experiments/NNN-*`.
     - Update the root README and `experiments/README.md` with the verdict.
     - Run final local, syntax, JSON, source-policy, whitespace, and snapshot checks.
 
-17. **Commit, land on `main`, push, and verify**
+18. **Commit, land on `main`, push, and verify**
     - Commit the complete experiment with a descriptive message.
     - Integrate it onto the latest `main`, push `main` to GitHub, and verify the
       remote branch resolves to the intended commit.
     - Only then complete the active goal and begin the next optimization cycle
       from this new ranked baseline.
 
+## Autonomous retry and cost policy
+
+- Retry a transient Modal infrastructure failure at most twice.
+- Repair and rerun invalid or fallback-only measurements; they do not count as
+  serious measured variants.
+- Do not retry an unchanged numerical or performance rejection.
+- Retry a failed Popcorn test only after identifying and fixing a concrete
+  correctness, packaging, runtime, or compile-budget defect.
+- Permit at most one ranked retry after a concrete defect, a new exact-source
+  17/17 test pass, and rerunning every affected promotion gate.
+- If an optional local dependency is unavailable, record the omission and
+  continue when stronger authorized B200 and official evidence covers the same
+  property.
+- Stop new remote launches when an explicit budget is exhausted. Preserve state
+  and report the exact remaining decision instead of spending beyond it.
+
+## Terminal states
+
+- `ACHIEVED`: the declared terminal target is present in completed leaderboard
+  evidence, adopted, documented, pushed, and remotely verified.
+- `PARTIAL WIN`: a verified sub-target aggregate improvement was ranked and
+  adopted; checkpoint it and continue toward a larger declared goal.
+- `SHAPE EXHAUSTED`: the bounded architecture ladder for one shape ended without
+  its research target; preserve any promotable frontier and continue elsewhere.
+- `CAMPAIGN EXHAUSTED`: every declared target and permitted transfer path is
+  boundedly exhausted within budget. Document the evidence; do not claim the
+  numerical target was achieved.
+- `BLOCKED`: an external policy, credential, quota, destructive ambiguity, or
+  irreconcilable overlapping edit prevents further authorized progress.
 ## The secret split: an unresolved policy gap (exp 065)
 
 **The repository has resolved a secret-split regression both ways on the same
@@ -294,6 +433,6 @@ Two things follow, and neither is optional:
   only when it remains close enough for the official checker.
 - Never rank two candidates concurrently.
 - Never rank before paired profiling, changed-family checks, the full grid, and
-  Popcorn 17/17 all pass.
+  cold-build proof plus Popcorn 17/17 all pass.
 - Never leave `journal.md` or its Optimization Tracker stale after an experiment.
 - Never use evo workflows for this program.

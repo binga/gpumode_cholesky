@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "experiment": 51,
+  "status": "v1 measured (rejected), v1b + v2 measuring",
+  "goal": {
+    "scope": "aggregate geomean",
+    "user_target": "2.00x overall geomean vs the ranked incumbent",
+    "goal_baseline_submission": 890798,
+    "goal_baseline_sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "goal_baseline_public_us": 801.977,
+    "target_public_us": 400.99
+  },
+  "incumbent": {
+    "submission": 890798,
+    "commit": "f358e87",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_geomean_us": 801.977,
+    "secret_geomean_us": 847.836,
+    "local_fullgrid_geomean_us": 820.08
+  },
+  "hypothesis": "The mid-shape loss is dependent-pivot latency, not FLOPs or launch count. Experiment 048 V2's cooperative tile-32 kernel already measured 1.167x on 4x1024 and was rejected only for a low-rank NaN, while spending 41.5% of its time in a scalar panel solve with a 528-FMA dependent chain run by one warp of four. Repairing both should take the tiny-batch mid shapes well past 2x, and a single-launch cooperative kernel is the only mid-shape architecture that avoids experiment 050's 7.6us-per-launch eager tax.",
+  "variants": [
+    {
+      "id": "v1",
+      "source": "candidate-v1.py",
+      "builder": "python build_candidate.py v1 candidate-v1.py",
+      "sha256_prefix": "0eddad9d65ef",
+      "changes": [
+        "merge all CUDA kernels into one load_inline (experiment 050 L5 cold-build fix; measured neutral by 050 V6)",
+        "finiteness gate + fall-through to the ranked dispatch",
+        "right-looking register panel solve: dependent chain 528 -> 32 FMAs, all four warps on independent tiles, diagonal factor held in shared",
+        "redundant per-CTA diagonal factorization: removes one grid barrier per block step and the global round trip",
+        "occupancy-derived co-resident CTA count (was a fixed 32 per matrix)"
+      ],
+      "enrolled_shapes": [
+        [
+          4,
+          1024
+        ],
+        [
+          16,
+          512
+        ],
+        [
+          8,
+          2048
+        ],
+        [
+          2,
+          2048
+        ],
+        [
+          1,
+          4096
+        ],
+        [
+          2,
+          4096
+        ]
+      ],
+      "state": "REJECTED on the full enrolled set: correct everywhere (all ok=True) but only 16x512 wins (1.0374x); trailing update measured at 2.6-8.7 TFLOP/s",
+      "result": {
+        "artifact": "variant-01-paired.json",
+        "ratios": {
+          "16x512": 1.0374,
+          "4x1024": 0.9575,
+          "2x2048": 0.7812,
+          "8x2048": 0.5292,
+          "1x4096": 0.3524,
+          "2x4096": 0.4833
+        },
+        "unenrolled_controls": {
+          "640x512": 1.0006,
+          "60x1024": 1.0011
+        },
+        "finding": "the single merged load_inline extension is free (both controls at parity), and the rank-32 trailing update is a structural ceiling at ~4 flops/byte"
+      }
+    },
+    {
+      "id": "v1b",
+      "source": "candidate-v1b.py",
+      "changes": [
+        "v1 with the CTA count pinned to experiment 048 V2's 32 per matrix"
+      ],
+      "purpose": "isolate grid-barrier cost scaling with CTA count from trailing-update cost",
+      "state": "paired B200 running"
+    },
+    {
+      "id": "v2",
+      "source": "candidate-v2.py",
+      "kernel": "coop_kernel_v2.cu",
+      "changes": [
+        "two-level NB=128 blocking: four in-panel tile-32 steps with narrow (<=96 column) Schur updates, then one rank-128 trailing update per panel",
+        "rank-128 update staged through shared memory as 64x64 output blocks, ~16 flops/byte vs ~4"
+      ],
+      "enrolled_shapes": [
+        [
+          4,
+          1024
+        ],
+        [
+          16,
+          512
+        ],
+        [
+          8,
+          2048
+        ],
+        [
+          2,
+          2048
+        ],
+        [
+          1,
+          4096
+        ],
+        [
+          2,
+          4096
+        ]
+      ],
+      "state": "paired B200 running"
+    }
+  ],
+  "completed_gates": [
+    "incumbent full-grid shapediag (results/inc-890798-shapediag.json), geomean 820.08us",
+    "exact baseline snapshot hash verified by the builder",
+    "v1 python compile + source-policy scan (no queue/stream tokens in the new kernel)",
+    "v1 paired same-process B200 on n in {512,1024,2048,4096} (variant-01-paired.json)",
+    "merged single-extension refactor independently re-confirmed neutral on two unenrolled control shapes"
+  ],
+  "pending_gates": [
+    "v1 paired same-process B200 on n in {512,1024,2048,4096}",
+    "six-family correctness for every enrolled shape",
+    "full 15-shape paired grid",
+    "cold-build proof + popcorn test 17/17",
+    "one ranked submission"
+  ],
+  "remote_jobs": [],
+  "consumed": {
+    "serious_variants": 1,
+    "modal_jobs": 3,
+    "popcorn_ranked": 0
+  },
+  "next_action": "Read variant-02-paired.json. If v2 wins broadly, run familygrid on the enrolled shapes, then the full 15-shape paired grid, then popcorn test 17/17, then rank one candidate."
+}

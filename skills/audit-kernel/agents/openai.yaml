@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Kernel"
+  short_description: "Audit GPU kernel correctness and performance"
+  default_prompt: "Use $audit-kernel to evaluate this GPU kernel against its contract and rank measured performance gaps."

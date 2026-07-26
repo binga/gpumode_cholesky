@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "/root/shape_32768",
+  "baseline_commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+  "baseline_submission": 904546,
+  "baseline_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "target_region": "batch=1,n=32768",
+  "status": "active",
+  "created_at": "2026-07-24T23:54:26+05:30",
+  "last_heartbeat": "2026-07-25T01:04:07+05:30",
+  "worktree": "/private/tmp/gpumode-cholesky-exp058-32768",
+  "owner_note": "Ranked #904546 adoption is confirmed at remotely verified main commit 6c754f9; one paired B200 target gate is authorized for the rebuilt V4 candidate."
+}

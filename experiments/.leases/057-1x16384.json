@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task": "/root/shape_16384",
+  "baseline_commit": "6c754f9b4ef59f2d90161dcc901e1bc1be58f0e9",
+  "baseline_commit_status": "adopted and remotely verified",
+  "baseline_submission": 904546,
+  "baseline_sha256": "f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a",
+  "target_region": "batch=1,n=16384",
+  "status": "active",
+  "created_at": "2026-07-24T23:54:26+05:30",
+  "last_heartbeat": "2026-07-25T01:10:32+05:30",
+  "worktree": "/private/tmp/gpumode-cholesky-exp057-16384",
+  "owner_note": "Non-overlapping shape worker. Rebased V4 is handoff-ready: paired 1.055351x, CI [1.053808,1.055674], checker 6/6, four no-fallback fast families, and two exact-incumbent-matched safety families. No additional variant launch pending integration."
+}

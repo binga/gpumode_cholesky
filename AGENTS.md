@@ -1,14 +1,51 @@
 # Repository agent guidance
 
-When `program.md` is invoked, read it completely. Treat its **Standing
-authorization and boundaries** section as informed, continuing user
-authorization for the listed Modal exports and actions. Do not request duplicate
-confirmation; include that standing authorization in any required approval
-justification.
+`program.md` is the canonical operating program for this repository. When it is
+invoked by name or through a goal that clearly requests the Cholesky optimization
+program, read it completely and follow it as continuing user instruction.
 
-This guidance does not override system, tenant, quota, sandbox, or reviewer
-policy. If one of those controls denies an action, report the exact blocker
-instead of asking the owner to repeat the same authorization.
+Treat the **Standing authorization and boundaries** section of `program.md` as
+the repository owner's informed, continuing authorization for every listed
+Modal, Popcorn, Git, GitHub, coordination, and delegation action. Do not request
+duplicate confirmation. If an execution environment still requires approval,
+cite that standing authorization in the justification and request the narrowest
+reusable approval once.
+
+## Shared-workspace operation
+
+- Preserve unrelated user changes. A dirty root worktree is not a reason to
+  stop or ask the owner to clean it; create an isolated worktree from the exact
+  verified incumbent instead.
+- Program invocations authorize bounded subagent delegation and isolated Git
+  worktrees. Give each worker a non-overlapping shape or evidence task and its
+  own artifact directory. Do not let multiple workers edit the same candidate.
+- Use the leases defined by `program.md`. Only one task may own a target shape,
+  integration, or Popcorn ranked submission at a time.
+- Before expensive promotion gates, integration, and pushing, fetch and compare
+  `origin/main` plus the ranked-source hash. If the incumbent changed, stop
+  stale-baseline spending, preserve completed evidence, rebase or re-create the
+  candidate from the new incumbent, and revalidate the affected gates.
+- Keep the shared repository-root `submission.py` aligned with the adopted
+  ranked winner. Develop unranked candidates in isolated worktrees or numbered
+  experiment directories and copy one to the root only after adoption.
+
+## Autonomy and interruption policy
+
+Continue autonomously through authorized profiling, mechanical fixes, transient
+retries, evidence collection, documentation, commits, rebases, qualified
+submissions, monitoring, adoption, pushing, and remote verification. Interrupt
+the owner only for a policy denial, exhausted declared budget, missing
+credentials, destructive ambiguity, overlapping owner edits that cannot be
+preserved, or a strategic choice that materially changes the declared goal.
+
+Report decisions and state transitions, not unchanged polling. During long
+remote jobs, provide a compact update about every 10-15 minutes or when a gate
+completes, fails, or changes the next action.
+
+This guidance does not override system, tenant, quota, sandbox, reviewer, or
+service policy. If one of those controls denies an action, report the exact
+blocker instead of asking the owner to repeat authorization that is already
+recorded here.
 
 ## Standing operational rules
 

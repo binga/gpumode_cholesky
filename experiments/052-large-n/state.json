@@ -1,0 +1,32 @@
+{
+  "experiment": "052-large-n",
+  "worker_scope": "batch==1 shapes n in {8192, 16384, 32768} only",
+  "goal_baseline": {
+    "ranked_id": "#890798",
+    "commit": "f358e879b1287ca50d29115ad9a403c6bd10a69d",
+    "source": "experiments/052-large-n/baseline-890798.py",
+    "sha256": "fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1",
+    "public_us": 801.977,
+    "secret_us": 847.836
+  },
+  "current_incumbent": "#890798 (unchanged; this worker never submits)",
+  "active_variant": "v1",
+  "hypothesis": "The shipped large-n path spends 1.36/4.50/9.00 ms on cuBLAS triangular solves and 0.51/1.47/5.26 ms on elementwise scaffolding; a batched blocked triangular inverse plus a merged block-column update removes most of it without touching arithmetic precision.",
+  "worktree": "experiments/052-large-n (repo root untouched)",
+  "lease": "none taken; scope is disjoint from experiments/051-coop-mid",
+  "gates_complete": [
+    "baseline hash verified fd3072b5...",
+    "python ast compile of candidate-v1.py",
+    "source-policy scan (no stream/queue API, no new cuSOLVER call site)",
+    "local CPU numerical check of _blocked_tri_inv and _large_v2"
+  ],
+  "gates_pending": [
+    "paired B200 pairedgrid v1",
+    "familygrid baseline control",
+    "familygrid candidate"
+  ],
+  "modal_jobs": [],
+  "budget": {"modal_jobs_allowed": 8, "modal_jobs_used": 0},
+  "variants_used": 0,
+  "next_action": "run pairedgrid baseline-890798.py vs candidate-v1.py on 8192,16384,32768"
+}

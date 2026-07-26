@@ -1,0 +1,107 @@
+Installed 29 packages in 53ms
+submission -> /Users/phani/projects/gpumode_cholesky/experiments/051-coop-mid/baseline-890798.py
+candidate  -> /Users/phani/projects/gpumode_cholesky/experiments/051-coop-mid/candidate-v1.py
+Building image im-xVtFqt7Or2bjpNtouXKmHV
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 2.60s
+
+Built image im-xVtFqt7Or2bjpNtouXKmHV in 5.90s
+
+
+Building image im-gL77QqFogLHkgypST3vs6a
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 801.61ms
+
+Built image im-gL77QqFogLHkgypST3vs6a in 1.88s
+
+
+Building image im-65x8jekzVzlLd4tevGfUXb
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 1.13s
+
+Built image im-65x8jekzVzlLd4tevGfUXb in 2.46s
+
+
+Building image im-HUdV3Ea6Q4nKaJwhPqfNtO
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 1.55s
+
+Built image im-HUdV3Ea6Q4nKaJwhPqfNtO in 2.78s
+
+
+Building image im-dLuCmSgQfrTMQ9JTqSaUw0
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 577.85ms
+
+Built image im-dLuCmSgQfrTMQ9JTqSaUw0 in 1.49s
+
+
+Building image im-8NWTm5DHxTAs01rnGPwJaA
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 2.48s
+
+Built image im-8NWTm5DHxTAs01rnGPwJaA in 4.02s
+
+
+Building image im-O7e19h3dCibtogYBHyq6eu
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 673.26ms
+
+Built image im-O7e19h3dCibtogYBHyq6eu in 1.69s
+
+
+Building image im-OVIfxF8pklx7oIoHNJtz4O
+
+Using legacy Image Builder version. We suggest upgrading at https://modal.com/settings/image-config.
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 731.56ms
+
+Built image im-OVIfxF8pklx7oIoHNJtz4O in 1.85s
+
+
