@@ -211,9 +211,83 @@ policy blocker; repeated user confirmation will not resolve it.
     - Only then complete the active goal and begin the next optimization cycle
       from this new ranked baseline.
 
+## The secret split: an unresolved policy gap (exp 065)
+
+**The repository has resolved a secret-split regression both ways on the same
+evidence signature. Until the owner picks one, state which rule you are applying
+before you spend a ranked slot.**
+
+| experiment | paired grid | public | secret | decision |
+|---|---|---|---|---|
+| exp 022 (`#882969`) | 1.0052 | +1.51% (worse) | -1.44% (better) | rejected |
+| exp 035 (`#888352`) | +0.61% | **-2.94% (better)** | **+5.26% (worse)** | **adopted** |
+| exp 065 (`#914341`) | +1.22% | **-3.79% (better)** | **+5.71% (worse)** | **rejected** |
+
+Exps 035 and 065 are the same case and got opposite verdicts. `promotion_policy`
+defaults to "any reproducible aggregate improvement", which does not say whether
+"aggregate" means the public split, the secret split, both, or their mean. Step
+15 says "if both completed splits satisfy the configured promotion policy",
+which reads as *both* — but exp 035 shipped anyway and became the incumbent.
+
+Two things follow, and neither is optional:
+
+1. **Name the rule in the goal.** An invocation that may produce a split verdict
+   must set `promotion_policy` explicitly, e.g. "adopt only if both splits
+   improve" or "adopt on public, record secret". Do not infer it from precedent,
+   because precedent is contradictory.
+2. **A paired-grid geomean below ~1.5% does not predict the sign of the secret
+   split.** Three times now — exps 022, 035, 065 — and exp 065 had the strongest
+   device-time evidence of the three: CI95 [1.0112, 1.0133] excluding 1.0, all
+   fifteen shapes ok, identical counters, zero new fallbacks, correctness
+   bit-identical to the control. It still landed +5.71% on secret. The secret
+   split evaluates inputs this repository cannot see. Treat a sub-1.5% paired
+   grid as insufficient grounds to spend a ranked slot unless the goal
+   explicitly accepts a coin-flip on secret.
+
+## Cheap gates that are still under-used
+
+- **Compute the Amdahl ceiling before opening a shape.** It costs nothing and it
+  classifies the outcome in advance. Exp 065: the diagonal is ~55% of a mid
+  shape and the best predicted block speedup was 1.52x, so
+  `1 / (0.45 + 0.55/1.52)` = 1.23x was the ceiling — correctly ruling out the
+  2.00x research target before any GPU spend, and correctly predicting a
+  frontier rather than a winner. Record the ceiling in the goal.
+- **Reuse the candidate's own probe hook rather than writing a harness.**
+  `mid_probe()` plus a variant-templated kernel gave, in **one** Modal run:
+  per-block timing, the phase-cycle breakdown, `abs_err`/`inv_err` against an
+  in-source control, and whole-shape speedups on five shapes. Restrict the
+  variant tuple to (control, candidate) — probing the whole ladder every time
+  multiplies the bill for rows the decision does not turn on.
+- **The previous experiment's "next levers" section is load-bearing.** Exp 065
+  took one variant instead of six because exp 064 had already named the lever
+  and costed it. Keep those sections quantitative; they are the cheapest input
+  the next experiment gets.
+
+## Blackwell kernel technique notes
+
+- **`bar.sync <id>, <count>` gives a partial-block barrier.** When a subset of
+  warps must synchronise while other warps are elsewhere in the kernel,
+  `__syncthreads()` deadlocks — it is barrier 0 over every thread in the block.
+  A named barrier with an explicit participant count (a multiple of the warp
+  size) is the primitive. Exp 065 used id 1 over 224 threads so warps 1-7 could
+  synchronise between staging and the trailing update while warp 0 sat inside
+  the triangular inverse.
+- **Overlap is available wherever one warp holds a serial phase and the others
+  idle** — but only after proving the memory footprints are disjoint. Exp 065's
+  three regions (`S[kk:kk+32,kk:kk+32]` read-only, `S[lwid:,kk:kk+32]` -> `P`,
+  `P` -> `S[lwid:,lwid:]`) provably do not alias, which is why the arithmetic
+  came out bit-identical to the control. Establish that first; the win is
+  scheduling, and a scheduling change that alters results is a bug.
+- **Expect the overlapped serial phase to get slightly slower.** Exp 065's
+  `triinv` grew 2% (37019 -> 40341 cycles) from shared-memory contention with
+  the seven warps now working behind it. That is the price of the overlap, not
+  a defect, and it is small next to the phases that leave the timeline.
+
 ## Non-negotiable promotion rules
 
 - Never treat fallback latency as candidate evidence.
+- Never claim "promotion requires both splits" or "public is enough" as settled
+  policy — it is not; see the secret-split gap above. Name the rule first.
 - Never quote a probe speedup measured against a differently-invoked control.
 - Never claim a fallback is pre-existing without a baseline run that shows it.
 - Never weaken correctness thresholds; approximate arithmetic is acceptable
