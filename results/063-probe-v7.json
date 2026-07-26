@@ -1,0 +1,419 @@
+{
+  "mode": "midprobe",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "name": "combined_ext",
+      "us": 0.0,
+      "ok": true,
+      "error": "None"
+    },
+    {
+      "name": "v0_diag128_block",
+      "us": 49.096,
+      "ns_per_row": 383.6,
+      "ok": true
+    },
+    {
+      "name": "v0_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_load",
+      "us": 3.224,
+      "cycles": 8079,
+      "pct": 6.6,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_chain",
+      "us": 15.255,
+      "cycles": 38227,
+      "pct": 31.1,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_triinv",
+      "us": 14.903,
+      "cycles": 37346,
+      "pct": 30.4,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_panel",
+      "us": 2.417,
+      "cycles": 6057,
+      "pct": 4.9,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_stageP+Qt",
+      "us": 4.546,
+      "cycles": 11393,
+      "pct": 9.3,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_commit",
+      "us": 1.197,
+      "cycles": 3000,
+      "pct": 2.4,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_trailing+inv",
+      "us": 5.938,
+      "cycles": 14880,
+      "pct": 12.1,
+      "ok": true
+    },
+    {
+      "name": "v0_phase_store",
+      "us": 1.615,
+      "cycles": 4047,
+      "pct": 3.3,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_block",
+      "us": 41.131,
+      "ns_per_row": 321.3,
+      "ok": true
+    },
+    {
+      "name": "v1_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 2.4e-07,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_load",
+      "us": 3.784,
+      "cycles": 8061,
+      "pct": 9.2,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_chain",
+      "us": 19.225,
+      "cycles": 40954,
+      "pct": 46.7,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_triinv",
+      "us": 0.0,
+      "cycles": 0,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_panel",
+      "us": 2.45,
+      "cycles": 5219,
+      "pct": 6.0,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_stageP+Qt",
+      "us": 5.258,
+      "cycles": 11201,
+      "pct": 12.8,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_commit",
+      "us": 1.531,
+      "cycles": 3261,
+      "pct": 3.7,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_trailing+inv",
+      "us": 6.935,
+      "cycles": 14774,
+      "pct": 16.9,
+      "ok": true
+    },
+    {
+      "name": "v1_phase_store",
+      "us": 1.948,
+      "cycles": 4149,
+      "pct": 4.7,
+      "ok": true
+    },
+    {
+      "name": "v2_diag128_block",
+      "us": 39.971,
+      "ns_per_row": 312.3,
+      "ok": true
+    },
+    {
+      "name": "v2_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 2.4e-07,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_load",
+      "us": 3.826,
+      "cycles": 8078,
+      "pct": 9.6,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_chain",
+      "us": 20.401,
+      "cycles": 43077,
+      "pct": 51.0,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_triinv",
+      "us": 0.0,
+      "cycles": 0,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_panel",
+      "us": 0.004,
+      "cycles": 8,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_stageP+Qt",
+      "us": 5.451,
+      "cycles": 11509,
+      "pct": 13.6,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_commit",
+      "us": 1.292,
+      "cycles": 2729,
+      "pct": 3.2,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_trailing+inv",
+      "us": 7.063,
+      "cycles": 14913,
+      "pct": 17.7,
+      "ok": true
+    },
+    {
+      "name": "v2_phase_store",
+      "us": 1.935,
+      "cycles": 4086,
+      "pct": 4.8,
+      "ok": true
+    },
+    {
+      "name": "v3_diag128_block",
+      "us": 37.904,
+      "ns_per_row": 296.1,
+      "ok": true
+    },
+    {
+      "name": "v3_diag128_err",
+      "us": 0.0,
+      "abs_err": 4e-07,
+      "inv_err": 6e-08,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_load",
+      "us": 2.803,
+      "cycles": 8067,
+      "pct": 7.4,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_chain",
+      "us": 10.757,
+      "cycles": 30956,
+      "pct": 28.4,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_triinv",
+      "us": 12.84,
+      "cycles": 36949,
+      "pct": 33.9,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_panel",
+      "us": 0.003,
+      "cycles": 8,
+      "pct": 0.0,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_stageP+Qt",
+      "us": 3.687,
+      "cycles": 10611,
+      "pct": 9.7,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_commit",
+      "us": 1.274,
+      "cycles": 3666,
+      "pct": 3.4,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_trailing+inv",
+      "us": 5.104,
+      "cycles": 14688,
+      "pct": 13.5,
+      "ok": true
+    },
+    {
+      "name": "v3_phase_store",
+      "us": 1.435,
+      "cycles": 4130,
+      "pct": 3.8,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x2048",
+      "us": 1373.5,
+      "ok": true
+    },
+    {
+      "name": "v0_2x2048_nbo1024",
+      "us": 1149.7,
+      "speedup": 1.1947,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_2x2048_nbo1024",
+      "us": 1049.0,
+      "speedup": 1.3094,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "v3_2x2048_nbo1024",
+      "us": 1065.5,
+      "speedup": 1.2891,
+      "abs_err": 6.6e-05,
+      "ok": true
+    },
+    {
+      "name": "shipped_2x4096",
+      "us": 3219.1,
+      "ok": true
+    },
+    {
+      "name": "v0_2x4096_nbo1024",
+      "us": 2495.3,
+      "speedup": 1.2901,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_2x4096_nbo1024",
+      "us": 2294.9,
+      "speedup": 1.4027,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "v3_2x4096_nbo1024",
+      "us": 2275.6,
+      "speedup": 1.4146,
+      "abs_err": 5.9e-05,
+      "ok": true
+    },
+    {
+      "name": "shipped_8x2048",
+      "us": 1618.2,
+      "ok": true
+    },
+    {
+      "name": "v0_8x2048_nbo1024",
+      "us": 1367.5,
+      "speedup": 1.1833,
+      "abs_err": 7.5e-05,
+      "ok": true
+    },
+    {
+      "name": "v2_8x2048_nbo1024",
+      "us": 1271.6,
+      "speedup": 1.2725,
+      "abs_err": 7.5e-05,
+      "ok": true
+    },
+    {
+      "name": "v3_8x2048_nbo1024",
+      "us": 1248.8,
+      "speedup": 1.2959,
+      "abs_err": 7.5e-05,
+      "ok": true
+    },
+    {
+      "name": "shipped_4x1024",
+      "us": 718.5,
+      "ok": true
+    },
+    {
+      "name": "v0_4x1024_nbo1024",
+      "us": 575.9,
+      "speedup": 1.2476,
+      "abs_err": 0.000108,
+      "ok": true
+    },
+    {
+      "name": "v2_4x1024_nbo1024",
+      "us": 523.8,
+      "speedup": 1.3717,
+      "abs_err": 0.000108,
+      "ok": true
+    },
+    {
+      "name": "v3_4x1024_nbo1024",
+      "us": 517.4,
+      "speedup": 1.3886,
+      "abs_err": 0.000108,
+      "ok": true
+    },
+    {
+      "name": "shipped_16x512",
+      "us": 409.0,
+      "ok": true
+    },
+    {
+      "name": "v0_16x512_nbo512",
+      "us": 300.7,
+      "speedup": 1.3601,
+      "abs_err": 0.000146,
+      "ok": true
+    },
+    {
+      "name": "v2_16x512_nbo512",
+      "us": 275.2,
+      "speedup": 1.4861,
+      "abs_err": 0.000146,
+      "ok": true
+    },
+    {
+      "name": "v3_16x512_nbo512",
+      "us": 270.9,
+      "speedup": 1.5099,
+      "abs_err": 0.000146,
+      "ok": true
+    }
+  ],
+  "passed": true
+}

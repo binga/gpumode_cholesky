@@ -140,3 +140,95 @@ form a lower-triangular band from there, which points squarely at the
 index. v2 halved the error (0.573 -> 0.085) without fixing it. Fix the guard
 arithmetic against the known-correct round-1 version in
 `experiments/062-midshape-2x/tail-v1.py` before spending more GPU time.
+
+---
+
+## Round 3 — the defect was memory ordering, not algebra
+
+`results/063-probe-v7.json`. Two free local checks came first, and between them
+they excluded every algebraic explanation, including the partial-sum-guard
+hypothesis above:
+
+- `sim_fused_chain.py` / `sim_panel32.py` replay the lane-and-register
+  bookkeeping of both kernels element for element in float64. Reconstruction
+  error 7.2e-16 and 5.3e-15, and `sim_panel32` additionally asserts
+  `Qi @ L11 = I` for every panel. **The algorithms are exact as written.**
+- `sim_fp32.py` replays the update in float32 both ways — the round-2 "stage
+  raw, scale after, one `d2` multiply" form and the shipped "scale first,
+  symmetric rank-1" form. Both give **2.469e-07**. The reassociation is
+  innocent, so a 1.8e-2 result cannot be arithmetic at all.
+
+That leaves memory ordering, and the fix confirms it. Rounds 1 and 2 both
+stage values through shared memory *inside a loop*, which gives the optimizer
+far more scope to hoist or cache a shared load than exp-062's straight-line
+staging ever did. Two changes:
+
+1. drop `__restrict__` from the staging pointer — it licenses the optimizer to
+   assume nothing else writes that memory, but the other lanes do; and
+2. wrap every `__syncwarp()` / `__syncthreads()` in `E62_CBAR()`, a pure
+   compiler barrier (`asm volatile("" ::: "memory")`) that emits no
+   instructions. The barriers order the hardware; this stops the *compiler*
+   from moving a shared load across them.
+
+| | v1 fused | v2 panel+inv | v3 panel L-only |
+|---|---:|---:|---:|
+| inv_err before | 0.573 | 0.085 | — |
+| inv_err after | **2.4e-07** | **2.4e-07** | **6e-08** |
+
+v1's 2.4e-07 is exactly round 1 of exp 062's known-good figure, which confirms
+the fused Gauss-Jordan was correct all along.
+
+**Reusable lesson:** `__syncwarp()` and `__syncthreads()` are hardware
+barriers, not compiler barriers. Shared-memory staging inside a loop needs an
+explicit compiler barrier as well. The failure is silent and correct on the
+first loop iteration, which is exactly why the wrong indices looked like a
+guard bug at a group boundary.
+
+## Round 3 results — variant 3 wins
+
+| variant | us/block | ns/row | chain | triinv | regs | inv_err |
+|---|---:|---:|---:|---:|---:|---:|
+| v0 shipped | 49.096 | 383.6 | 15.26 | 14.90 | 162 | 6e-08 |
+| v1 fused chain (1 warp) | 41.131 | 321.3 | 19.23 | — | 167 | 2.4e-07 |
+| v2 panel + fused inverse | 39.971 | 312.3 | 20.40 | — | 115 | 2.4e-07 |
+| **v3 panel L-only + shipped inverse** | **37.904** | **296.1** | **10.76** | 12.84 | 159 | **6e-08** |
+
+Variant 3 factors the whole 128x32 column panel with all 256 threads, which
+subsumes the pivot chain *and* the panel solve (`panel` falls to 8 cycles), and
+leaves the 32x32 triangular inverse on the shipped single-warp routine. It is
+the fastest block and the only variant whose `abs_err` is identical to the
+shipped kernel's on every shape, because the inverse path is untouched.
+
+Whole-shape, against the exact shipped dispatch (`custom_kernel`):
+
+| shape | shipped | v0 (= ranked `#909488`) | v2 | **v3** | v3 over v0 |
+|---|---:|---:|---:|---:|---:|
+| 16x512 | 409.0 | 300.7 (1.360x) | 275.2 | **270.9 (1.510x)** | +11.0% |
+| 4x1024 | 718.5 | 575.9 (1.248x) | 523.8 | **517.4 (1.389x)** | +11.3% |
+| 8x2048 | 1618.2 | 1367.5 (1.183x) | 1271.6 | **1248.8 (1.296x)** | +9.5% |
+| 2x2048 | 1373.5 | 1149.7 (1.195x) | **1049.0** | 1065.5 (1.289x) | +7.9% |
+| 2x4096 | 3219.1 | 2495.3 (1.290x) | 2294.9 | **2275.6 (1.415x)** | +9.7% |
+
+### Register pressure was a red herring
+
+The round-2 read that fusion's shortfall was register pressure does not survive
+the counts: v2 uses **115** registers against v0's 162 and is still slower per
+block than v3 at 159. Nor did the other phases actually slow down — their
+*cycle* counts are flat across all four variants (`load`
+8079/8061/8078/8067, `trailing+inv` 14880/14774/14913/14688, `store`
+4047/4149/4086/4130). The apparent slowdown was an artifact of the phase table
+reporting `net * cycles / total_cycles`: when the chain's share collapses,
+every other phase's *share* rises even though its cycle count is unchanged.
+
+**What actually caps the block is that the 128 dependent pivots cost 10-20us
+however they are parallelised.** v0's one-warp shuffle chain is 15.26us, v1's
+one-warp fused chain 19.23us, v2's 256-thread panel 20.40us — each pivot is a
+full round trip through staging, barrier and reload, and extra warps buy
+throughput the phase cannot use. Variant 3 is fastest (10.76us) only because
+its panel phase also absorbs the panel solve.
+
+So the plan's ~120 ns/row is not reachable by parallelising the serial phase;
+~296 ns/row is about where that road ends. The remaining lever is plan item 2
+(**overlap**): with the chain at ~11us and the parallel phases at ~14us, a
+look-ahead schedule running them concurrently would approach `max` rather than
+`sum`, i.e. ~25us/block (~195 ns/row) against today's 37.9us.
