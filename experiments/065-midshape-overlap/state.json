@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "experiment": "065-midshape-overlap",
+  "goal_baseline": {
+    "ranked_id": 913511,
+    "commit": "8d1704e",
+    "source_sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa"
+  },
+  "active_shape": [
+    "batch=16,n=512",
+    "batch=4,n=1024",
+    "batch=2,n=2048",
+    "batch=8,n=2048",
+    "batch=2,n=4096"
+  ],
+  "active_variant": "v4 named-barrier overlap (E62_DEFAULT_VAR 3 -> 4)",
+  "candidate_sha256": "c9d6373314cdb749e2a380af1c04212aa45413d5074d76a7f5a627f6ec93b0bc",
+  "classification": "FRONTIER_REJECTED_AT_LEADERBOARD",
+  "completed_gates": [
+    "free gates: py_compile, git diff --check, source policy identical, load_inline 7->7",
+    "kernel probe: block 45.669 -> 39.742us (1.149x), abs_err/inv_err identical to v3",
+    "full 15-shape paired grid: geomean 1.0122 CI95 [1.0112,1.0133] excludes 1.0, 15/15",
+    "counter diff: no new fallbacks on any shape",
+    "six-family baseline-attributed: 48/48 checker_ok both sides, 0 diffs",
+    "cold build + Popcorn --mode test #914336: passed, 7s",
+    "Popcorn ranked #914341: public 646.868us (-3.79%), secret 692.860us (+5.71%) -> REJECTED, not adopted"
+  ],
+  "pending_gates": [],
+  "variants_measured": 1,
+  "max_serious_variants_per_shape": 6,
+  "next_action": "No ranked retry (no concrete defect; unchanged performance rejections must not be retried). Root stays on #913511. Next: decide whether program.md should raise the paired-grid bar for spending a ranked slot, given three public/secret divergences in the 0.5-1.5% band (exps 022, 035, 065).",
+  "next_lever": "triinv is now 40.6% of the block on ONE warp with ~10.5us of idle warp time behind it; parallelise e62_tri_inv32 across 2-4 warps (it already splits into two 16x16 halves), or cross-iteration look-ahead.",
+  "ranked": {
+    "id": 914341,
+    "public_us": 646.868,
+    "secret_us": 692.86,
+    "baseline_public_us": 672.383,
+    "baseline_secret_us": 655.423,
+    "adopted": false,
+    "reason": "secret split regressed; promotion requires both splits"
+  }
+}

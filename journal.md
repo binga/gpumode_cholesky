@@ -2811,3 +2811,68 @@ it: chain ~11us against parallel phases ~14us, so concurrency approaches `max`
 rather than `sum`, ~25us/block (~195 ns/row) against today's 37.9us. At that
 rate a 2048 diagonal built from 128-blocks finally beats cuSOLVER's 630us, and
 the same kernel carries five mid shapes.
+
+---
+
+## Session 53 — 2026-07-26 — Experiment 065: named-barrier overlap on the mid shapes
+
+**Goal (user).** Improve latency on a mid shape; north star 50% (2.00x).
+
+**The north star was ruled out before any GPU spend, not after.** Exp 063 had
+already measured the wall: *"the 128 dependent pivots cost 10-20us however they
+are parallelised"* (one-warp shuffle chain 15.26us, fused chain 19.23us,
+256-thread panel 20.40us), and persistent/cooperative/cluster/DSM is 5-for-5
+negative across exps 028/038/040/048/049. With the diagonal at ~55% of a mid
+shape, even the full predicted overlap (37.9 -> 25us/block, 1.52x) yields
+`1/(0.45 + 0.55/1.52)` = **1.23x** on the shape. The work proceeded under a
+stated expectation of a frontier, not a winner.
+
+**Lever.** Exp 064's own next-lever list item 1 — plan item 2, named-barrier
+overlap. Variant 3 leaves seven of eight warps idle for the ~16us `e62_tri_inv32`
+spends on warp 0, while phase 4 (stage P) and phase 6 (trailing update) read only
+the panel output and never `Qi`. The three footprints are provably disjoint
+(`tri_inv32` takes `Sb` as `const __restrict__`), so warp 0 builds the inverse
+while warps 1-7 do both. Warps 1-7 need a barrier warp 0 must not join —
+`__syncthreads()` would hang on it — hence `bar.sync` id 1 over 224 threads.
+
+**Result: the mechanism works exactly as predicted, and the counters prove it.**
+`trailing+inv` 6.282 -> 2.432us (14755 -> 6085 cycles) and `stageP+Qt` 4.661 ->
+3.169us left the serial timeline; `triinv` grew 2% from shared-memory contention
+with the seven warps now working behind it. Block 45.669 -> **39.742us**
+(356.8 -> 310.5 ns/row, **1.149x**), `abs_err 4e-07` / `inv_err 6e-08` identical
+to the control because no arithmetic changed.
+
+Full 15-shape paired grid **1.0122** CI95 [1.0112, 1.0133] excluding 1.0, 15/15
+ok: `2x2048` 1.0449, `2x4096` 1.0408, `4x1024` 1.0376, `16x512` 1.0287,
+`8x2048` 1.0277, the other ten flat. Identical counters and zero new fallbacks on
+every shape. Six-family gate run on **both** baseline and candidate and diffed:
+48/48 `checker_ok` on each side and **zero** differences in `ok`,
+`active_backend`, or `fallbacks`.
+
+**Ranked `#914341`: REJECTED.** public 672.383 -> **646.868us (-3.79%)**, secret
+655.423 -> **692.860us (+5.71%)**. Promotion needs both; root stays on `#913511`.
+No retry — `program.md` allows one only after a concrete defect, and there is
+none to fix.
+
+**The finding worth keeping is not the kernel, it is the third data point on
+public/secret divergence.**
+
+| experiment | paired grid | public | secret |
+|---|---|---|---|
+| exp 022 | 1.0052 | regressed | improved |
+| exp 035 (`#888352`) | +0.61% | -2.69% | +4.50% |
+| **exp 065 (`#914341`)** | **+1.22%** | **-3.79%** | **+5.71%** |
+
+Three times now, a paired-grid geomean in the 0.5-1.5% band has failed to predict
+the sign of the secret split — and this instance had the strongest device-time
+evidence of the three. **A sub-1.5% paired grid is not sufficient evidence to
+spend a ranked submission.** Whether to raise that bar in `program.md` is an
+owner decision; it is recorded here rather than changed silently.
+
+**Next lever, with its ceiling.** `triinv` is now 40.6% of the block on one warp
+with ~10.5us of idle warp time behind it. Parallelising `e62_tri_inv32` across
+2-4 warps (it already splits into two independent 16x16 halves) is the move; exp
+063 rejected *fusing* it into the chain, which is different. Ceiling: if `triinv`
+went to zero the block would be ~23.6us (1.61x over v3), worth ~1.05-1.08x on the
+five affected shapes and ~1.02x on the grid. One bounded attempt, not six — and
+per the divergence finding above, not worth a ranked slot on its own.
