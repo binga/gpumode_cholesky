@@ -62,6 +62,13 @@ policy blocker; repeated user confirmation will not resolve it.
    - Start from a clean `main` and synchronize it with `origin/main`.
    - Record the current ranked submission ID, exact commit, public/secret score,
      full-grid evidence, and source snapshot.
+   - **Verify the incumbent against `popcorn submissions list`, not against
+     `main`.** The true ranked winner is whatever the leaderboard says it is,
+     and it has repeatedly lived on an unmerged branch or in another worktree
+     while `main` and `README.md` lagged several winners behind. Confirm by
+     `shasum -a 256` of the candidate baseline against the ranked source, and
+     re-check immediately before any paid gate — `origin/main` moved twice
+     mid-session during experiment 064.
 
 2. **Find the highest-impact shapes**
    - Profile or inspect the current 15-shape leaderboard grid.
@@ -102,6 +109,19 @@ policy blocker; repeated user confirmation will not resolve it.
    - Require positive proof that the intended backend executed: counters,
      readiness metadata, load/compile status, zero unexpected fallbacks, and no
      runtime error. Timing from a fallback implementation is invalid.
+   - **Compare like with like.** A probe row that calls a driver directly is not
+     comparable to a control row that goes through `custom_kernel`: the wrapper
+     carries dispatch plus the end-of-call `isfinite(...).all().item()` sync,
+     measured at 845us on `1x32768` in experiment 064. Always include a
+     reimplementation of the *shipped* logic as the probe's own control and
+     quote speedups against that, or the wrapper overhead is silently booked as
+     a win.
+   - **Never edit a mounted file while a Modal job is building.** `submission.py`,
+     the candidate source, `reference/`, and `scripts/_gpu_runner.py` are copied
+     into the image; touching any of them mid-build fails the job with
+     `ExecutionError: ... was modified during build process` and wastes the whole
+     run. Experiment 064 lost an ~18-minute family grid this way. Edit notes and
+     `state.json` while jobs are in flight; nothing else.
 
 8. **Validate numerical closeness across the changed region**
    - Exact or bitwise equality is **not required**. Numerical closeness is enough
@@ -112,6 +132,19 @@ policy blocker; repeated user confirmation will not resolve it.
      diagonal, and acceptable scaled reconstruction residual.
    - Cover dense, spectrum, low-rank, row-scaled, diagonal, and tridiagonal
      inputs for every changed dispatch shape. Validate all safety fallbacks.
+   - **`familygrid` reports `passed: false` whenever any fallback fires, so read
+     `checker_ok` per row, not the top-level flag** — and never explain a
+     fallback away from memory. Rerun the identical gate against the exact
+     ranked baseline and diff the rows. A fallback that the incumbent also takes
+     is pre-existing behaviour; one that only the candidate takes means the fast
+     path went non-finite, which is a bug signal even when the checker still
+     passes through the fallback. Experiment 064 used this to confirm that three
+     fallback rows at `1x16384`/`1x32768` were identical to the baseline's.
+   - **`spectrum` is not generable at `n >= 16384`**: its input needs a QR of an
+     `n x n` matrix, costing far more than the factorization under test and
+     exceeding the sandbox timeout. Use `--families` to gate the tractable five
+     (`dense`, `diagonal`, `lowrank`, `rowscale`, `tridiagonal`) and record the
+     omission. Experiments before 064 simply never gated the two largest shapes.
 
 9. **Classify every measured variant**
    - `WINNER`: correct and at least 2.00x faster on the paired target.
@@ -181,6 +214,8 @@ policy blocker; repeated user confirmation will not resolve it.
 ## Non-negotiable promotion rules
 
 - Never treat fallback latency as candidate evidence.
+- Never quote a probe speedup measured against a differently-invoked control.
+- Never claim a fallback is pre-existing without a baseline run that shows it.
 - Never weaken correctness thresholds; approximate arithmetic is acceptable
   only when it remains close enough for the official checker.
 - Never rank two candidates concurrently.
