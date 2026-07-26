@@ -4084,6 +4084,27 @@ def custom_kernel(data: input_t) -> output_t:
         if _CUDA256 is not None:
             return _cuda_cholesky256(data)
 
+    # Experiment 062: tiny-batch mid shapes. The vendor factorization runs
+    # once per matrix and is dependent-pivot-latency bound, so it costs c*n per
+    # matrix regardless of batch. The blocked path factors both matrices with
+    # two co-resident CTAs, paying the pivot chain once for the whole batch.
+    if (
+        is_f32_cuda
+        and (batch, n) in _EXP062_SHAPES
+        and data.is_contiguous()
+    ):
+        _load_exp062()
+        if _EXP062 is not None:
+            try:
+                l = _exp062_factor(data, _EXP062_SHAPES[(batch, n)])
+                if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
+                    _EXP062_HITS += 1
+                    return l
+                _EXP062_FALLBACKS += 1
+            except Exception as exc:
+                _EXP062_ERROR = repr(exc)
+                _EXP062_FALLBACKS += 1
+
     # Experiment 015 round 4: two-level blocked tensor-core potrf with
     # per-shape graph replay for the mid shapes. On any numerical failure
     # (non-finite diagonal on ill-conditioned families) fall through to the
@@ -4179,27 +4200,6 @@ def custom_kernel(data: input_t) -> output_t:
         if torch.isfinite(l).all().item():
             return l.unsqueeze(0)
         return torch.linalg.cholesky_ex(data, check_errors=False).L
-
-    # Experiment 062: tiny-batch mid shapes. The vendor factorization runs
-    # once per matrix and is dependent-pivot-latency bound, so it costs c*n per
-    # matrix regardless of batch. The blocked path factors both matrices with
-    # two co-resident CTAs, paying the pivot chain once for the whole batch.
-    if (
-        is_f32_cuda
-        and (batch, n) in _EXP062_SHAPES
-        and data.is_contiguous()
-    ):
-        _load_exp062()
-        if _EXP062 is not None:
-            try:
-                l = _exp062_factor(data, _EXP062_SHAPES[(batch, n)])
-                if torch.isfinite(l.diagonal(dim1=-2, dim2=-1)).all().item():
-                    _EXP062_HITS += 1
-                    return l
-                _EXP062_FALLBACKS += 1
-            except Exception as exc:
-                _EXP062_ERROR = repr(exc)
-                _EXP062_FALLBACKS += 1
 
     # Few-but-large matrices: avoid cusolverDnSpotrfBatched (see module docstring).
     # exp 005: upper bound trimmed 8->4 so 8x2048 stays on batched cuSOLVER.
@@ -4788,4 +4788,22 @@ def mid_probe():
 
 
 # Enrolled shapes -> outer trailing-update block width.
-_EXP062_SHAPES = {(2, 2048): 1024, (2, 4096): 1024}
+#
+# Experiment 063 round 1 measured the shipped exp-062 kernel against the exact
+# shipped dispatch (`custom_kernel`) on the three split32 mid shapes it was
+# never enrolled on:
+#
+#     16x512   412.2 -> 303.1us   1.360x
+#     4x1024   721.1 -> 580.9us   1.241x
+#     8x2048  1616.4 -> 1374.9us  1.176x
+#
+# All three run 16/32/64 separate `_micro_potrf_gj32` launches today; the
+# resident 128-block collapses seven launches per block into one. The kernel
+# itself is unchanged -- only the shape table and the dispatch position.
+_EXP062_SHAPES = {
+    (16, 512): 512,
+    (4, 1024): 1024,
+    (8, 2048): 1024,
+    (2, 2048): 1024,
+    (2, 4096): 1024,
+}
