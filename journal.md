@@ -57,6 +57,11 @@ confirmed.
 
 ## Optimization Tracker (living — update on progress/regress)
 
+This tracker is per **shape**. For the per-**experiment** view — which strategy
+each experiment used and what latency it moved — see `docs/experiment-matrix.md`.
+For the standing backlog of untried levers and their estimated ROI, see
+`docs/lever-ladder.md`. For the loop itself, see `docs/workflow.md`.
+
 Rows = the 15 ranked B200 shapes. Columns = latency-reduction levers. Cells:
 
 - **✓** — shipped / current winning path for that shape (see the referenced session).
