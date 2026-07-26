@@ -238,3 +238,77 @@ fraction on the board. Graph-capturing the exp-062 path is the follow-up.
 
 The three buckets overlap and are not additive (recovering idle changes what
 fusing glue is worth).
+
+---
+
+## Round 2 — CUDA graphs on 60x1024: REJECTED, and the graph branch is dead code
+
+**Target:** the 262.8us (20.5% of wall) of exposed launch gap on `60x1024`.
+`_SPLIT32_SHAPES` already carries a per-shape `"graph"` / `"eager"` mode, so
+this looked like a one-line flip.
+
+### It is not a one-line flip: every `"graph"` entry is unreachable
+
+| entry | mode | intercepted by |
+|---|---|---|
+| `(256, 128)` | graph | `cholesky128_block16` CUDA kernel (1 launch) |
+| `(64, 256)` | graph | `cholesky256_wmma16` CUDA kernel (1 launch) |
+| `(16, 512)` | graph | `_EXP062_SHAPES` gate |
+| `(4, 1024)` | graph | `_EXP062_SHAPES` gate |
+| `(8, 2048)` | graph | `_EXP062_SHAPES` gate |
+| **`(640, 512)`** | **eager** | — reaches `_split32_factor` |
+| **`(60, 1024)`** | **eager** | — reaches `_split32_factor` |
+
+Dispatch order in `custom_kernel` is cuda128/cuda256 -> exp062 -> split32, so
+the only two shapes that reach `_split32_factor` are the two marked `"eager"`.
+**No `"graph"` entry has a live caller, and the graph branch of
+`_split32_factor` is therefore dead code.** The 1-launch profiles for
+`256x128` / `64x256` confirm the interception directly.
+
+### Both attempts fail the same way
+
+| # | change | `60x1024` ratio | CI95 | `4x1024` control |
+|---|---|---:|---|---:|
+| v5 | `(60,1024)` -> `"graph"` | **0.2910** | [0.2905, 0.2917] | 1.0019 |
+| v6 | v5 + graph branch captures the eager two-buffer dataflow | **0.2968** | [0.2967, 0.2972] | 0.9996 |
+
+1214.3us -> 4092.1us, a 3.4x regression. The mechanism is identical in both:
+
+- `errors: {}` in `familygrid` — **no exception is raised**, so capture
+  succeeds and it is the *replay* that is wrong.
+- the dispatch's `torch.isfinite(l.diagonal(...)).all()` guard rejects the
+  replayed factor, `_FUSED_CTA_FALLBACKS` goes 0 -> 1, and the call falls
+  through to a much slower route.
+- the candidate's residual drops 9.33 -> 0.00254, i.e. it landed on exact-FP32
+  cuSOLVER rather than the tf32 split32 path — consistent with the fallback.
+- `_MICRO32_HITS: 96` = 3 x 32 (two warmup passes + the capture pass). Note
+  replay does **not** increment Python-side counters, so these counts say
+  nothing about whether replay ran; they only confirm warmup and capture did.
+
+v6 tested the one structural difference between the dead branch and the live
+path: the branch factors **in place** (`_split32_launch(work, ...)`) while every
+live call uses the two-buffer first-touch form (`_split32_launch(out, ...,
+src=data)`). Capturing the eager dataflow instead changed nothing —
+0.2910 -> 0.2968 is the same failure. **That hypothesis is disproved; the root
+cause of the non-finite replay is not identified.**
+
+### Assessment
+
+The prize is smaller than the idle number suggests. `60x1024` is 251.7 MB, so
+graph mode must add a copy-in and a clone-out (~126us of extra traffic at
+~8 TB/s) against 262.8us of recovered idle — a net ~137us, roughly 1.11x on the
+shape, ~1.0% geomean. `640x512` (205.5us idle) rides the same code path and
+would roughly double that.
+
+Finding the actual defect needs a numerical diff of graph-replay output against
+eager output, which means a new `_gpu_runner.py` probe mode and further paid
+runs. Two bounded attempts were spent; stopping here rather than guessing
+further. What the next attempt should do first is establish whether *any* CUDA
+graph path still replays correctly in this codebase — the `_graph_cholesky_*`
+helpers for `256x128` / `1024x64` / `16x512` are equally shadowed by later
+dispatch entries and equally unexercised, so graph capture may be broadly
+rotted rather than specifically broken at `60x1024`.
+
+Artifacts: `candidate-v5.py`, `candidate-v6.py`,
+`results/exp065-v5-probe1024.json`, `results/exp065-v5-family1024.json`,
+`results/exp065-v6-probe1024.json`.

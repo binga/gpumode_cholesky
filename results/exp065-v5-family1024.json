@@ -1,0 +1,39 @@
+{
+  "mode": "familygrid",
+  "device": "NVIDIA B200",
+  "rows": [
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "dense",
+      "ok": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=3.26; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "errors": {}
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "dense",
+      "ok": false,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00246; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_MICRO32_HITS": 96,
+        "_FUSED_PANEL_HITS": 21,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "errors": {}
+    }
+  ],
+  "passed": false
+}

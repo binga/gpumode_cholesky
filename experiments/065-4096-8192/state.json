@@ -15,7 +15,10 @@
       "change": "_LARGE_CFG[8192] rec_inv=False -> True",
       "shape": "1x8192",
       "ratio_median": 0.9459831066055092,
-      "ci95": [0.9459337931489694, 0.9464580947053269],
+      "ci95": [
+        0.9459337931489694,
+        0.9464580947053269
+      ],
       "baseline_us": 5755.5201053619385,
       "candidate_us": 6084.167957305908,
       "artifact": "results/exp065-v1-probe8192.json",
@@ -27,11 +30,20 @@
       "change": "_LARGE_CFG[8192] panel_mode=\"tf32\" -> \"mxfp8\"",
       "shape": "1x8192",
       "ratio_median": 1.0023113743792753,
-      "ci95": [1.0019798051668851, 1.0027713558678206],
+      "ci95": [
+        1.0019798051668851,
+        1.0027713558678206
+      ],
       "baseline_us": 5768.711805343628,
       "candidate_us": 5754.040002822876,
-      "residual": {"baseline": 0.19, "candidate": 13.7, "tolerance": 20},
-      "counters": {"_MXFP8_HITS": 2},
+      "residual": {
+        "baseline": 0.19,
+        "candidate": 13.7,
+        "tolerance": 20
+      },
+      "counters": {
+        "_MXFP8_HITS": 2
+      },
       "artifact": "results/exp065-v3-probe8192.json",
       "verdict": "REJECT",
       "reason": "+0.23% speed for a 72x residual increase, leaving 1.45x margin to tolerance on a shape whose secret-split conditioning is not controlled. Panel GEMMs are only ~16% of the shape and already tf32."
@@ -47,18 +59,58 @@
       "change": "add (1, 4096): 1024 to _EXP062_SHAPES",
       "shape": "1x4096",
       "ratio_median": 0.7232024757103659,
-      "ci95": [0.7222575353764618, 0.7238515797026249],
+      "ci95": [
+        0.7222575353764618,
+        0.7238515797026249
+      ],
       "baseline_us": 1528.6880135536194,
       "candidate_us": 2113.7759685516357,
       "control_2x4096_ratio": 0.9997509731384419,
-      "counters": {"_EXP062_HITS": 1},
+      "counters": {
+        "_EXP062_HITS": 1
+      },
       "artifact": "results/exp065-v4-probe4096.json",
       "verdict": "REJECT",
       "reason": "38% slower. exp-062 path is 516 ns/row in situ at batch=1 vs cuSOLVER's fused 373 ns/row. Marginal cost of a 2nd matrix is only 167us (2280.9-2113.8), so the pivot chain is the whole cost and does not shrink with batch; batch=1 has nothing to amortize."
+    },
+    {
+      "id": "v5",
+      "change": "_SPLIT32_SHAPES[(60,1024)] mode \"eager\" -> \"graph\"",
+      "shape": "60x1024",
+      "ratio_median": 0.29100927740429827,
+      "ci95": [
+        0.2904740038880531,
+        0.2916912337542663
+      ],
+      "baseline_us": 1192.3360228538513,
+      "candidate_us": 4097.939968109131,
+      "control_4x1024_ratio": 1.0018873176156944,
+      "artifact": "results/exp065-v5-probe1024.json",
+      "verdict": "REJECT",
+      "reason": "graph replay returns non-finite; isfinite guard trips, _FUSED_CTA_FALLBACKS 0->1, falls through to cuSOLVER (residual 9.33->0.00254). familygrid errors:{} proves no exception - capture succeeds, replay is wrong."
+    },
+    {
+      "id": "v6",
+      "change": "v5 + graph branch captures the eager two-buffer src=/out dataflow instead of in-place",
+      "shape": "60x1024",
+      "ratio_median": 0.2967718024761202,
+      "ci95": [
+        0.2967095184367755,
+        0.29720261192213476
+      ],
+      "baseline_us": 1214.2879664897919,
+      "candidate_us": 4092.1040773391724,
+      "control_4x1024_ratio": 0.9995708505219374,
+      "artifact": "results/exp065-v6-probe1024.json",
+      "verdict": "REJECT",
+      "reason": "identical failure to v5. Disproves the in-place-vs-two-buffer hypothesis. Root cause of the non-finite replay NOT identified."
     }
   ],
   "gates": {
-    "free": {"py_compile": "ok on all candidates", "one_line_diffs": "verified against HEAD:submission.py"},
+    "free": {
+      "py_compile": "ok on all candidates",
+      "one_line_diffs": "verified against HEAD:submission.py"
+    },
     "pairedgrid_subset": "run for v1/v3/v4; all shapes checker-ok, new_fallbacks empty everywhere",
     "pairedgrid_full_15": "NOT RUN - program ladder only spends it after a credible subset win",
     "popcorn_test": "not run",
@@ -89,7 +141,23 @@
     "item": "exp 063 plan item 1 - fix the fused chain+inverse correctness bug (inv_err 0.573)",
     "reason": "that fusion measured 325.9 ns/row and the v2 'panel + fused inverse' 312.3 ns/row, both slower than the v3 kernel already shipped in #912756 at 296 ns/row"
   },
-  "next_action": "Scope look-ahead / named-barrier overlap in the 128x32 diagonal block kernel as its own experiment. Measured budget: chain ~11us vs parallel phases ~14us of a 37.9us block; concurrent execution approaches max not sum, ~25us/block = ~195 ns/row. Lifts the five enrolled shapes and is the first design that could make batch=1 blocked factorization beat cuSOLVER's 373 ns/row.",
+  "next_action": "Before another graph attempt, establish whether ANY CUDA graph path still replays correctly in this codebase (all of them are shadowed and unexercised). Diagnosing 60x1024 needs a numerical diff of replay vs eager output, i.e. a new _gpu_runner probe mode. Prize is ~1.0% geomean for 60x1024 (262.8us idle minus ~126us of added copy for a 251.7MB buffer), roughly double if 640x512 rides along. The precision lever on 640x512 (69.5% GEMM-shaped) is the better-value target.",
   "adopted": false,
-  "incumbent_unchanged": 913511
+  "incumbent_unchanged": 913511,
+  "dead_code_finding": {
+    "claim": "every \"graph\" entry in _SPLIT32_SHAPES is unreachable; the graph branch of _split32_factor has no live caller",
+    "verified_by": "dispatch order cuda128/cuda256 -> exp062 -> split32, plus set arithmetic on _EXP062_SHAPES vs _SPLIT32_SHAPES, plus 1-launch profiles for 256x128 and 64x256",
+    "shadowed": {
+      "(256,128)": "cholesky128_block16",
+      "(64,256)": "cholesky256_wmma16",
+      "(16,512)": "exp062 gate",
+      "(4,1024)": "exp062 gate",
+      "(8,2048)": "exp062 gate"
+    },
+    "reaching_split32": [
+      "(640,512) eager",
+      "(60,1024) eager"
+    ],
+    "note": "_graph_cholesky_256x128 / _graph_cholesky_1024x64 / _graph_cholesky_16x512 are equally shadowed and equally unexercised"
+  }
 }
