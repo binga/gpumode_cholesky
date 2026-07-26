@@ -57,14 +57,27 @@ popcorn submissions                                # view your entries
 - Baseline: `torch.linalg.cholesky_ex` (cuSOLVER). Correct across all input families.
 - CPU property check: **10/10 pass**.
 - Real B200 verify (Modal sandbox): **13/13 pass** (torch 2.12+cu130 on `NVIDIA B200`). The default torch wheel already ships Blackwell/sm_100 kernels — no cu128 pin needed.
-- **Current ranked winner `#904546`** (exp 059): `done`, public geomean
+- **Current ranked winner `#913511`** (exp 064): `done`, public geomean
+  **672.383us** and secret geomean **655.423us**, improving the previous
+  `#912756` winner by **0.499% public / 2.821% secret**. Popcorn test
+  `#913422` passed on the exact source. Exact root SHA-256:
+  `8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa`.
+  Full 15-shape paired grid **1.0073** CI95 [1.0068, 1.0079]; the two changed
+  shapes are `1×16384` (1.0485×) and `1×32768` (1.0679×), everything else flat.
+  See `experiments/064-large-two/` and `journal.md` Session 52.
+  - The diagonal `potrf` is now **59.6% of `1×16384`** and **46.9% of
+    `1×32768`** and is a measured wall: cuSOLVER runs 308–340 ns/row and this
+    repo's best custom block kernel ended at 296 ns/row. The next lever there is
+    named-barrier overlap inside the block kernel (~195 ns/row projected).
+- **Previous ranked winner `#912756`** (exp 063): public **675.753us**, secret
+  **674.448us**; 256-thread panel factorization plus wider mid-shape enrollment
+  on the resident diagonal-block kernel. See `experiments/063-diag128-fast/`.
+- **Earlier ranked winner `#904546`** (exp 059): `done`, public geomean
   **764.876831us** and secret geomean **785.861426us**, improving the frozen
   `#890798` baseline by **4.6261% public / 7.3098% secret**. Popcorn test
   `#904530` passed 17/17. Exact root SHA-256:
   `f8d67dce5a7a0dd68fc96e24613444970aa8c637b168bcb252cab01f2db89e5a`.
-  The adopted paths optimize the selected `1×16384` and `1×32768` shapes; the
-  campaign remains active toward a cumulative 10% geomean reduction. See
-  `experiments/059-two-large-incremental/` and `journal.md` Session 47.
+  See `experiments/059-two-large-incremental/` and `journal.md` Session 47.
 - **Previous ranked winner `#890798`** (exp 047): public geomean
   **801.977us** and secret geomean **847.836us**; exact SHA-256
   `fd3072b5160ea31b92464de4aa2ce06ebdc9b70994c6279b494e7107994244c1`.

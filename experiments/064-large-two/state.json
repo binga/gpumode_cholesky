@@ -1,6 +1,6 @@
 {
   "experiment": "064-large-two",
-  "status": "RANKED_SUBMITTED",
+  "status": "ADOPTED",
   "goal": "reduce latency of the two biggest shapes (1x16384, 1x32768) and rank the result",
   "baseline": {
     "submission": 912756,
@@ -83,7 +83,7 @@
       "verdict": "candidate introduces zero new fallbacks and no robustness regression"
     }
   },
-  "next_action": "monitor ranked run to terminal public+secret; adopt if improved; update README/journal; push and open draft PR",
+  "next_action": "next round: plan item 2 (named-barrier overlap in the diagonal block kernel) is the only lever with real headroom on the 47-60% the diagonal costs",
   "candidate": {
     "source": "experiments/064-large-two/candidate-v1.py",
     "sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
@@ -91,5 +91,17 @@
       "16384: all strided block moves via exp-061 Triton mover + reused fp16 panel buffer",
       "32768: trsm-free base-32 leaf inverse with caller-owned buffer (_EXP064_TRSM_FREE)"
     ]
+  },
+  "ranked": {
+    "submission": 913511,
+    "status": "succeeded",
+    "sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+    "public_us": 672.3831929770458,
+    "secret_us": 655.4226483316047,
+    "vs_912756_pct": {
+      "public": 0.499,
+      "secret": 2.821
+    },
+    "popcorn_test": 913422
   }
 }

@@ -119,3 +119,39 @@ the incumbent ever had there.
 
 Residual: `1x16384` unchanged at 0.211; `1x32768` 6.44 -> 6.45 against a
 tolerance of 20.
+
+### Ranked outcome — `#913511` (adopted)
+
+Source `experiments/064-large-two/candidate-v1.py`, sha
+`8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa`, byte-identical
+to the repository root `submission.py`. Popcorn test `#913422` passed on the
+exact source first.
+
+| split | incumbent `#912756` | `#913511` | change |
+|---|---:|---:|---:|
+| public | 675.753us | **672.383us** | **-0.499%** |
+| secret | 674.448us | **655.423us** | **-2.821%** |
+
+Both splits improved, so the candidate is adopted. The paired grid predicted
++0.73%; public delivered +0.50% and secret +2.82%. Public sits just inside the
+0.34% run-to-run variance exp 063 measured on this board, and secret's
+over-delivery is within its known ~2.6% spread — so the grid remains a good
+predictor and the honest read of this change is "roughly half a percent, plus
+noise", not "2.8%".
+
+### Campaign delta
+
+| | `#907267` | `#909269` | `#909488/92` | `#912756` | `#913511` |
+|---|---:|---:|---:|---:|---:|
+| public | 745.765 | 733.540 | ~683.4 | 675.753 | **672.383** |
+| secret | 741.378 | 721.821 | 686.145 | 674.448 | **655.423** |
+
+### Next lever
+
+Plan item 2 — named-barrier overlap of the serial pivot chain with the parallel
+phases inside the diagonal block kernel. It is the only remaining lever on the
+47-60% of these two shapes that the diagonal costs, and exp 063 already sized
+it: chain ~11us against parallel phases ~14us, so concurrency approaches `max`
+rather than `sum`, ~25us/block (~195 ns/row) against today's 37.9us. At that
+rate a 2048 diagonal built from 128-blocks finally beats cuSOLVER's 630us, and
+the same kernel carries five mid shapes.
