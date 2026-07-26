@@ -149,3 +149,92 @@ Three B200 `pairedgrid` sandbox runs, subset-filtered (`--shapes 8192`,
 `--shapes 4096`). No full 15-shape grid was run: the program's gate ladder
 only spends that after a credible subset win, and no candidate produced one.
 No Popcorn test or ranked quota consumed.
+
+---
+
+## Addendum — where the Triton and precision levers *do* pay
+
+The rejections above are specific to `1x4096`'s serial chain, not to the levers
+themselves. A fresh 13-shape profile of the exact incumbent `#913511`
+(`results/exp065-inc913511-shapediag.json`) locates both.
+
+| shape | wall | lnch | idle (graphs) | GEMM-ish (precision) | glue (Triton) | chain |
+|---|---:|---:|---:|---:|---:|---:|
+| 4096x32 | 16.6 | 1 | 14.5% | — | — | — |
+| 1024x64 | 25.4 | 1 | 10.2% | — | — | — |
+| 256x128 | 62.2 | 1 | 2.9% | — | — | — |
+| 64x256 | 99.3 | 1 | 1.8% | — | — | — |
+| 16x512 | 337.7 | 21 | **25.5%** | 9.5% | 12.5% | 52.6% |
+| **640x512** | 1334.3 | 53 | 15.4% | **69.5%** | 2.3% | 12.9% |
+| 4x1024 | 607.8 | 37 | **22.9%** | 11.1% | 8.2% | 57.8% |
+| **60x1024** | 1282.2 | 76 | **20.5%** | **43.2%** | 1.9% | 34.5% |
+| 2x2048 | 1137.1 | 69 | 17.6% | 13.5% | 7.4% | 61.5% |
+| 8x2048 | 1302.9 | 69 | 11.5% | 17.7% | **16.1%** | 54.8% |
+| 1x4096 | 1531.6 | 6 | -0.1% | **0.0%** | 8.9% | **91.2%** |
+| 2x4096 | 2319.0 | 133 | 10.6% | 18.3% | 10.4% | 60.7% |
+| 1x8192 | 5802.7 | 242 | 6.8% | 15.0% | 10.9% | 67.2% |
+
+Buckets: `idle` = wall - device (exposed eager launch gap); `GEMM-ish` =
+cutlass/nvjet + the `_trailing_nb` / `_panel_fused128` / `_panel_inner32` /
+`_panel_apply32` Triton kernels; `glue` = elementwise, `triu_tril`, memcpy,
+memset, fill, reduce; `chain` = `getrf_wo_pivot`, `trsm_right`, `e62_diag128`,
+`micro_potrf32_rank4`, `_diag_block_step`.
+
+### Precision — two shapes carry it
+
+**`640x512` is the precision shape: 69.5% of wall (926.8us) is GEMM-shaped,
+chain is only 12.9%.** batch=640 is throughput-bound with maximum parallelism,
+the opposite regime from `1x4096`. Breakdown: `_panel_fused128` 359.1us,
+`_trailing_nb` 193.8us, `_panel_inner32_subtile64` 155.7us, `_panel_apply32`
+105.4us, cutlass tf32 112.8us. **Caveat: n=512 sits below the documented
+fp16-safety line (n>=1024)**, so it needs Higham-capped scaling, not a naive
+demotion.
+
+**`60x1024` is the risk-adjusted pick: 43.2% GEMM-ish (553.3us — `_trailing_nb`
+375.2us + `_panel_fused128` 178.1us) and n=1024 clears the fp16 safety
+threshold.**
+
+Note both shapes' hot kernels are *already Triton*. The change there is the
+operand dtype / `tl.dot` precision inside existing kernels, not a conversion —
+the two levers converge on the same code.
+
+Then `2x4096` (18.3%), `8x2048` (17.7%), `2x2048` (13.5%). `1x8192` (15.0%) is
+already rejected above on numerics, and `1x4096` is 0.0% — there is nothing
+there.
+
+Geomean if GEMM-ish halves: `640x512`+`60x1024` alone **643.0us (-4.4%)**;
+adding `8x2048`+`2x4096`+`2x2048` **632.0us (-6.0%)**.
+
+### Triton conversion — the glue, and it is modest
+
+`8x2048` 16.1% (209.2us: `triu_tril` 78.9, elementwise 66.5, Memcpy DtoD 45.1),
+`1x8192` 10.9% (634.4us, elementwise alone 509.8), `2x4096` 10.4% (240.2us).
+Fusing all three: **654.7us (-2.6%)**.
+
+Worth recording: even `1x4096` has 135.9us of glue (8.9%) outside its single
+cuSOLVER call — `triu_tril` 57.8us + elementwise 75.1us. A fused epilogue is a
+genuine ~1.10x on that shape (**-0.6% geomean**). So Triton is not void at
+`1x4096`; it is void on the 91.2% chain and available on the 8.9% glue.
+
+### The biggest lever is neither: exposed launch gap
+
+The exp-062/063 blocked path is eager, and the gap shows up as idle:
+
+```
+16x512    86.0us / 21 launches = 4.10 us/launch   (25.5% of wall)
+4x1024   138.9us / 37          = 3.75            (22.9%)
+60x1024  262.8us / 76          = 3.46            (20.5%)
+640x512  205.5us / 53          = 3.88            (15.4%)
+2x2048   199.9us / 69          = 2.90            (17.6%)
+2x4096   245.9us / 133         = 1.85            (10.6%)
+```
+
+Recovering it on those six shapes is **618.4us (-8.0%)**, the largest of the
+three levers — and `submission.py` already carries `_graph_cholesky_16x512`,
+`_graph_cholesky_256x128` and `_graph_cholesky_1024x64`. The exp-062 gate sits
+*above* the `16x512` graph helper in `custom_kernel`, so that shape traded a
+captured graph for an eager 21-launch path and now shows the worst idle
+fraction on the board. Graph-capturing the exp-062 path is the follow-up.
+
+The three buckets overlap and are not additive (recovering idle changes what
+fusing glue is worth).
