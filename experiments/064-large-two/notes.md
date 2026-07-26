@@ -160,3 +160,65 @@ for 32768, in both directions.
 Both are pure-Python driver changes. No CUDA source changed, so the extension
 count and the cold-build budget are untouched.
 
+## Gates
+
+| gate | artifact | result |
+|---|---|---|
+| compile / property / whitespace | — | `py_compile` ok, `verify_local` 10/10, `git diff --check` clean |
+| source policy | — | `cusolver` 2, `cuSOLVER` 18, `stream` 0, `queue` 6 — byte-identical to the ranked source |
+| full 15-shape paired grid | `results/exp064-v1-pairedgrid.json` | **geomean 1.0073** CI95 [1.0068, 1.0079], excludes 1.0, `all_shapes_ok: true`, `passed: true` |
+| counter diff | same | new counters only; `new_fallbacks` empty on both changed shapes |
+| cold build | — | all 5 CUDA blobs sha-identical, `load_inline` count 7 -> 7 |
+| Popcorn `--mode test` | `#913422` | **passed**, `status: succeeded`, 7s on a warm cache |
+| six-family correctness | `results/exp064-v1-familygrid.json` | (pending) |
+
+### Paired-grid detail
+
+| shape | control us | candidate us | ratio | CI95 |
+|---|---:|---:|---:|---|
+| `1x16384` | 8,781.0 | 8,374.4 | **1.0485** | [1.0475, 1.0491] |
+| `1x32768` | 24,529.9 | 22,971.2 | **1.0679** | [1.0677, 1.0680] |
+| other 13 | — | — | 0.9978-1.0009 | flat, AvA spread 0.03-0.71% |
+
+Counters proving the intended paths ran:
+
+- `1x16384`: `_EXP061_MOVE_HITS: 38` (absent in baseline), `new_fallbacks: {}`
+- `1x32768`: `_EXP064_TRSMFREE_HITS: 7` (absent in baseline), `new_fallbacks: {}`
+
+Reconstruction residual: `1x16384` 0.211 -> 0.211 (identical), `1x32768`
+6.44 -> 6.45, against a checker tolerance of 20.
+
+## Next levers for these two shapes, in expected-value order
+
+1. **Plan item 2 — named-barrier overlap in the diagonal block kernel.** The
+   only lever with real headroom on the 47-60% that the diagonal costs. Exp 063
+   measured the chain at ~11us against ~14us of parallel phases per block, so
+   running them concurrently approaches `max` rather than `sum`: ~25us/block
+   (~195 ns/row) against today's 37.9us. At that rate a 2048 diagonal built
+   from 128-blocks finally beats cuSOLVER's 630us. Also moves five mid shapes.
+2. **K-independent MXFP8 quantizer** on `1x32768`. The frontier
+   `factor[k:, :k]` is re-quantized from scratch every step (1,112us, 4.7%),
+   even though only the newest `nb` columns are new. An incremental shadow cuts
+   the element count 3x (1.41e9 -> 4.7e8). Exp 061 found this impossible with
+   the shipped quantizer because the scale-tile index depends on total K; it
+   needs a K-independent layout first.
+3. **Retire the `.L` materialization.** `torch.linalg.cholesky_ex(...).L`
+   costs 456us of `triu_tril` at 32768 and 123us at 16384. The block mover
+   already rewrites the result; a `TRIL` flag on
+   `_exp061_block_move_kernel` would fold the masking into the copy.
+4. **The end-of-call `isfinite(...).all().item()` sync.** The probe measured
+   845us between the driver called directly and the same driver called through
+   `custom_kernel` at 32768 — 3.5% of the shape. This is plan lever L1 and it
+   applies to several shapes at once.
+
+### A note on the six-family gate at these sizes
+
+`spectrum` builds its input with a QR of an `n x n` matrix, which at
+n=16384/32768 costs far more than the factorization under test and cannot
+finish inside the sandbox timeout. Experiment 063 hit the same wall and ran its
+family gate only on n in {512, 1024, 2048, 4096} — it never gated the two
+largest shapes at all. This experiment adds a `--families` filter and gates the
+five tractable families (`dense`, `diagonal`, `lowrank`, `rowscale`,
+`tridiagonal`) at both changed shapes, which is strictly more coverage than the
+incumbent ever had there.
+

@@ -1,6 +1,6 @@
 {
   "experiment": "064-large-two",
-  "status": "GATES_IN_PROGRESS",
+  "status": "RANKED_SUBMITTED",
   "goal": "reduce latency of the two biggest shapes (1x16384, 1x32768) and rank the result",
   "baseline": {
     "submission": 912756,
@@ -60,9 +60,30 @@
         "1x16384": "0.211 -> 0.211",
         "1x32768": "6.44 -> 6.45 (tolerance 20)"
       }
+    },
+    "popcorn_test": {
+      "submission": 913422,
+      "result": "passed",
+      "note": "status succeeded; exact source sha 8e4603e5..."
+    },
+    "cold_build": {
+      "method": "static proof",
+      "result": "all 5 CUDA source blobs sha-identical to ranked source; load_inline count 7 -> 7; no CUDA recompilation introduced"
+    },
+    "familygrid_candidate": {
+      "artifact": "results/exp064-v1-familygrid.json",
+      "checker_ok_rows": "10/10",
+      "passed_flag": false,
+      "note": "passed:false is the known familygrid quirk (any fallback => false). 3 rows fell back: 16384 lowrank, 32768 lowrank, 32768 rowscale; all 3 still checker_ok via the fallback path.",
+      "families": "dense,diagonal,lowrank,rowscale,tridiagonal (spectrum excluded: needs an n x n QR, intractable at these n)"
+    },
+    "familygrid_baseline": {
+      "artifact": "results/exp064-baseline-familygrid.json",
+      "result": "identical to candidate on all 10 rows: same fallback pattern (16384 lowrank, 32768 lowrank, 32768 rowscale), checker_ok everywhere",
+      "verdict": "candidate introduces zero new fallbacks and no robustness regression"
     }
   },
-  "next_action": "familygrid on 16384,32768 -> popcorn --mode test 17/17 -> one ranked submission -> adopt/commit/push/PR",
+  "next_action": "monitor ranked run to terminal public+secret; adopt if improved; update README/journal; push and open draft PR",
   "candidate": {
     "source": "experiments/064-large-two/candidate-v1.py",
     "sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",

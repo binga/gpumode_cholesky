@@ -86,6 +86,30 @@ exps 044/050 fought over is provably untouched.
 | full 15-shape paired grid | **geomean 1.0073** CI95 [1.0068, 1.0079], excludes 1.0, `all_shapes_ok` |
 | counter diff | new counters only (`_EXP061_MOVE_HITS` 38, `_EXP064_TRSMFREE_HITS` 7); `new_fallbacks` empty |
 | cold build | all 5 CUDA blobs byte-identical, `load_inline` count unchanged |
+| six-family correctness | `checker_ok` **10/10**, and **identical to the baseline on every row** |
+| Popcorn `--mode test` | `#913422` passed |
+
+### The family gate was run twice, on purpose
+
+`familygrid` reports `passed: false` whenever *any* fallback fires, and three
+rows do fall back: `16384 lowrank`, `32768 lowrank`, `32768 rowscale`. Rather
+than wave that through against exp 063's note that "the incumbent already falls
+back on lowrank", the identical gate was run against the exact ranked baseline.
+**Every one of the ten rows matches** — same fallback pattern, `checker_ok`
+everywhere. The candidate introduces no new fallback and no robustness
+regression.
+
+This also mattered as a bug check, not just a robustness note: `16384 lowrank`
+shows the driver completing all 38 moves with `_EXP061_16384_HITS` absent,
+i.e. the fast path produced a non-finite diagonal. Had the baseline *not* done
+the same, the "pure data movement, identical arithmetic" claim would have been
+false. It does.
+
+`spectrum` is excluded: it builds its input from a QR of an `n x n` matrix,
+which at these sizes costs far more than the factorization under test. Exp 063
+hit the same wall and gated only n in {512, 1024, 2048, 4096}, so it never
+covered the two largest shapes at all; this run is strictly more coverage than
+the incumbent ever had there.
 
 | shape | control us | candidate us | speedup |
 |---|---:|---:|---:|
