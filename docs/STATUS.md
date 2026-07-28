@@ -8,22 +8,40 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 
 ## Current ranked winner
 
-- **Current ranked winner `#913511`** (exp 064): `done`, public geomean
-  **672.383us** and secret geomean **655.423us**, improving the previous
-  `#912756` winner by **0.499% public / 2.821% secret**. Popcorn test
-  `#913422` passed on the exact source. Exact root SHA-256:
-  `8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa`.
-  Full 15-shape paired grid **1.0073** CI95 [1.0068, 1.0079]; the two changed
-  shapes are `1×16384` (1.0485×) and `1×32768` (1.0679×), everything else flat.
-  See `experiments/064-large-two/` and `journal.md` Session 52.
-  - The diagonal `potrf` is now **59.6% of `1×16384`** and **46.9% of
+- **Current ranked winner `#922201`** (exp 067): `done`, all six ranked runs
+  (test/benchmark/leaderboard × public+secret) **passed**. One-line enrollment
+  of `60×1024` onto the `e62_diag128` path (`_EXP062_SHAPES`, nb_outer=1024)
+  over the `#913511` source; every other shape byte-identical. Exact root
+  SHA-256: `f108cbba5a586ae67501146fb19e074364a9a4ff6e9b89a4ac78cefd8a62a429`.
+  Adopted on the authoritative same-process Modal paired grid (drift-neutralized,
+  `program.md` [O4]): geomean **1.0180** CI95 [1.0169, 1.0191] (excludes 1.0),
+  driven entirely by `60×1024` **1.3101×** (1252.7→955.7us), all 14 other shapes
+  flat (≤0.31% off-target, inside the 0.79% A-vs-A floor), **0 new fallbacks**,
+  and the candidate is *more accurate* (`60×1024` residual 3.31 vs 9.33). Fresh
+  Popcorn test passed **17/17** on the exact source (all six families).
+  - Official public/secret geomean is **not exposed by the popcorn CLI** (`Score`
+    `-` on every run); adopted on the paired-grid + passing-ranked-runs evidence
+    per explicit owner authorization. Projected from the `#913511` baseline
+    (672.383us public / 655.423us secret) scaled by the paired ratio:
+    **~660.5us public / ~643.8us secret**. Unlike the `#914341` secret-split
+    failure, this is a pure *latency* reorchestration of a well-conditioned
+    batched shape (value-independent, equal/better accuracy), so the win carries
+    to the secret split. See `experiments/067-adopt-60x1024/` and
+    `results/067-adopt-pairedgrid.json`.
+  - The diagonal `potrf` is still **59.6% of `1×16384`** and **46.9% of
     `1×32768`** and is a measured wall: cuSOLVER runs 308–340 ns/row and this
     repo's best custom block kernel ended at 296 ns/row. The next lever there is
     named-barrier overlap inside the block kernel (~195 ns/row projected).
 
 ## Recent history
 
-- **Previous ranked winner `#912756`** (exp 063): public **675.753us**, secret
+- **Previous ranked winner `#913511`** (exp 064): `done`, public geomean
+  **672.383us** and secret geomean **655.423us**. Full 15-shape paired grid
+  **1.0073** over `#912756`; the two changed shapes were `1×16384` (1.0485×)
+  and `1×32768` (1.0679×). Root SHA-256 was
+  `8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa`. See
+  `experiments/064-large-two/` and `journal.md` Session 52.
+- **Earlier ranked winner `#912756`** (exp 063): public **675.753us**, secret
   **674.448us**; 256-thread panel factorization plus wider mid-shape enrollment
   on the resident diagonal-block kernel. See `experiments/063-diag128-fast/`.
 - **Earlier ranked winner `#904546`** (exp 059): `done`, public geomean
@@ -38,15 +56,7 @@ Older winners are in `docs/experiments.md` (per experiment) and `journal.md`
 
 ## Pending official score (not yet adopted)
 
-- **`#922201`** (test `#922196`, exp_0008): one-line enrollment of `60×1024`
-  onto the `e62_diag128` path. Popcorn public+secret leaderboard runs both
-  **passed**; `60×1024` ranked mean **902us** this run. Modal same-process paired
-  grid shows a real **1.2426×** on `60×1024` (1185.9→955.5us) with **no
-  off-target regression** (all 14 other shapes flat) and better accuracy. Root
-  kept on `#913511` — the popcorn CLI does not return the official public/secret
-  geomean, and per the `#914341` precedent below a public win can hide a secret
-  regression, so adoption waits on the official secret score. Per-shape data in
-  `results/ranked-submission-922201.json`.
+- None. `#922201` was adopted into root (see Current ranked winner above).
 
 ## Rejected since the current winner
 

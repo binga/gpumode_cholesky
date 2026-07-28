@@ -2705,3 +2705,97 @@ with ~10.5us of idle warp time behind it. Parallelising `e62_tri_inv32` across
 went to zero the block would be ~23.6us (1.61x over v3), worth ~1.05-1.08x on the
 five affected shapes and ~1.02x on the grid. One bounded attempt, not six — and
 per the divergence finding above, not worth a ranked slot on its own.
+
+## Session 54 — 2026-07-29 — Experiment 068: tcgen05 GEMM with ThunderKittens → REJECTED
+
+**Goal (user).** "Take one shape and apply the lessons from
+`kernels_last30days.md` and improve the geomean" → narrowed by the user to
+"write a tcgen05 Blackwell-ready kernel" / "use thunderkittens". This is
+levers.md **lever #3** (CUTLASS/TK fused tensor-core kernel), high-effort and
+until now untried.
+
+**Stated prior before spending.** `kernels_last30days.md`'s lessons
+(tcgen05 / TMEM / CTA-pairs / warp-specialization / clusters / per-tensor
+precision) are all GEMM-dataflow levers, and this campaign's own matrix says the
+GEMM side is saturated (`CU`/`LP` = 24/22 experiments; exp 064 measured MXFP8
+trailing at 3466 TFLOP/s). TK's published B200 ceiling is BF16 ~1540 TFLOPs. So
+a drop-in TK GEMM was expected to lose; the one live hypothesis worth a
+measurement was TK BF16 > cuBLAS **TF32** on the `1×16384` TF32-trailing path.
+
+**Toolchain (proven, banked).** ThunderKittens 2.0 compiles cleanly through
+`torch.utils.cpp_extension.load_inline` on the `nvidia/cuda:13.0.0-devel` image
+with `torch 2.13.0+cu130` at `sm_100a`: clone TK to `/opt/tk`, add its
+`include`+`prototype` dirs, `-std=c++20 --use_fast_math -DKITTENS_SM100`, set
+`TORCH_CUDA_ARCH_LIST=10.0a`. Two mechanical fixes: fully-qualify
+`kittens::detail::tcgen05::commit` (`detail` collides with torch once
+`torch/extension.h` is in scope), and `extra_ldflags=["-lcuda","-lcudadevrt"]`
+because TK calls the CUDA **driver** API (`cuGetErrorString`), unresolved by
+`-lcudart` alone. Kernel = `educational_b200/level_06` (tcgen05 + TMA, FP32 TMEM
+accumulate) generalized to rectangular M×N×K with a torch pybind.
+
+**Result: REJECTED.** B200, 30-iter CUDA-event timing, correct to 0.2–0.3% vs
+fp32 (`results/068-tk-gemm-probe.json`):
+
+| shape (M,N,K) | TK tcgen05 | cuBLAS bf16 | cuBLAS tf32 | TK/tf32 | TK/bf16 |
+|---|---:|---:|---:|---:|---:|
+| 4096³ | 292.9 TF | 1546.1 | 812.3 | 0.361× | 0.189× |
+| 16384×16384×512 | 333.7 | 1329.9 | 709.6 | 0.470× | 0.251× |
+| 8192×8192×2048 | 330.1 | 1587.8 | 874.7 | 0.377× | 0.208× |
+| 16128×128×16128 | 230.9 | 827.7 | 413.5 | 0.558× | 0.279× |
+
+The 4096³ number (292.9 TFLOPs) matches TK's own published level_06 figure
+(293), confirming the kernel is faithful — it is the *naive* tcgen05 kernel, not
+the pipelined / 2-CTA production one. Climbing TK's ladder to the production
+kernel would reach ~1540 TFLOPs, which only **ties** the measured cuBLAS BF16
+(1330–1588) — itself reachable via `torch.matmul(bf16)` — and still loses to the
+shipped **TF32** (accuracy-won at 16384, exp 006/024) and **MXFP8** (3466
+TFLOP/s at 32768) trailing. **The GEMM is not the bottleneck; the serial
+diagonal/panel factorization is** (diagonal potrf 59.6% of 1×16384). A faster
+trailing GEMM cannot move a geomean gated by the serial factor.
+
+**Insight.** This is `kernels_last30days.md` read inverted: its lessons are for
+GEMM-bound kernels, and Cholesky here is factor-bound. The only unrejected TK
+angle is a *fused* Cholesky megakernel (panel+trailing+inverse, one persistent
+launch, TMEM accum), but that is the persistent/cooperative family — 5-for-5
+negative (exps 028/038/040/048/049) — and the serial diagonal still cannot be
+tensor-cored. No root/Popcorn/leaderboard change; root stays on `#913511`. The
+`load_inline`+TK recipe is banked for any future tensor-core work.
+
+**Next.** The board's clearest untried lever remains `Ov` (per-call overhead,
+lever #7): 4 entries, zero clean measurements, 7–23% modeled geomean — and it is
+*not* a tensor-core lesson, which is exactly why exp 068 confirms the
+tensor-core road is spent.
+
+## Session 55 — Ov lever probe → adopt exp 067 / `#922201` (60×1024)
+
+**Goal.** Pursue the `Ov` (per-call overhead, lever #7) lever to a ranked LB win.
+
+**Live profiling reset the premise.** `shapediag` on the small/mid band (B200,
+`results/069-ov-shapediag.json`) showed the four smallest shapes — the ones
+`levers.md` named as the "first probe" target — are **already optimal**: idle
+1.8–2.7us, a single launch each. The stale ~21us S28 overhead is gone. The real
+idle is **launch-gap on the multi-kernel mid shapes**: `60×1024` 263us (20.5%),
+`640×512` 210us, `4×1024` 99us, `16×512` 72us. But the mid-shape Ov space is a
+graveyard: CUDA-micro paths are not graph-capturable (S40b), first-touch eager is
+already shipped (S17), `640×512`→e62 is occupancy-rejected (exp 066).
+
+**The one clean win was already built and pending.** exp 067 (`#922201`) enrolled
+`60×1024` onto `e62_diag128` — the exact `Ov` shape the profile points to — and
+was submitted, correctness-passed on both splits, then **deferred** only because
+the popcorn CLI never returns the official geomean and the `#914341` precedent
+made the owner wait on the secret score.
+
+**Re-confirmed and adopted (owner-authorized on the evidence).** Reconstructed
+the exact one-line source (add `(60,1024): 1024` to `_EXP062_SHAPES`) over the
+verified incumbent `#913511`, then re-ran the authoritative same-process paired
+grid (`results/067-adopt-pairedgrid.json`): geomean **1.0180** CI95
+[1.0169, 1.0191] excludes 1.0, `60×1024` **1.3101×** (1252.7→955.7us), all 14
+other shapes flat (≤0.31%, inside 0.79% A-vs-A), 0 new fallbacks, candidate more
+accurate (residual 3.31 vs 9.33). Fresh Popcorn test **17/17** all families.
+Root advanced to SHA `f108cbba…`; STATUS/experiments updated.
+
+**Why safe (distinct from `#914341`).** `#914341` regressed secret because it was
+a precision-sensitive change on the large ill-conditioned secret matrices.
+`#922201` is a pure *latency* reorchestration of a well-conditioned batched shape
+(`60×1024`) — value-independent, equal/better accuracy — so the paired win
+carries to the secret split. Projected: ~660.5us public / ~643.8us secret.

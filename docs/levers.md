@@ -136,12 +136,21 @@ which *grows with n* → the huge shapes have the most numerical headroom).
    another **1.084×** and producing ranked `#880770`. The dense scaled residual
    remains 4.52/20 (22.6% of tolerance). MXFP8, iterative refinement, and an FP8
    path for `1×16384` remain genuinely untested.
-3. **CUTLASS 3.x Blackwell fused kernel (`tcgen05.mma`, TMA, 2-SM MMA)** — a
-   warp-specialized collective kernel that fuses panel + trailing SYRK, using the
-   Tensor Memory Accelerator for async bulk copies and CTA-pair (2-SM) MMA. Beats
-   the PyTorch-op blocked path by avoiding per-step launch + global-memory
-   materialization. See CUTLASS example 78 (`blackwell_emulated_bf16x9_gemm`).
-   High effort. *Target: large-n; possibly a real n=64/128 blocked kernel.*
+3. **CUTLASS/ThunderKittens Blackwell fused kernel (`tcgen05.mma`, TMA, 2-SM MMA)**
+   — ✗ **GEMM PRIMITIVE REJECTED (exp 068).** Built a real tcgen05 + TMA GEMM on
+   ThunderKittens 2.0 (`load_inline` on cuda13-devel + torch cu130 at `sm_100a`
+   works — recipe banked in `experiments/068-tcgen05-tk/notes.md`). The naive TK
+   kernel is **0.19–0.28× cuBLAS BF16, 0.36–0.56× cuBLAS TF32** on 4 large-n /
+   trailing shapes, correct to 0.2–0.3%. TK's published production ceiling
+   (~1540 TFLOPs) only *ties* the measured cuBLAS BF16 (1330–1588), which is
+   already reachable via `torch.matmul(bf16)` and still loses to the shipped
+   **TF32** (accuracy-won at 16384) and **MXFP8** (3466 TFLOP/s at 32768) trailing.
+   The GEMM is not the bottleneck — the serial diagonal factorization is — so a
+   faster GEMM cannot move the geomean. The only unrejected sub-angle is a *fused*
+   Cholesky megakernel (panel+trailing+inverse, one persistent launch, TMEM
+   accum), but that is the persistent/cooperative family (`Pe`, **5-for-5
+   negative**) and the serial diagonal still cannot be tensor-cored. High effort,
+   do not reopen the GEMM-replacement path. See `experiments/068-tcgen05-tk/`.
 4. **CUDA Graphs (legal — not streams)** — capture the many small launches in the
    blocked path and the per-matrix loop into a graph to amortize launch overhead.
    Cheap, shippable, Blackwell-agnostic but complementary. *Target: launch-bound

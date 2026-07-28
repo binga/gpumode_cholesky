@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "experiment": "067-adopt-60x1024",
+  "goal": "Adopt ranked #922201 (exp 067): enroll (60,1024) onto the e62_diag128 path (_EXP062_SHAPES, nb_outer=1024) over incumbent #913511. Reached via the Ov / per-call overhead lever (#7).",
+  "promotion_policy": "adopt only if the aggregate paired geomean improves and no off-target regression; owner-authorized adoption on same-process paired evidence + passing ranked runs given the official geomean is not exposed by the popcorn CLI",
+  "goal_baseline": {
+    "ranked_id": 913511,
+    "commit": "2cebc96",
+    "source_sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa"
+  },
+  "classification": "ADOPTED",
+  "completed_gates": [
+    "free: ast parse OK; one-line diff over incumbent (add (60,1024): 1024 to _EXP062_SHAPES)",
+    "profile: shapediag confirmed 60x1024 is the biggest-idle mid shape (263us, 20.5%); small 4 shapes already optimal",
+    "modal paired grid re-confirm: geomean 1.0180 CI95 [1.0169,1.0191] excludes 1.0; 60x1024 1.3101x (1252.7->955.7us); 14 shapes flat; 0 new fallbacks; candidate more accurate (resid 3.31 vs 9.33)",
+    "popcorn --mode test: passed 17/17 (all six families)",
+    "#922201 ranked runs: test/benchmark/leaderboard x public+secret all passed"
+  ],
+  "result": {
+    "target_shape": "60x1024",
+    "paired_ratio_target": 1.3101,
+    "aggregate_paired_geomean": 1.0180,
+    "adopted_root_sha256": "f108cbba5a586ae67501146fb19e074364a9a4ff6e9b89a4ac78cefd8a62a429",
+    "projected_public_us": 660.5,
+    "projected_secret_us": 643.8
+  },
+  "verdict": "ADOPTED. Root advanced from #913511 to #922201. The 60x1024 enrollment is a pure latency reorchestration (value-independent, equal/better accuracy), so unlike the #914341 secret-split failure the paired win carries to the secret split. Official public/secret geomean not read from the popcorn CLI (never exposed); adopted on the authoritative same-process paired grid plus #922201's passing public+secret ranked runs.",
+  "artifacts": [
+    "experiments/067-adopt-60x1024/candidate.py",
+    "results/067-adopt-pairedgrid.json",
+    "results/069-ov-shapediag.json",
+    "results/ranked-submission-922201.json"
+  ],
+  "pending_gates": [],
+  "next_action": "Ov lever largely harvested for the mid shapes; remaining named next lever is the diagonal potrf named-barrier overlap (~195 ns/row projected on 1x16384/1x32768), the current geomean wall."
+}

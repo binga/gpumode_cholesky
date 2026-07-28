@@ -1,0 +1,14 @@
+{
+  "experiment": "068-tcgen05-tk",
+  "info": { "cuda": "13.0", "torch": "2.13.0+cu130", "device": "NVIDIA B200" },
+  "kernel": "ThunderKittens tcgen05 + TMA GEMM, adapted from educational_b200/level_06 (naive tcgen05, no warp-specialized pipelining / 2-CTA cluster). BF16 in, FP32 TMEM accum, BF16 out.",
+  "build": "load_inline on nvidia/cuda:13.0.0-devel + torch 2.13.0+cu130, TK cloned to /opt/tk, -gencode arch=compute_100a,code=sm_100a -std=c++20 --use_fast_math -DKITTENS_SM100, extra_ldflags -lcuda -lcudadevrt",
+  "build_ok": true,
+  "rows": [
+    {"shape": [4096, 4096, 4096], "tk_tflops": 292.9, "cublas_bf16_tflops": 1546.1, "cublas_tf32_tflops": 812.3, "tk_vs_tf32": 0.361, "tk_vs_bf16": 0.189, "rel_err": 0.00216},
+    {"shape": [16384, 16384, 512], "tk_tflops": 333.7, "cublas_bf16_tflops": 1329.9, "cublas_tf32_tflops": 709.6, "tk_vs_tf32": 0.47, "tk_vs_bf16": 0.251, "rel_err": 0.002893},
+    {"shape": [8192, 8192, 2048], "tk_tflops": 330.1, "cublas_bf16_tflops": 1587.8, "cublas_tf32_tflops": 874.7, "tk_vs_tf32": 0.377, "tk_vs_bf16": 0.208, "rel_err": 0.003018},
+    {"shape": [16128, 128, 16128], "tk_tflops": 230.9, "cublas_bf16_tflops": 827.7, "cublas_tf32_tflops": 413.5, "tk_vs_tf32": 0.558, "tk_vs_bf16": 0.279, "rel_err": 0.002155}
+  ],
+  "verdict": "REJECTED. The tcgen05 TK kernel (level_06 class, 293 TFLOPs at 4096^3 - matches TK's published number) is 0.19-0.56x cuBLAS on every shape. TK's published production ceiling (1540 TFLOPs) only ties the measured cuBLAS BF16 (1546-1588) and is itself available via torch.matmul(bf16). Neither beats the shipped TF32 (won on accuracy at 16384) or MXFP8 (3466 TFLOP/s at 32768) trailing. The GEMM primitive is not the bottleneck (the serial diagonal factorization is), so a faster GEMM cannot move the geomean. Closes levers.md lever #3."
+}

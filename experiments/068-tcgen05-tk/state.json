@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "experiment": "068-tcgen05-tk",
+  "goal": "Build a tcgen05 Blackwell GEMM with ThunderKittens and measure whether it beats the shipped vendor trailing GEMM (cuBLAS TF32 / MXFP8) on this campaign's large-n shapes. Closes levers.md lever #3.",
+  "promotion_policy": "adopt only if BOTH public and secret splits improve",
+  "goal_baseline": {
+    "ranked_id": 913511,
+    "commit": "2cebc96",
+    "source_sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa"
+  },
+  "classification": "REJECTED",
+  "completed_gates": [
+    "free: py_compile OK",
+    "toolchain: TK 2.0 compiles via load_inline on cuda13-devel + torch 2.13.0+cu130 at sm_100a (fixes: qualify kittens::detail::tcgen05::commit; extra_ldflags -lcuda -lcudadevrt for the driver API)",
+    "correctness: tcgen05 GEMM rel_err 0.2-0.3% vs fp32 on all 4 shapes",
+    "benchmark B200: TK 293 TFLOPs @4096^3 (= TK's published level_06 number); 0.19-0.56x cuBLAS on every shape"
+  ],
+  "result": {
+    "kernel": "TK educational_b200/level_06 class (naive tcgen05 + TMA), generalized to M,N,K",
+    "tk_vs_cublas_bf16": "0.19-0.28x",
+    "tk_vs_cublas_tf32": "0.36-0.56x",
+    "cublas_bf16_tflops": "1330-1588 (= TK production ceiling ~1540, and reachable via torch.matmul)",
+    "cublas_tf32_tflops": "414-875"
+  },
+  "verdict": "REJECTED. A ThunderKittens tcgen05 GEMM does not beat the vendor path for this campaign's trailing GEMMs. Even TK's production ceiling only ties cuBLAS BF16, which does not beat the shipped TF32 (accuracy-won at 16384) or MXFP8 (3466 TFLOP/s at 32768) trailing. The GEMM is not the bottleneck; the serial diagonal factorization is. Root stays on #913511.",
+  "artifacts": [
+    "experiments/068-tcgen05-tk/tk_gemm_probe.py",
+    "experiments/068-tcgen05-tk/notes.md",
+    "results/068-tk-gemm-probe.json"
+  ],
+  "pending_gates": [],
+  "next_action": "Lever #3 closed with B200 evidence. No root/Popcorn/leaderboard change. Next untried high-value lever is Ov (per-call overhead, lever #7), the board's clearest steer, not a tensor-core lesson."
+}
