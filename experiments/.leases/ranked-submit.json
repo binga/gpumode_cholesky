@@ -1,0 +1,15 @@
+{
+  "owner": "cursor-agent-lb-submit",
+  "task": "ranked-submit",
+  "baseline_commit": "3caf8167f108484aac19c16fbeb30b45ff8e9ed8",
+  "source_hash": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+  "target_region": "ranked-slot",
+  "created_at": "2026-07-28T18:50:00Z",
+  "last_heartbeat": "2026-07-28T18:54:52Z",
+  "status": "released",
+  "note": "exp_0008 60x1024 e62_diag128 enrollment on top of #913511. public+secret both passed. Adoption deferred: CLI does not expose official public/secret geomean; per exp065 precedent adoption needs the secret score. Root kept on #913511.",
+  "phase": "leaderboard-submit",
+  "submission_id": 922201,
+  "test_id": 922196,
+  "released_at": "2026-07-28T18:54:52Z"
+}

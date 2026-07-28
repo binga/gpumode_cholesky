@@ -1,0 +1,43 @@
+{
+  "submission_id": 922201,
+  "test_submission_id": 922196,
+  "status": "done",
+  "leaderboard_id": 776,
+  "runs": "test/benchmark/leaderboard all passed on BOTH public and secret B200 runs",
+  "change": "exp_0008: enroll (60,1024) onto _EXP062_SHAPES (e62_diag128 path, nb_outer=1024). One-line dispatch add over incumbent #913511 source; every other shape byte-identical.",
+  "parent_incumbent": 913511,
+  "parent_source_sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+  "cli_score_column": null,
+  "official_public_geomean_us": null,
+  "official_secret_geomean_us": null,
+  "adoption": "PENDING — deferred. popcorn CLI does not expose the official public/secret geomean (Score '-' on all runs). Per the exp 065 (#914341) precedent, a public win can hide a secret regression (public -3.79% / secret +5.71%, rejected), so adoption requires the official secret score. Root submission.py kept on confirmed winner #913511 until the owner supplies/confirms #922201's official public+secret geomeans from the gpumode.com leaderboard.",
+  "modal_evidence": {
+    "note": "Authoritative same-process paired grid (program.md O4) neutralizes day-over-day B200 clock drift; the evo frozen-baseline geomean misread this as a regression purely due to ~3.6% drift.",
+    "target_shape": "60x1024",
+    "paired_ratio_full_grid": 1.2426,
+    "paired_ratio_ci95": [1.2411, 1.2443],
+    "target_base_us": 1185.9,
+    "target_cand_us": 955.5,
+    "aggregate_paired_ratio": 1.0143,
+    "off_target_regression": "none (all 14 other shapes within +/-0.34%, inside 0.77% A-vs-A noise floor); 0 new fallbacks; candidate more accurate (residual 3.31 vs 9.33)"
+  },
+  "ranked_shapes_this_run_us": [
+    {"shape": "4096x32", "lb_mean_us": 15.0, "lb_best_us": 14.3},
+    {"shape": "1024x64", "lb_mean_us": 30.0, "lb_best_us": 29.8},
+    {"shape": "256x128", "lb_mean_us": 68.6, "lb_best_us": 68.0},
+    {"shape": "64x256", "lb_mean_us": 109.0, "lb_best_us": 109.0},
+    {"shape": "16x512", "lb_mean_us": 298.0, "lb_best_us": 285.0},
+    {"shape": "640x512", "lb_mean_us": 1574.0, "lb_best_us": 1528.0},
+    {"shape": "4x1024", "lb_mean_us": 551.0, "lb_best_us": 517.0},
+    {"shape": "60x1024", "lb_mean_us": 902.0, "lb_best_us": 894.0},
+    {"shape": "2x2048", "lb_mean_us": 1031.0, "lb_best_us": 991.0},
+    {"shape": "8x2048", "lb_mean_us": 1204.0, "lb_best_us": 1195.0},
+    {"shape": "1x4096", "lb_mean_us": 1532.0, "lb_best_us": 1530.0},
+    {"shape": "2x4096", "lb_mean_us": 2150.0, "lb_best_us": 2140.0},
+    {"shape": "1x8192", "lb_mean_us": 5500.0, "lb_best_us": 5490.0},
+    {"shape": "1x16384", "lb_mean_us": 8140.0, "lb_best_us": 8130.0},
+    {"shape": "1x32768", "lb_mean_us": 22700.0, "lb_best_us": 22700.0}
+  ],
+  "drift_caveat": "This run's per-shape means are ~10-50% faster than #918197 across ALMOST ALL shapes (16x512 374->298, 4x1024 737->551, 2x2048 1417->1031), which a one-line 60x1024-only edit cannot produce. That is LB day-over-day clock drift; the LB run-over-run diff is NOT attributable to this edit. The attributable signal is the Modal paired grid (60x1024 1.24x, all else flat).",
+  "captured_at": "2026-07-28T18:55:00Z"
+}

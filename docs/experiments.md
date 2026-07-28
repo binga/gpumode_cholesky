@@ -93,12 +93,14 @@ experiment, ranked public geomean for an integration.
 | 063 | | | | ✓ | ✓ | | | | | | 675.8us public / 674.4us secret (-9.4% / -9.0%) | **adopted** |
 | 064 | | ✓ | | | ✓ | | | | | ✓ | full grid **1.0073x** CI95 excludes 1.0 | **adopted** |
 | 065 | | | | ✓ | | ✓ | | | | | block 45.669→39.742us = **1.149x**; grid **1.0122x** CI95 excludes 1.0; public **−3.79%** but secret **+5.71%** | **rejected at LB** |
+| 066 | ✓ | | | ✓ | | | | | | | e62_diag128 enroll 640x512: 1242→2051us = **0.606x (1.651x SLOWER)**; grid 725.21→750.02 | **rejected: occupancy (batch 640 = ~4.3 waves)** |
+| 067 | ✓ | | | ✓ | | | | | | | e62_diag128 enroll 60x1024: paired **1.2426x** (1186→956us), 14 other shapes flat; ranked #922201 public+secret passed | **LB pending: adoption deferred, secret geomean not exposed by CLI** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 11 | 17 | 8 | 21 | 21 | 10 | 4 | 5 | **4** | 9 |
+| experiments | 13 | 17 | 8 | 23 | 21 | 10 | 4 | 5 | **4** | 9 |
 
 ## What the matrix says
 
@@ -129,6 +131,15 @@ experiment, ranked public geomean for an integration.
    30 experiments; 1084 → 675.8us took 25 more. Recent adoptions are 1.007–1.04x
    grid wins. The board is asking for a new lever, not another increment on the
    large shapes.
+
+7. **The resident diagonal-block kernel (`e62_diag128`) is occupancy-gated, and
+   the gate is bidirectional.** Exps 066/067 are a matched pair on the same
+   one-line lever (enroll a shape onto `_EXP062_SHAPES`): `60×1024` (batch 60)
+   gained **1.24×**, `640×512` (batch 640) lost **1.65×**. It is a resident
+   8-warp CTA-per-matrix kernel that only wins when the batch fits ~one wave of
+   the ~148 SMs. Before enrolling any shape, check `batch ≤ ~148`; above that,
+   keep the split32 + cuBLAS-trailing route. This also means the two shapes are
+   individually exhausted for this lever — do not re-enroll either.
 
 6. **Device-time wins do not automatically survive the secret split.** Exp 065
    is the cleanest instance on the board: 1.149x on the kernel, 1.0122 on the
@@ -198,3 +209,5 @@ experiment, ranked public geomean for an integration.
 | 058 | `1×32768` blocked inverse with batched 256-wide leaves | 42,769.0→33,043.6us = **1.2943×**; six families passed with baseline-matched safety paths | — (integrated in 059) | **V1 adopted via 059; stronger FP16-solve V4 preserved for next checkpoint** |
 | 059 | integrate the two selected large shapes and the cold-build packaging repair | full grid **1.039915×**, 15/15; public 764.877us / secret 785.861us | #904546 | **adopted checkpoint: 4.6261% public / 7.3098% secret improvement; campaign continues to 10%** |
 | 065 | named-barrier overlap in the 128×128 diagonal block: warp 0 builds `inv(L11)` while warps 1–7 run staging + the trailing update behind a `bar.sync` id 1 over 224 threads (exp 064 plan item 2). No arithmetic change — only which warp does existing work | block 45.669→39.742us = **1.149×** (356.8→310.5 ns/row); full grid **1.0122×** CI95 [1.0112,1.0133] 15/15; six-family baseline-attributed 48/48 `checker_ok`, 0 diffs; public 646.868us (**−3.79%**) but secret 692.860us (**+5.71%**) | #914341 | **rejected: secret split regressed; root stays on #913511** |
+| 066 | enroll `640×512` (batch 640) onto the `e62_diag128` fused-block path (one-line `_EXP062_SHAPES` add, nb_outer=512) — the lever that won +1.13–1.17× on the low-batch split32 siblings 16×512/4×1024/8×2048 (exp 063) | paired 1242.16→2051.14us = **0.6056× (1.651× slower)**; full grid 725.21→750.02us; only the target moved (14 others within ±0.7%, no off-target regression); 60x1024 dense checker_ok, not fallback-contaminated | — | **rejected: `e62_diag128` is occupancy-gated. It is a resident 8-warp CTA-per-matrix kernel that only wins at ~1 wave (≤ ~148 matrices); batch 640 is ~4.3 waves of a per-CTA-latency-bound kernel** |
+| 067 | enroll `60×1024` (batch 60) onto the `e62_diag128` fused-block path (one-line `_EXP062_SHAPES` add, nb_outer=1024) — the occupancy hypothesis that fell out of exp 066: batch 60 is on the winning side of the ~148 one-wave threshold, and 60×1024 was NOT previously enrolled (it ran the older exp043/047 fused-resident-panel + exp040 rank-4 diagonal-micro route) | same-process paired **1.2426×** CI95 [1.2411,1.2443] (1185.9→955.5us, −230us), all 14 other shapes within ±0.34% (0 new fallbacks; more accurate: dense residual 3.31 vs 9.33). evo frozen-baseline full-grid score misread it as a regression (725→751) purely from ~3.6% day-over-day B200 clock drift — the paired grid is the authoritative gate | #922201 (test #922196) | **LB submitted; public+secret runs both PASSED. Adoption DEFERRED — popcorn CLI does not expose the official public/secret geomean (Score `-`); per exp 065 precedent adoption needs the secret score. Root stays on #913511** |

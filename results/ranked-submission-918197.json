@@ -1,0 +1,122 @@
+{
+  "submission_id": 918197,
+  "test_submission_id": 918190,
+  "status": "done",
+  "source_sha256": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+  "same_as_incumbent": 913511,
+  "tests": "17/17",
+  "cli_score_column": null,
+  "note": "popcorn CLI Score column is blank for all submissions including historical winners; official public/secret geomean not returned by `submissions show`. Recorded per-shape Ranked Benchmark means from CLI stdout.",
+  "computed_geomean_from_ranked_means_us": 794.307386656324,
+  "computed_geomean_from_ranked_bests_us": 783.8035042551384,
+  "incumbent_913511_public_us": 672.3831929770458,
+  "incumbent_913511_secret_us": 655.4226483316047,
+  "ranked_shapes": [
+    {
+      "shape": "4096x32",
+      "lb_mean_us": 16.0,
+      "lb_best_us": 15.6,
+      "modal_mean_us": 22.553,
+      "lb_over_modal": 0.7094399858112003
+    },
+    {
+      "shape": "1024x64",
+      "lb_mean_us": 31.0,
+      "lb_best_us": 30.8,
+      "modal_mean_us": 33.603,
+      "lb_over_modal": 0.9225366782727732
+    },
+    {
+      "shape": "256x128",
+      "lb_mean_us": 70.0,
+      "lb_best_us": 69.6,
+      "modal_mean_us": 72.158,
+      "lb_over_modal": 0.9700934061365337
+    },
+    {
+      "shape": "64x256",
+      "lb_mean_us": 111.0,
+      "lb_best_us": 110.0,
+      "modal_mean_us": 114.436,
+      "lb_over_modal": 0.9699744835541263
+    },
+    {
+      "shape": "16x512",
+      "lb_mean_us": 374.0,
+      "lb_best_us": 368.0,
+      "modal_mean_us": 306.312,
+      "lb_over_modal": 1.220977304186581
+    },
+    {
+      "shape": "640x512",
+      "lb_mean_us": 1739.0,
+      "lb_best_us": 1693.0,
+      "modal_mean_us": 1242.16,
+      "lb_over_modal": 1.3999806788175435
+    },
+    {
+      "shape": "4x1024",
+      "lb_mean_us": 737.0,
+      "lb_best_us": 716.0,
+      "modal_mean_us": 546.861,
+      "lb_over_modal": 1.3476916437632231
+    },
+    {
+      "shape": "60x1024",
+      "lb_mean_us": 1809.0,
+      "lb_best_us": 1727.0,
+      "modal_mean_us": 1154.502,
+      "lb_over_modal": 1.5669093687148226
+    },
+    {
+      "shape": "2x2048",
+      "lb_mean_us": 1417.0,
+      "lb_best_us": 1413.0,
+      "modal_mean_us": 1073.469,
+      "lb_over_modal": 1.3200194882199672
+    },
+    {
+      "shape": "8x2048",
+      "lb_mean_us": 1520.0,
+      "lb_best_us": 1491.0,
+      "modal_mean_us": 1281.19,
+      "lb_over_modal": 1.1863970215190565
+    },
+    {
+      "shape": "1x4096",
+      "lb_mean_us": 1541.0,
+      "lb_best_us": 1539.0,
+      "modal_mean_us": 1537.948,
+      "lb_over_modal": 1.0019844624135537
+    },
+    {
+      "shape": "2x4096",
+      "lb_mean_us": 2790.0,
+      "lb_best_us": 2770.0,
+      "modal_mean_us": 2294.636,
+      "lb_over_modal": 1.215879119825541
+    },
+    {
+      "shape": "1x8192",
+      "lb_mean_us": 5550.0,
+      "lb_best_us": 5540.0,
+      "modal_mean_us": 5760.208,
+      "lb_over_modal": 0.9635068733629064
+    },
+    {
+      "shape": "1x16384",
+      "lb_mean_us": 8180.0,
+      "lb_best_us": 8160.0,
+      "modal_mean_us": 8354.82,
+      "lb_over_modal": 0.9790755515977604
+    },
+    {
+      "shape": "1x32768",
+      "lb_mean_us": 22500.0,
+      "lb_best_us": 22500.0,
+      "modal_mean_us": 22987.676,
+      "lb_over_modal": 0.9787853282776389
+    }
+  ],
+  "captured_at": "2026-07-27T15:51:08Z"
+}

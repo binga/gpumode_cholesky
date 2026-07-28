@@ -36,6 +36,18 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 Older winners are in `docs/experiments.md` (per experiment) and `journal.md`
 (narrative). The full history was removed from `README.md`; nothing was lost.
 
+## Pending official score (not yet adopted)
+
+- **`#922201`** (test `#922196`, exp_0008): one-line enrollment of `60×1024`
+  onto the `e62_diag128` path. Popcorn public+secret leaderboard runs both
+  **passed**; `60×1024` ranked mean **902us** this run. Modal same-process paired
+  grid shows a real **1.2426×** on `60×1024` (1185.9→955.5us) with **no
+  off-target regression** (all 14 other shapes flat) and better accuracy. Root
+  kept on `#913511` — the popcorn CLI does not return the official public/secret
+  geomean, and per the `#914341` precedent below a public win can hide a secret
+  regression, so adoption waits on the official secret score. Per-shape data in
+  `results/ranked-submission-922201.json`.
+
 ## Rejected since the current winner
 
 - **`#914341`** (exp 065, named-barrier overlap): public **646.868us**

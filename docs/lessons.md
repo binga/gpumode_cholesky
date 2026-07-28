@@ -33,6 +33,19 @@ the same B200 target under the same geomean scoring rule, and
 
 ## Blackwell kernel technique notes
 
+- **A resident CTA-per-matrix kernel is occupancy-gated, and the gate is
+  bidirectional — check `batch` before enrolling a shape onto it.** The
+  `e62_diag128` fused-block path is one 8-warp CTA per matrix; it only hides its
+  per-CTA latency when the whole batch fits ~one wave of the ~148 SMs
+  (≤ ~148 matrices). Exps 066/067 are the matched proof on the *same* one-line
+  `_EXP062_SHAPES` enrollment lever: `60×1024` (batch 60, ~1 wave) won **1.24×**
+  even against its already-tuned fused-resident-panel route, while `640×512`
+  (batch 640, ~4.3 waves) **regressed 1.65×**. The projected diagonal speedup
+  never materialized at high batch because the kernel is per-CTA-latency-bound,
+  not throughput-bound, once it spills past one wave. Rule: enroll only when
+  `batch ≤ ~148`; above that keep the split32 + cuBLAS-trailing route. Corollary
+  — a lever that wins on the low-batch siblings is not a "diagonal win", it is an
+  occupancy win, so it will not transfer to a high-batch sibling of the same n.
 - **`bar.sync <id>, <count>` gives a partial-block barrier.** When a subset of
   warps must synchronise while other warps are elsewhere in the kernel,
   `__syncthreads()` deadlocks — it is barrier 0 over every thread in the block.
@@ -85,6 +98,17 @@ Each of these cost a session or a paid gate.
 6. **Phase-share tables mislead when one phase collapses.** Exp 063 round 2 read
    a fusion shortfall as register pressure; the *cycle* counts were flat and only
    the shares had moved. Read cycles, not percentages.
+7. **A frozen cross-day baseline geomean cannot credit a sub-2% aggregate win —
+   the B200 clock drifts ~3–4% day over day.** Exp 067 measured a real +1.24× on
+   `60×1024` (same-process paired grid, CI95 [1.2411,1.2443]) yet the evo
+   full-grid score read it as a *regression* (725→751), because the frozen parent
+   was timed two days earlier on a faster machine state and all 14 unrelated
+   shapes came back uniformly ~0.8–0.99× slower — a physical impossibility from a
+   one-shape dispatch edit, i.e. pure drift, not signal. For any lever whose
+   aggregate is under ~2%, trust the same-process paired grid (program.md
+   [O4]/[I5]) and re-baseline the evo parent the *same day*; never read the evo
+   top-line geomean across days. This is the measurement-side twin of failure
+   mode 1 (verify the incumbent against reality, not against a stale record).
 
 ---
 

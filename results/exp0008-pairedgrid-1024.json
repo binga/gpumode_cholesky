@@ -1,0 +1,98 @@
+{
+  "mode": "pairedgrid",
+  "byte_identical": false,
+  "shapes": [
+    {
+      "n": 1024,
+      "batch": 4,
+      "spec": "batch=4 n=1024 case=dense",
+      "ratio_median": 1.0008797561307825,
+      "ratio_ci95": [
+        0.9984908475370841,
+        1.0011525630494529
+      ],
+      "ratio_mad": 0.0005160426171453292,
+      "ratios": [
+        0.99841,
+        1.00106,
+        1.00088,
+        0.99849,
+        1.0014,
+        1.00115,
+        0.99966
+      ],
+      "baseline_us": 568.8319951295853,
+      "candidate_us": 568.3320015668869,
+      "order_spread_median": 0.003486767022278912,
+      "ratio_first_half": 1.0008797561307825,
+      "ratio_second_half": 1.0004076829580446,
+      "repeats": 7,
+      "iters_per_block": 10,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=3.22; batch=4; n=1024",
+      "candidate_msg": "scaled_reconstruction_residual=3.22; batch=4; n=1024",
+      "baseline_counters": {
+        "_EXP062_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP062_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    },
+    {
+      "n": 1024,
+      "batch": 60,
+      "spec": "batch=60 n=1024 case=dense",
+      "ratio_median": 1.266093287120939,
+      "ratio_ci95": [
+        1.2648085693091093,
+        1.2678202386119168
+      ],
+      "ratio_mad": 0.0015267603805098062,
+      "ratios": [
+        1.26609,
+        1.26762,
+        1.26839,
+        1.26481,
+        1.26427,
+        1.26526,
+        1.26782
+      ],
+      "baseline_us": 1209.9800109863281,
+      "candidate_us": 955.6639939546585,
+      "order_spread_median": 0.0017009581956016122,
+      "ratio_first_half": 1.2676200475014487,
+      "ratio_second_half": 1.2650345850536109,
+      "repeats": 7,
+      "iters_per_block": 10,
+      "rotating_inputs": 2,
+      "baseline_ok": true,
+      "candidate_ok": true,
+      "baseline_msg": "scaled_reconstruction_residual=9.33; batch=60; n=1024",
+      "candidate_msg": "scaled_reconstruction_residual=3.31; batch=60; n=1024",
+      "baseline_counters": {
+        "_MICRO32_HITS": 32,
+        "_FUSED_PANEL_HITS": 7,
+        "_FUSED_CTA_HITS": 1
+      },
+      "candidate_counters": {
+        "_EXP062_HITS": 1
+      },
+      "new_fallbacks": {},
+      "ok": true
+    }
+  ],
+  "geomean_ratio": 1.1257029539147645,
+  "geomean_ci95": [
+    1.1246987651023665,
+    1.1267080393185007
+  ],
+  "geomean_ci_excludes_1": true,
+  "worst_shape_deviation": 0.26609328712093894,
+  "worst_order_spread": 0.003486767022278912,
+  "all_shapes_ok": true,
+  "passed": true
+}
