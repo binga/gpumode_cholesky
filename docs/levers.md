@@ -79,8 +79,12 @@ tracker column; recorded here.
 
 **Per-call fixed overhead** (copy-in/clone-out ~9μs + finite-check chain
 ~12–15μs) is a top-3 cost on every sub-400μs shape (S28) but is not yet a
-column, because no variant has been *measured* — S29's cheap finite check was
-refuted on a free gate before any GPU spend. Standing constraint for this
+column. **Exp 069 landed the first clean overhead win on the mid shapes**: the
+e62 path's final output mask (`tril_()`) was a 145μs full-matrix rewrite;
+swapping it for a write-only strict-upper CUDA kernel lifted the six e62 shapes
+(`16×512, 4×1024, 60×1024, 2×2048, 8×2048, 2×4096`) by 1.006–1.098× with a
+byte-identical L (ranked `#926130`). The copy-in `clone` remains.
+Earlier: S29's cheap finite check was refuted on a free gate before any GPU spend. Standing constraint for this
 lever: the finite check may be made cheaper but **never weaker**. Shrinking it
 to the last diagonal entry is invalid — `finite/Inf == 0`, so an overflowed
 pivot is absorbed into a zero column and never reaches `L[n-1][n-1]` (S29). The
@@ -193,7 +197,7 @@ against this bottleneck on this GPU under this scoring rule.
 | 4 | Triton panels + grouped updates | 4.3k us | Triton panel-inner 64x64 | shipped (S20/S21) |
 | 5 | Cholesky-ORHR for n4096 | 4.0k us | Recursive / blocked inverse | partial — `rec_inv` is n>=16384-only (exp 065) |
 | 6 | CUDA graph replay | 3.4k us | CUDA Graphs | **rejected here** — graph copy cost (S16b), not capturable (S40b) |
-| 7 | Fused V/T assembly: no slice copies, cats, temporaries | 2.75k us | Per-call copy-in/clone-out + finite-check chain | **UNMEASURED** — see below |
+| 7 | Fused V/T assembly: no slice copies, cats, temporaries | 2.75k us | Per-call copy-in/clone-out + finite-check chain + output mask | **PARTIALLY HARVESTED (exp 069)** — write-only strict-upper mask replaced the e62 `tril_()` for a byte-identical grid **1.0136×** (`60×1024` 1.098×). Copy-in `clone` + `640×512` launch-idle remain. |
 | 8 | split16 panels + tail-Gram | 2.5k us | Variable NB near the trailing edge | UNTRIED |
 | 9 | Fixed-shape kernel specialization | 2.0k us | Per-shape custom CUDA | shipped for n<=256 only; mid/large shapes still run generic runtime-`n` code |
 | 10 | Composed superpanels, direct-H returns | 1.80k us | Superpanel composition, direct-L return | rejected — rank-128 superpanels 0.697x (S45) |
@@ -201,7 +205,21 @@ against this bottleneck on this GPU under this scoring rule.
 Steps 1-5 are fully harvested here. Steps 6, 7, 9 are not, and in QR those three
 carried 4.3k -> 2.0k us: **more than half the total gain**.
 
-## Lever 7 is the largest unmeasured item on the board
+## Lever 7 — first clean measurement landed (exp 069)
+
+**Update (exp 069):** the output-mask sub-lever is now measured and shipped. The
+shared `_exp062_factor` ended with `work.tril_()`, a full-matrix read+rewrite
+that a fresh shapediag clocked at **145us / 16.8% of `60×1024`** (~2.4× its own
+bandwidth floor, because torch reads and rewrites all `n²` elements to zero the
+strict upper). Replacing it with a **write-only `e62_zero_upper` CUDA kernel**
+(writes only the strict-upper elements, never touches the lower triangle) gave a
+byte-identical L and a full-grid **1.0136×** (`60×1024` 1.098×, `8×2048` 1.048×,
+`2×4096` 1.028×, `2×2048`/`4×1024`/`16×512` 1.01–1.015×) → ranked `#926130`.
+Two Lever-7 items on these shapes remain unharvested: the `data.clone()` copy-in
+(82us efficient memcpy on `60×1024`) and, on `640×512` (not an e62 shape), ~144us
+of inter-launch idle across 53 launches (a CUDA-graph / fusion target).
+
+The original framing is kept below for the copy-in/finite-check parts.
 
 `journal.md` records the cost and then stops:
 

@@ -2799,3 +2799,62 @@ a precision-sensitive change on the large ill-conditioned secret matrices.
 `#922201` is a pure *latency* reorchestration of a well-conditioned batched shape
 (`60×1024`) — value-independent, equal/better accuracy — so the paired win
 carries to the secret split. Projected: ~660.5us public / ~643.8us secret.
+
+## Session 56 — 2026-07-29 — Experiment 069: e62 write-only upper mask → ranked #926130
+
+**Goal (program2.md).** Improve kernel latency for ≥2 leaderboard shapes. Ran the
+full program2 loop with its added gates (N1 determinism-by-construction, N2
+families, N7 fast_p).
+
+**Target from a fresh profile.** A current-incumbent `shapediag` on the mid band
+(`results/069-inc-shapediag-mid.json`) showed the shared `_exp062_factor` ending
+in `work.tril_()` — a full-matrix read+rewrite that clocked **145us = 16.8% of
+`60×1024`**, running at ~2.4× its own bandwidth floor because torch reads and
+rewrites all n² elements just to zero the strict upper. (The stale
+`069-ov-shapediag.json` mis-attributed `60×1024` to the old panel route; it
+predated exp 067's e62 enrollment.)
+
+**Lever (Ov / QR ladder #7).** Kept `work = data.clone()` so the factorization
+reads and arithmetic are **unchanged** (zero algorithm risk), and replaced only
+the final mask with a **write-only `e62_zero_upper` CUDA kernel** added to the
+e62 `load_inline` extension: one block per (matrix, row), threads stride the
+strict-upper columns writing 0, never reading or touching the lower triangle
+(~n²/2 writes vs torch's ~2n² read+write). The L factor is byte-identical to the
+incumbent (`tril_` and the kernel both zero exactly the strict upper). One
+variant (N=1: the lever has one obvious form; budget discipline).
+
+**Gates.** Free: ast parse, clean 3-line diff, default-stream launch only (no
+banned construct). Determinism: by construction (deterministic write-only mask,
+byte-identical output). Correctness `results/069-family.json`: all rows
+`checker_ok=true` on 512/1024/2048/4096, e62 backend active, the only fallbacks
+are the pre-existing spectrum/lowrank ones (my change runs *after* the
+`isfinite(l.diagonal())` decision, so it cannot add a fallback). Paired e62
+`results/069-paired.json` and full grid `results/069-fullgrid.json`:
+
+| shape | control | candidate | speedup |
+|---|---:|---:|---:|
+| `60×1024` | 936.1us | 852.6us | **1.0979×** |
+| `8×2048` | 1274.3us | 1216.2us | **1.0478×** |
+| `2×4096` | 2281.3us | 2217.7us | **1.0282×** |
+| `2×2048` | 1059.6us | 1044.1us | **1.0153×** |
+| `4×1024` | 539.4us | 532.3us | **1.0139×** |
+| `16×512` | 296.7us | 294.6us | **1.0062×** |
+
+Full 15-shape geomean **1.0136** CI95 [1.0131, 1.0140] excludes 1.0; nine other
+shapes flat (worst off-target `256×128` −0.23%, inside the 0.57% A-vs-A floor);
+identical per-shape residuals + counters, **0 new fallbacks** on every shape.
+`fast_p` for the search: fast_0 = 8/8 correct, fast_1 = 6/6 e62 shapes faster,
+fast_targ = 0 (below 2.00×). Classification: **PROMOTABLE FRONTIER**.
+
+**Ranked & adopted.** Popcorn test `#926123` **17/17** (cold build on the real
+runner, torch 2.12.0+cu130). Ranked `#926130`: public benchmark shows `60×1024`
+at 811us, **both public+secret splits PASSED**. Adopted per the exp-067 rule: a
+value-independent, byte-identical latency reorchestration carries to the secret
+split (distinct from the exp-065 precision-secret risk). Root advanced to SHA
+`e187bfa9…`; STATUS/experiments/levers updated. Popcorn CLI does not expose the
+official geomean (`Score` `-`), so adoption rests on the paired grid +
+byte-identity + passing ranked runs, as authorized.
+
+**Next levers on these shapes.** The `data.clone()` copy-in (82us efficient
+memcpy on `60×1024`) and `640×512`'s ~144us inter-launch idle (53 launches, not
+an e62 shape) remain unharvested Ov.

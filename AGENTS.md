@@ -24,6 +24,27 @@ One question, one file. Do not restate a fact that another file owns.
 | what we learned the hard way | `docs/lessons.md` |
 | the narrative of a past experiment | `journal.md`, `experiments/NNN-*/notes.md` |
 
+## Local tooling — how to invoke the CLIs
+
+Do not `pip install` these or expect them on `PATH`; use exactly these forms.
+
+- **Modal** (B200 runs) is **not** on `PATH` and is **not** in the system
+  `python3` (3.9.6). Run every Modal script through `uv`:
+  `uv run --with modal -- python scripts/modal_verify.py <mode> [...]`.
+  Add `--with <pkg>` for any extra local import a script needs. Auth is the
+  `[binga]` profile in `~/.modal.toml` (already active — do not re-auth).
+  Modal commands need network; run with the `full_network` permission.
+- **Popcorn** CLI is `/Users/phani/.local/bin/popcorn` (on `PATH`). The
+  leaderboard **name is `cholesky`** (id 776 is not accepted by the CLI):
+  `popcorn submissions list --leaderboard cholesky`,
+  `popcorn submissions show <ID>` (no `--leaderboard` flag on `show`),
+  `popcorn submit --mode {test,leaderboard} --no-tui submission.py`.
+  Needs `full_network`.
+- **The popcorn CLI never returns the official geomean** — the `Score`
+  column and `submissions show` both print `-`. The official public/secret
+  geomean lives only on the gpumode.com leaderboard. Adoption decisions that
+  need the secret score cannot be closed from the CLI alone.
+
 ## Standing rules
 
 - **The owner lands work directly on `main`; pull requests are not used here.**

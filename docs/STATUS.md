@@ -8,7 +8,29 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 
 ## Current ranked winner
 
-- **Current ranked winner `#922201`** (exp 067): `done`, all six ranked runs
+- **Current ranked winner `#926130`** (exp 069): `done`, both ranked splits
+  (public+secret) **passed** (test `#926123` 17/17). Replaces the shared
+  `_exp062_factor` final `work.tril_()` (a full-matrix read+rewrite upper mask,
+  measured 145us / 16.8% of `60×1024` and running at ~2.4× its own bandwidth
+  floor) with a **write-only `e62_zero_upper` CUDA kernel** that touches only the
+  strict-upper elements. The L factor is **byte-identical** to `#922201` (lower
+  triangle untouched; both zero the strict upper), so this is a pure,
+  value-independent latency reorchestration that carries to the secret split
+  (exp-067 class, distinct from the exp-065 precision-secret risk). Exact root
+  SHA-256: `e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae`.
+  Adopted on the authoritative same-process Modal paired grid: full 15-shape
+  geomean **1.0136** CI95 [1.0131, 1.0140] (excludes 1.0), driven by the six
+  e62 shapes — `60×1024` **1.0979×** (936.1→852.6us), `8×2048` **1.0478×**,
+  `2×4096` **1.0282×**, `2×2048` **1.0153×**, `4×1024` **1.0139×**, `16×512`
+  **1.0062×** — with all nine other shapes flat (≤0.23% off-target, inside the
+  0.57% A-vs-A floor), **0 new fallbacks**, and identical per-shape residuals
+  and counters (byte-identical evidence). See `experiments/069-midshape-ov/` and
+  `results/069-fullgrid.json`.
+  - Official public/secret geomean is **not exposed by the popcorn CLI** (`Score`
+    `-`); adopted on the paired-grid + byte-identity + passing-ranked-runs
+    evidence per the exp-067 precedent and owner authorization.
+
+- **Previous ranked winner `#922201`** (exp 067): `done`, all six ranked runs
   (test/benchmark/leaderboard × public+secret) **passed**. One-line enrollment
   of `60×1024` onto the `e62_diag128` path (`_EXP062_SHAPES`, nb_outer=1024)
   over the `#913511` source; every other shape byte-identical. Exact root
@@ -56,7 +78,7 @@ Older winners are in `docs/experiments.md` (per experiment) and `journal.md`
 
 ## Pending official score (not yet adopted)
 
-- None. `#922201` was adopted into root (see Current ranked winner above).
+- None. `#926130` was adopted into root (see Current ranked winner above).
 
 ## Rejected since the current winner
 

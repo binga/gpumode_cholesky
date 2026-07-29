@@ -96,12 +96,13 @@ experiment, ranked public geomean for an integration.
 | 066 | ✓ | | | ✓ | | | | | | | e62_diag128 enroll 640x512: 1242→2051us = **0.606x (1.651x SLOWER)**; grid 725.21→750.02 | **rejected: occupancy (batch 640 = ~4.3 waves)** |
 | 067 | ✓ | | | ✓ | | | | | | | e62_diag128 enroll 60x1024: paired **1.2426–1.3101x** (1186/1253→956us), 14 other shapes flat, 0 new fallbacks, more accurate (resid 3.31 vs 9.33); ranked #922201 public+secret passed; re-confirm grid **1.0180x** CI95 excludes 1.0; Popcorn test 17/17 | **adopted (current best #922201); pure-latency win carries to secret, distinct from #914341 precision class** |
 | 068 | | | | ✓ | ✓ | | | | | ✓ | tcgen05 GEMM via **ThunderKittens** (level_06 class, 293 TFLOPs @4096³ = TK's published number); **0.19–0.28× cuBLAS bf16, 0.36–0.56× cuBLAS tf32** on 4 large-n/trailing shapes; correct (rel_err 0.2–0.3%) | **rejected: GEMM primitive not the bottleneck. TK's production ceiling (~1540 TF) only ties cuBLAS bf16 (1330–1588 measured), which is reachable via torch.matmul and still loses to shipped TF32/MXFP8 trailing. Closes lever #3** |
+| 069 | | | | ✓ | | | | | ✓ | | replace `_exp062_factor`'s full-matrix `tril_()` (145us / 16.8% of `60×1024`, ~2.4× its bandwidth floor) with a **write-only `e62_zero_upper` CUDA kernel**; byte-identical L; grid **1.0136×** CI95[1.0131,1.0140] excludes 1.0; `60×1024` **1.0979×**, `8×2048` **1.0478×**, `2×4096` **1.0282×**, `2×2048`/`4×1024`/`16×512` 1.014–1.015×; 0 new fallbacks; ranked #926130 public+secret passed; test #926123 17/17 | **adopted (current best #926130); first clean `Ov` measurement — value-independent, carries to secret (exp-067 class)** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 13 | 17 | 8 | 24 | 22 | 10 | 4 | 5 | **4** | 10 |
+| experiments | 13 | 17 | 8 | 25 | 22 | 10 | 4 | 5 | **5** | 10 |
 
 ## What the matrix says
 
@@ -110,12 +111,16 @@ experiment, ranked public geomean for an integration.
    product measured at 3,466 TFLOP/s, FP16 panel apply at ~1,766 TFLOP/s.
    Another precision experiment is very unlikely to pay.
 
-2. **`Ov` has 4 entries and not one clean measurement.** Exp 031 was refuted on a
-   free gate before any GPU spend (correct call — the premise was false). Exp 027
-   *regressed* 0.336x. Exps 017 and 061 touched overhead only as a side effect of
-   another change. So the lever with the largest modelled payoff — 7–23% geomean,
-   see `lever-ladder.md` — has zero direct measurements. This is the clearest
-   steer on the board.
+2. **`Ov` finally has a clean win (exp 069).** For a long time the lever with the
+   largest modelled payoff (7–23% geomean, `levers.md` lever 7) had zero clean
+   direct measurements — exp 031 refuted on a free gate, exp 027 regressed 0.336x,
+   exps 017/061 only touched overhead as a side effect. Exp 069 landed the first
+   clean one: replacing `_exp062_factor`'s inefficient full-matrix `tril_()` with
+   a write-only strict-upper CUDA mask lifted the six e62 shapes (grid 1.0136×,
+   `60×1024` 1.098×) with byte-identical output. The remaining `Ov` on those
+   shapes is the `data.clone()` copy-in (82us on `60×1024`, an efficient memcpy)
+   and, on `640×512`, ~144us of inter-launch idle across 53 launches — still
+   untried.
 
 3. **`Pe` is 5-for-5 negative.** Persistent, cooperative, cluster, and DSM paths
    have never produced a shippable win (028, 038, 040, 048, 049; best 0.697x
@@ -213,3 +218,4 @@ experiment, ranked public geomean for an integration.
 | 066 | enroll `640×512` (batch 640) onto the `e62_diag128` fused-block path (one-line `_EXP062_SHAPES` add, nb_outer=512) — the lever that won +1.13–1.17× on the low-batch split32 siblings 16×512/4×1024/8×2048 (exp 063) | paired 1242.16→2051.14us = **0.6056× (1.651× slower)**; full grid 725.21→750.02us; only the target moved (14 others within ±0.7%, no off-target regression); 60x1024 dense checker_ok, not fallback-contaminated | — | **rejected: `e62_diag128` is occupancy-gated. It is a resident 8-warp CTA-per-matrix kernel that only wins at ~1 wave (≤ ~148 matrices); batch 640 is ~4.3 waves of a per-CTA-latency-bound kernel** |
 | 067 | enroll `60×1024` (batch 60) onto the `e62_diag128` fused-block path (one-line `_EXP062_SHAPES` add, nb_outer=1024) — the occupancy hypothesis that fell out of exp 066: batch 60 is on the winning side of the ~148 one-wave threshold, and 60×1024 was NOT previously enrolled (it ran the older exp043/047 fused-resident-panel + exp040 rank-4 diagonal-micro route) | same-process paired **1.2426×** CI95 [1.2411,1.2443] (1185.9→955.5us, −230us), all 14 other shapes within ±0.34% (0 new fallbacks; more accurate: dense residual 3.31 vs 9.33). evo frozen-baseline full-grid score misread it as a regression (725→751) purely from ~3.6% day-over-day B200 clock drift — the paired grid is the authoritative gate | #922201 (test #922196) | **LB submitted; public+secret runs both PASSED. Adoption DEFERRED — popcorn CLI does not expose the official public/secret geomean (Score `-`); per exp 065 precedent adoption needs the secret score. Root stays on #913511** |
 | 068 | tcgen05 Blackwell GEMM built on **ThunderKittens 2.0** (educational_b200/level_06 class: tcgen05 + TMA, FP32 TMEM accumulate, generalized to M×N×K), compiled via `load_inline` on cuda13-devel + torch 2.13.0+cu130 at `sm_100a`; benchmarked vs `torch.matmul` bf16/tf32 on 4 large-n/trailing shapes | TK **293 TFLOPs @4096³** (= TK's published level_06 number), **0.19–0.28× cuBLAS bf16, 0.36–0.56× cuBLAS tf32**; correct (rel_err 0.2–0.3%). TK production ceiling (~1540) only ties cuBLAS bf16 (1330–1588 measured) which loses to shipped TF32/MXFP8 trailing | — | **rejected: the GEMM primitive is not the bottleneck (serial diagonal factorization is); a faster trailing GEMM cannot move the geomean. Toolchain recipe banked. Closes lever #3** |
+| 069 | `Ov` lever (QR-ladder lever 7). Fresh incumbent shapediag showed `_exp062_factor`'s final `work.tril_()` costing 145us (16.8%) on `60×1024` — a full-matrix read+rewrite at ~2.4× its bandwidth floor. Replaced with a **write-only `e62_zero_upper` CUDA kernel** (one block per matrix-row; threads stride the strict-upper columns writing 0, never touching the lower triangle). Kept `data.clone()` copy-in so the factorization reads/arithmetic are unchanged → L byte-identical. Shared across the six e62 shapes | same-process paired full grid **1.0136×** CI95[1.0131,1.0140] excludes 1.0; `60×1024` **1.0979×** (936.1→852.6us), `8×2048` **1.0478×**, `2×4096` **1.0282×**, `2×2048` **1.0153×**, `4×1024` **1.0139×**, `16×512` **1.0062×**; nine other shapes flat (≤0.23% off-target, inside 0.57% A-vs-A); identical residuals + counters, 0 new fallbacks; six-family checker_ok on 512/1024/2048/4096; test #926123 17/17 | #926130 | **adopted (current best); first clean `Ov` win — value-independent byte-identical latency reorchestration, carries to secret (exp-067 class, not exp-065 precision risk)** |

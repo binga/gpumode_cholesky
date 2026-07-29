@@ -1,15 +1,17 @@
 {
-  "owner": "cursor-agent-lb-submit",
+  "owner": "cursor-agent-exp069",
   "task": "ranked-submit",
-  "baseline_commit": "3caf8167f108484aac19c16fbeb30b45ff8e9ed8",
-  "source_hash": "8e4603e56432b86be263d74743dd4d52940d043682cfca515a71e69c10a26baa",
+  "baseline_commit": "fc949a2ee81cb15be48e5d9b6d04cbc0004c278c",
+  "source_hash": "f108cbba5a586ae67501146fb19e074364a9a4ff6e9b89a4ac78cefd8a62a429",
   "target_region": "ranked-slot",
-  "created_at": "2026-07-28T18:50:00Z",
-  "last_heartbeat": "2026-07-28T18:54:52Z",
+  "created_at": "2026-07-29T11:56:00Z",
+  "last_heartbeat": "2026-07-29T12:30:00Z",
   "status": "released",
-  "note": "exp_0008 60x1024 e62_diag128 enrollment on top of #913511. public+secret both passed. Adoption deferred: CLI does not expose official public/secret geomean; per exp065 precedent adoption needs the secret score. Root kept on #913511.",
+  "note": "exp 069 e62 write-only zero-upper mask (replaces tril_). Full grid 1.0136x, byte-identical, Popcorn test 17/17. Value-independent -> carries to secret (exp-067 class).",
   "phase": "leaderboard-submit",
-  "submission_id": 922201,
-  "test_id": 922196,
-  "released_at": "2026-07-28T18:54:52Z"
+  "test_id": 926123,
+  "test_result": "17/17 pass",
+  "submission_id": 926130,
+  "splits": "public+secret passed; adopted as ranked winner",
+  "released_at": "2026-07-29T12:30:00Z"
 }

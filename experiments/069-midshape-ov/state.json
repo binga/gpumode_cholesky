@@ -1,0 +1,30 @@
+{
+  "experiment": "069-midshape-ov",
+  "goal": "Run program2.md; improve kernel latency for >=2 leaderboard shapes.",
+  "goal_baseline_incumbent": {
+    "id": 922201,
+    "commit": "fc949a2ee81cb15be48e5d9b6d04cbc0004c278c",
+    "source_hash": "f108cbba5a586ae67501146fb19e074364a9a4ff6e9b89a4ac78cefd8a62a429"
+  },
+  "lever": "Ov / QR-ladder lever 7 (per-call overhead). Replace torch tril_() (145us, 2.4x bandwidth floor on 60x1024) in _exp062_factor with a write-only zero-strict-upper CUDA kernel (e62_zero_upper). Byte-identical L, value-independent, shared across the 6 e62 shapes.",
+  "hypothesis": "The final full-matrix upper mask is memory-bound overhead; a write-only mask (~n^2/2 writes vs ~2n^2 read+write) cuts it, improving all e62 shapes, biggest at 60x1024.",
+  "candidate": "experiments/069-midshape-ov/candidate.py",
+  "gates": {
+    "free": "PASS (ast parse, clean 3-part diff, no banned constructs, default-stream launch)",
+    "determinism": "by construction (deterministic write-only mask; output byte-identical to incumbent)",
+    "correctness_familygrid": "PASS results/069-family.json (all rows checker_ok=true on 512,1024,2048,4096; e62 active; fallbacks are pre-existing spectrum/lowrank behavior, structurally cannot be new)",
+    "paired_e62": "PASS results/069-paired.json (6 e62 shapes 1.0117-1.0964x, 0 new fallbacks, identical residuals)",
+    "full_grid": "PASS results/069-fullgrid.json geomean 1.0136 CI95[1.0131,1.0140] excludes 1.0; all 15 ok; no off-target regression"
+  },
+  "classification": "PROMOTABLE FRONTIER (value-independent, carries to secret split like exp-067)",
+  "promotion_rule": "Value-independent latency reorchestration (byte-identical output on all 15 shapes). Adopt on: full-grid paired win + Popcorn test 17/17 + ranked run completing both splits. exp-067 class: pure-latency win carries to secret; distinct from exp-065 precision-class secret risk.",
+  "consumed": {"modal_runs": 5, "variants": 1},
+  "ranked": {
+    "test_submission": 926123,
+    "test_result": "17/17",
+    "ranked_submission": 926130,
+    "splits": "public+secret PASSED",
+    "adopted_source_hash": "e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae"
+  },
+  "next_action": "DONE — adopted #926130 into root; STATUS/experiments/levers/journal updated; committed and pushed."
+}
