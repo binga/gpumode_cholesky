@@ -1,0 +1,12 @@
+{
+  "owner": "codex-root",
+  "task": "exp074-e62-mask-integration",
+  "baseline_commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "target_region": "integration, full-grid, cold-build, Popcorn ranked slot",
+  "created_at": "2026-07-29T20:15:00+05:30",
+  "last_heartbeat": "2026-07-29T20:15:00+05:30",
+  "status": "active",
+  "phase": "O6-popcorn-test",
+  "promotion_rule": "optimize-public-accept-secret"
+}

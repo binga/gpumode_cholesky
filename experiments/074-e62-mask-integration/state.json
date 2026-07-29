@@ -1,0 +1,25 @@
+{
+  "experiment": "074-e62-mask-integration",
+  "goal": "Improve at least two shapes and the public leaderboard geomean.",
+  "promotion_rule": "optimize-public-accept-secret",
+  "goal_baseline": {
+    "ranked_id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "public_geomean_us": 630.4029288615614
+  },
+  "candidate": {
+    "source": "submission.py (byte-identical to experiments/071-e62-mask-v2/candidate_v4_hybrid.py)",
+    "source_hash": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36"
+  },
+  "gates": {
+    "free": "PASS: exact candidate snapshot, AST, harness syntax, diff-check, default-stream policy",
+    "n1_n2": "PASS exp071 + reusable exp073 harness smoke",
+    "verify_family": "PASS exp071; 48/48 checker_ok and zero new fallbacks",
+    "full_grid": "PASS results/074-fullgrid.json: 15/15, zero new fallbacks, geomean 1.003750x CI95[1.002814,1.004687]; four changed shapes CI95 above parity",
+    "cold_build": "PASS results/074-cold-verify.json: clean Modal sandbox 57/57; image 1.22s; end-to-end about 91s < 288s (80% of observed 360s service boundary)",
+    "popcorn_test": "PENDING",
+    "ranked": "PENDING"
+  },
+  "next_action": "Reverify incumbent and ranked slot, then Popcorn test exact submission.py and require 17/17."
+}

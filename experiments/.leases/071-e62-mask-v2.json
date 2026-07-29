@@ -1,0 +1,13 @@
+{
+  "owner": "codex-e62-mask-worker",
+  "task": "exp071-e62-mask-v2",
+  "baseline_commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "target_region": "shared e62 strict-upper output mask on six enrolled shapes",
+  "created_at": "2026-07-29T19:28:00+05:30",
+  "last_heartbeat": "2026-07-29T20:11:00+05:30",
+  "status": "released",
+  "phase": "I8-promotable-frontier",
+  "outcome": "candidate_v4_hybrid.py; paired e62 aggregate 1.00676x; four shapes CI95 above parity",
+  "released_at": "2026-07-29T20:11:00+05:30"
+}
