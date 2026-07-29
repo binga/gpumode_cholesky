@@ -1,0 +1,46 @@
+{
+  "experiment": "076-e62-panel-fusion",
+  "program": "program2.md",
+  "goal": "Improve measured kernel latency for 2 mid shapes (60x1024, 8x2048) by removing the redundant strided panel bounce-copy in _exp062_factor. Build + verify + paired grid. Ranked slot gated on measured grid magnitude vs LB noise + owner rule.",
+  "promotion_rule": "optimize public, accept secret (docs/STATUS.md owner-selected rule for live #926462)",
+  "goal_baseline_incumbent": {
+    "id": 926462,
+    "commit": "81e9451",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723"
+  },
+  "lever": "QR-ladder lever 7 (Fu/Ov). Replace src.copy_(dst) (strided elementwise, ~2.6x bandwidth floor, 73.6us/8.5% of 60x1024) with a coalesced write-back CUDA kernel. cuBLAS TF32 bmm unchanged -> L byte-identical.",
+  "amdahl_ceiling": {
+    "method": "results/069-inc-shapediag-mid.json: 60x1024 device 864us (pre-069 profile); panel copy = elementwise_kernel x7 = 73.6us. Post-069/070 incumbent ~852us. Copy floor ~28us.",
+    "60x1024": "remove ~45us of ~852us -> ~1.056x ceiling (byte-identical faster copy); full elimination ~1.094x",
+    "8x2048": "smaller fraction; ceiling ~1.02-1.03x",
+    "class": "FRONTIER (not a 2x winner) - expected for mid shapes"
+  },
+  "clone_copyin_lever": "REFUTED on free gate: reference/eval.py benchmark loop (line 180) reuses inputs uncloned across timed repeats; in-place factorization would corrupt them. data.clone() is load-bearing. $0.",
+  "variants": {
+    "v1": "float4 write-back, one 32-thread block per (matrix,row), grid=(rows,batch)",
+    "v2": "float4 flat grid-stride, block=256 sized to fill SMs",
+    "v3": "scalar float write-back, block=128 (vectorization control)"
+  },
+  "gates": {
+    "free": "PASS (ast syntax, whitespace, source-policy: all launches default-stream 2-arg, no banned constructs)",
+    "N1_determinism": "PASS v1+v2 (3x bitwise-equal, residuals byte-identical to incumbent, 0 fallbacks, 4 e62 shapes)",
+    "N2_adversarial": "PASS v1+v2 (36 rows: tiny_diagonal/near_singular_banded/mixed_dynamic x cond 1e6/1e8/1e10, all checker_ok, 0 fallbacks)",
+    "paired_latency": "V2 WINS. e62 geomean 1.0123x CI95[1.0104,1.0142]. 60x1024 1.0310x, 8x2048 1.0120x. V1 0.9822x, V3 0.9840x (occupancy). byte-identical residuals."
+  },
+  "verdict": {
+    "winner": "v2 (float4 flat grid-stride, block=256)",
+    "classification": "PROMOTABLE FRONTIER (byte-identical, N1/N2 clean, faster on both targets, below 2x Amdahl target)",
+    "targets": {"60x1024": "1.0310x (838.7->813.4us)", "8x2048": "1.0120x (1200.4->1186.9us)"},
+    "rejected": {"v1": "0.9822x", "v3": "0.9840x - one block per row, poor occupancy on batch*rows tiny blocks"},
+    "fast_p": {"fast_0": "3/3", "fast_1": "1/3", "fast_targ_2x": "0/3"}
+  },
+  "ranked_pipeline": {
+    "O4_full_grid": "PASS geomean 1.0036x CI95[1.0030,1.0041]; all 15 shapes ok, 0 fallbacks, counters byte-identical, no off-target regression. Movers: 60x1024 1.0300x, 8x2048 1.0118x, 2x4096 1.0097x.",
+    "O5_cold_build": "PASS (load_inline extension cold-compiled fresh on every Modal sandbox; _EXP062_COMBINED dormant)",
+    "O6_popcorn_test": "PASS 17/17 (Torch 2.12.0+cu130)",
+    "O7_ranked_submit": "SUBMITTED #927042 (leaderboard run success: test+benchmark+leaderboard all green on secret B200)",
+    "O8_adoption": "PENDING owner gpumode.com read. CLI cannot return per-submission public geomean. Leaderboard best-per-user still shows binga 630.403us (candidate.py=#926462), not displaced by #927042 (cache or public not improved). Board auto-keeps best -> binga rank protected regardless. Root RESTORED to #926462 (582cde1) per optimize-public rule until #927042 public geomean confirmed < 630.403us."
+  },
+  "root_state": "submission.py = #926462 (582cde1), confirmed public winner 630.403us. candidate_v2.py preserved for instant re-adoption if #927042 public < 630.403us.",
+  "next_action": "Owner: read #927042 public geomean on gpumode.com/leaderboard/776. If < 630.403us -> re-adopt (cp candidate_v2.py submission.py) + update STATUS. If >= -> keep #926462 (frontier banked, byte-identical, re-usable when stacked with an above-noise change)."
+}

@@ -1,0 +1,15 @@
+{
+  "owner": "cursor-agent-exp071",
+  "task": "large-diagonal-potrf-saturation-classification",
+  "baseline_commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "target_region": "1x16384 and 1x32768 serial diagonal cholesky_ex (the nb-block potrf) inside _exp061_factor_1x16384 / _exp061_factor_1x32768",
+  "lever": "From-scratch custom blocked FP32 potrf for the batch=1 large-shape diagonal (program2.md runbook step 2 lever). Goal: improve measured latency for the two largest shapes; owner-selected scope = build + verify on the paired grid, NO ranked submission (secret split not at stake).",
+  "created_at": "2026-07-29T14:01:26Z",
+  "last_heartbeat": "2026-07-29T14:05:00Z",
+  "status": "released",
+  "phase": "I7-classified-SATURATED",
+  "promotion_rule": "n/a (no ranked submission; owner scope = build_verify_noship)",
+  "outcome": "SATURATED (no build). [I1] Amdahl + roofline + the complete exp 061/063/064/070 empirical record show no LEGITIMATE (shippable, default-stream, non-cooperative) custom potrf can beat cuSOLVER on a batch=1 matrix: op-level blocking is measured slower (exp064 blocked_leaf 1089 vs 676us), single-CTA is SM-starved, multi-CTA needs banned cooperative grid-sync / software barriers. Non-diagonal phases already harvested (FP16/MXFP8 tensor cores + trsm-free inverse + fused moves). Owner accepted SATURATED. $0 GPU spent.",
+  "released_at": "2026-07-29T14:05:00Z"
+}

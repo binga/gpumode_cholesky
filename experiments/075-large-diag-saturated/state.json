@@ -1,0 +1,38 @@
+{
+  "experiment": "071-large-diag-saturated",
+  "program": "program2.md",
+  "goal": "Improve measured kernel latency for the two largest ranked shapes (1x16384, 1x32768). Owner scope: build + verify a custom diagonal potrf on the same-process paired grid; NO ranked submission (secret split not at stake).",
+  "goal_baseline_incumbent": {
+    "id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723"
+  },
+  "lever": "From-scratch custom blocked FP32 potrf for the batch=1 diagonal (program2.md runbook step 2). The only remaining large-shape lever after exp 061/064 harvested every non-diagonal phase.",
+  "amdahl_ceiling": {
+    "method": "diagonal potrf share from results/070-largephase.json; best realistic custom potrf 296 ns/row (exp 063) vs cuSOLVER 340 (16384) / 381 (32768) ns/row",
+    "1x16384": "1/(0.354 + 0.646*296/340) = 1.09x",
+    "1x32768": "1/(0.478 + 0.522*296/381) = 1.14x",
+    "note": "296 ns/row was only ever reached on the 128-block e62 kernel; never demonstrated on 2048/4096 blocks. Ceiling is optimistic."
+  },
+  "classification": "SATURATED",
+  "why_saturated": [
+    "Diagonal potrf is latency/serial-bound (~14.6 TFLOP/s achieved) -> cuSOLVER already near the serial-dependency floor.",
+    "batch=1 -> no batch parallelism to fill the ~148 SMs during the serial factorization (the exp-065 overlap only helps MID shapes because they batch many 128-blocks).",
+    "Op-level blocking of the nb block is MEASURED slower: exp064 blocked_leaf1024_tf32 = 1089us vs cuSOLVER 676us; the per-call potrf floor does not amortize.",
+    "Single-CTA fused megakernel = 1 SM = ~100x SM-starved vs cuSOLVER's whole-GPU trailing; 2048/4096 FP32 block (16-64MB) is not shared-memory resident.",
+    "Multi-CTA fused megakernel needs cross-SM sync (cooperative grid.sync or software global barriers) -> popcorn-BANNED (lessons.md Part 2; QR cooperative -47% / software barrier -42%, 'worked but banned'). Would win on Modal but be an unshippable hollow number.",
+    "Non-diagonal phases already harvested: FP16 (16384) / MXFP8 (32768) tensor-core updates, trsm-free recursive inverse, fused Triton strided moves (exp 061/064).",
+    "Per-call overhead is already tiny on these shapes: diagonal-only isfinite check, no copy-in clone."
+  ],
+  "prior_empirical_record": ["exp 013", "exp 061", "exp 063", "exp 064", "exp 070"],
+  "gpu_spent": "none (classified in advance by [I1] Amdahl + free-gate reasoning + the complete prior empirical record, per lessons.md 'compute the Amdahl ceiling before opening a shape')",
+  "fast_p": {
+    "variants_measured": 0,
+    "fast_0": "n/a (no build)",
+    "fast_1": "n/a",
+    "fast_targ": "n/a",
+    "note": "No variants generated: the lever was classified SATURATED/FRONTIER at [I1] before generation, and the only untried mechanism (cooperative megakernel) is banned. Owner accepted SATURATED."
+  },
+  "incumbent_change": "none (root submission.py unchanged; #926462 remains ranked)",
+  "next_action": "DONE - SATURATED recorded in state.json/notes.md/journal.md/experiments.md/levers.md. The only path past this wall is a from-scratch cooperative/grid-sync potrf, which is UNSHIPPABLE by popcorn; do not reopen without a change to the anti-cheat rules."
+}

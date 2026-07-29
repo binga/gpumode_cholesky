@@ -1,0 +1,17 @@
+{
+  "owner": "cursor-agent-exp076",
+  "task": "e62-panel-scale-bounce-copy-fusion",
+  "baseline_commit": "81e9451",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "ranked_incumbent": 926462,
+  "target_region": "_exp062_factor panel-scale bounce copy (src.copy_(dst) after torch.bmm(src, dinv^T, out=dst)); shared by the six e62 shapes",
+  "target_shapes": ["60x1024", "8x2048"],
+  "lever": "QR-ladder lever 7 continuation (Fu/Ov). Eliminate/accelerate the strided panel copy-back that runs at ~2.6x its bandwidth floor (73.6us / 8.5% of 60x1024 per results/069-inc-shapediag-mid.json). N4 variants keep the cuBLAS TF32 bmm byte-identical and only optimize the copy, plus one fused-multiply variant.",
+  "promotion_rule": "optimize public, accept secret (owner-selected rule for the live #926462 incumbent, docs/STATUS.md). Ranked slot gated on measured grid magnitude vs LB noise.",
+  "created_at": "2026-07-29T15:35:04Z",
+  "last_heartbeat": "2026-07-29T16:05:00Z",
+  "status": "complete-pending-public-read",
+  "phase": "O8-adoption-awaiting-gpumode-read",
+  "winner": "candidate_v2.py (float4 flat grid-stride panel copy-back)",
+  "result": "byte-identical PROMOTABLE FRONTIER: 60x1024 1.0310x, 8x2048 1.0120x, full-grid 1.0036x; N1/N2 clean; Popcorn test 17/17; ranked #927042 submitted (leaderboard success). Root restored to #926462 pending #927042 public geomean read."
+}

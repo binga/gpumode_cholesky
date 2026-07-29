@@ -101,12 +101,13 @@ experiment, ranked public geomean for an integration.
 | 072 | | | | ✓ | | ✓ | | | ✓ | | 640×512 one-CTA launch fusion **0.748–0.851×** across three correct variants | **exhausted** |
 | 073 | | | | | | | | | | ✓ | reusable N1 3× bitwise determinism + N2 guaranteed-SPD cond 1e6/1e8/1e10 stressgrid | harness complete |
 | 074 | | | | ✓ | | | | | ✓ | ✓ | grid **1.00375×**; public 630.403→651.017us, secret 670.301→626.486us | **rejected at LB #926737** |
+| 076 | | | | ✓ | | ✓ | | | ✓ | | replace `_exp062_factor`'s strided `src.copy_(dst)` panel bounce-copy (73.6us / 8.5% of `60×1024`, ~2.6× bandwidth floor) with a **float4 flat grid-stride write-back kernel**; byte-identical L; N4 found geometry decides (per-row blocks V1/V3 **0.98×** on occupancy, flat grid-stride V2 wins); full grid **1.0036×** CI95[1.0030,1.0041] excludes 1.0, `60×1024` **1.0300×**, `8×2048` **1.0118×**, `2×4096` **1.0097×**, 12 shapes flat, 0 fallbacks; N1/N2 clean; Popcorn test 17/17; ranked #927042 submitted | **frontier; ranked #927042 — adoption pending #927042 public geomean read (root restored to #926462)** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 13 | 17 | 8 | 28 | 22 | 11 | 4 | 5 | **8** | 12 |
+| experiments | 13 | 17 | 8 | 29 | 22 | 12 | 4 | 5 | **9** | 12 |
 
 ## What the matrix says
 
@@ -122,7 +123,16 @@ experiment, ranked public geomean for an integration.
    clean one: replacing `_exp062_factor`'s inefficient full-matrix `tril_()` with
    a write-only strict-upper CUDA mask lifted the six e62 shapes (grid 1.0136×,
    `60×1024` 1.098×) with byte-identical output. The remaining `Ov` on those
-   shapes is the `data.clone()` copy-in (82us on `60×1024`, an efficient memcpy).
+   shapes is the `data.clone()` copy-in — but exp 076 **refuted removing it on a
+   free gate**: `reference/eval.py`'s benchmark loop reuses inputs uncloned across
+   timed repeats, so the clone is load-bearing. Exp 076 instead took the other e62
+   overhead — the strided `src.copy_(dst)` panel bounce-copy (73.6us on `60×1024`)
+   — and replaced it with a float4 flat grid-stride write-back kernel (byte-
+   identical, full grid **1.0036×**, `60×1024` 1.030×). Its N4 taught that for a
+   memcpy the launch geometry *is* the lever: per-row blocks (V1/V3) lost to
+   torch's tuned copy on occupancy; only the SM-filling grid-stride won. Ranked
+   #927042; adoption pending its public geomean (same ~0.36% grid magnitude as the
+   public-regressing exp 074, so a genuine public coin-flip).
    Exp 071's warp4 mask improved four shapes locally but was rejected through
    exp 074 when the public split regressed. Exp 072 tried `640×512`'s ~144us of
    inter-launch idle directly; serializing the work into one CTA lost 15–25%.
