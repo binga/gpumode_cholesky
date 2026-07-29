@@ -1,0 +1,16 @@
+{
+  "experiment": "073-program2-stress-harness",
+  "baseline": {
+    "ranked_id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723"
+  },
+  "scope": "harness-only N1 determinism and N2 adversarial conditioning evidence",
+  "candidate_changes": false,
+  "gates": {
+    "syntax": "PASS",
+    "diff_check": "PASS",
+    "b200_smoke": "PASS results/073-stressgrid-smoke-v2.json"
+  },
+  "next_action": "Run stressgrid against the selected kernel finalist before full-grid promotion."
+}

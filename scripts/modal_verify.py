@@ -131,6 +131,7 @@ def main() -> int:
             "familygrid",
             "e62stress",
             "e62maskprobe",
+            "stressgrid",
             "shapediag",
             "largephase",
             "midprobe",

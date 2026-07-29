@@ -1,0 +1,140 @@
+{
+  "mode": "stressgrid",
+  "device": "NVIDIA B200",
+  "determinism": [
+    {
+      "batch": 4096,
+      "n": 32,
+      "repeats": 3,
+      "bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0553; batch=4096; n=32",
+      "active_backend": true,
+      "counters": {
+        "_CUDA32_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    }
+  ],
+  "adversarial": [
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "tiny_diagonal",
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0312; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "near_singular_banded",
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0142; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "mixed_dynamic",
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0667; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "tiny_diagonal",
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00391; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "near_singular_banded",
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0038; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "mixed_dynamic",
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0652; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "tiny_diagonal",
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0156; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "near_singular_banded",
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0018; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4096,
+      "n": 32,
+      "case": "mixed_dynamic",
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.0643; batch=4096; n=32",
+      "counters": {
+        "_CUDA32_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    }
+  ],
+  "passed": true
+}

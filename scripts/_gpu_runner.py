@@ -3371,6 +3371,137 @@ def run_e62maskprobe(filter_ns=None):
     }
 
 
+def _program2_mixed_spd(batch, n, cond, seed):
+    """Cheap structured SPD with roughly 10**cond dynamic range.
+
+    D T D keeps the tridiagonal base strictly SPD while avoiding the O(n^3)
+    orthogonal construction that is prohibitive for the ranked mid/large shapes.
+    """
+    device = torch.device("cuda")
+    gen = torch.Generator(device=device)
+    gen.manual_seed(seed)
+    diagonal = torch.empty((batch, n), device=device, dtype=torch.float32)
+    diagonal.uniform_(1.75, 2.25, generator=gen)
+    off = torch.empty((batch, max(n - 1, 0)), device=device, dtype=torch.float32)
+    off.uniform_(-0.08, 0.08, generator=gen)
+    base = torch.diag_embed(diagonal)
+    if n > 1:
+        base = base + torch.diag_embed(off, offset=1) + torch.diag_embed(off, offset=-1)
+    scales = torch.logspace(
+        0.0, -0.5 * float(cond), n, device=device, dtype=torch.float32
+    )
+    return (scales.reshape(1, n, 1) * base * scales.reshape(1, 1, n)).contiguous()
+
+
+def _program2_near_singular_spd(batch, n, cond):
+    """Guaranteed-SPD 2x2 blocks spanning eigenvalue scales to 10**-cond."""
+    device = torch.device("cuda")
+    values = torch.logspace(
+        0.0, -float(cond), n, device=device, dtype=torch.float32
+    )
+    out = torch.diag_embed(values.expand(batch, n)).contiguous()
+    if n > 1:
+        pair = torch.arange(n - 1, device=device)
+        coupled = (pair % 2) == 0
+        off = torch.zeros(n - 1, device=device, dtype=torch.float32)
+        off[coupled] = 0.125 * torch.sqrt(values[:-1][coupled] * values[1:][coupled])
+        out = out + torch.diag_embed(off.expand(batch, n - 1), offset=1)
+        out = out + torch.diag_embed(off.expand(batch, n - 1), offset=-1)
+    return out.contiguous()
+
+
+def run_stressgrid(filter_ns=None):
+    """program2 N1 determinism plus N2 adversarial conditioning gate.
+
+    This is a harness-only evidence mode. It does not alter the official checker,
+    benchmark inputs, timing loop, or candidate source.
+    """
+    cand_mod = _load_submission_module("sub_stress_cand", "/root/candidate.py")
+    specs = [s for s in BENCH_SPECS if not filter_ns or s["n"] in filter_ns]
+    determinism_rows = []
+    adversarial_rows = []
+
+    for spec in specs:
+        args = {k: v for k, v in spec.items() if k != "case"}
+        data = generate_input(**args, case=spec.get("case", "dense"))
+        pristine = data.clone()
+        before = _counters(cand_mod)
+        outputs = []
+        for _ in range(3):
+            outputs.append(cand_mod.custom_kernel(data.clone()).clone())
+        torch.cuda.synchronize()
+        good, message = check_implementation(pristine, outputs[0])
+        equal = all(torch.equal(outputs[0], other) for other in outputs[1:])
+        deltas = _counter_deltas(before, _counters(cand_mod))
+        active = any(k.endswith("_HITS") and v > 0 for k, v in deltas.items())
+        fallbacks = {k: v for k, v in deltas.items() if k.endswith("_FALLBACKS") and v > 0}
+        row = {
+            "batch": spec["batch"], "n": spec["n"], "repeats": 3,
+            "bitwise_equal": bool(equal), "checker_ok": bool(good),
+            "message": message, "active_backend": active,
+            "counters": deltas, "fallbacks": fallbacks,
+            "ok": bool(equal and good and active and not fallbacks),
+        }
+        determinism_rows.append(row)
+        print(
+            f"stress determinism batch={spec['batch']} n={spec['n']} "
+            f"equal={equal} checker_ok={good} counters={deltas}", flush=True
+        )
+        del data, pristine, outputs
+        torch.cuda.empty_cache()
+
+        for cond in (6, 8, 10):
+            cases = (
+                ("tiny_diagonal", generate_input(
+                    batch=spec["batch"], n=spec["n"], cond=cond,
+                    seed=spec["seed"] + 7100 + cond, case="diagonal"
+                )),
+                ("near_singular_banded", _program2_near_singular_spd(
+                    spec["batch"], spec["n"], cond
+                )),
+                ("mixed_dynamic", _program2_mixed_spd(
+                    spec["batch"], spec["n"], cond, spec["seed"] + 9100 + cond
+                )),
+            )
+            for case, stress in cases:
+                pristine = stress.clone()
+                before = _counters(cand_mod)
+                output = cand_mod.custom_kernel(stress)
+                torch.cuda.synchronize()
+                good, message = check_implementation(pristine, output)
+                deltas = _counter_deltas(before, _counters(cand_mod))
+                fallbacks = {
+                    k: v for k, v in deltas.items()
+                    if k.endswith("_FALLBACKS") and v > 0
+                }
+                row = {
+                    "batch": spec["batch"], "n": spec["n"], "case": case,
+                    "condition_exponent": cond, "checker_ok": bool(good),
+                    "message": message, "counters": deltas,
+                    "fallbacks": fallbacks, "ok": bool(good),
+                }
+                adversarial_rows.append(row)
+                print(
+                    f"stress adversarial batch={spec['batch']} n={spec['n']} "
+                    f"case={case} cond=1e{cond} checker_ok={good} "
+                    f"fallbacks={fallbacks} {message}", flush=True
+                )
+                del stress, pristine, output
+                torch.cuda.empty_cache()
+
+    return {
+        "mode": "stressgrid",
+        "device": torch.cuda.get_device_name(0),
+        "determinism": determinism_rows,
+        "adversarial": adversarial_rows,
+        "passed": bool(
+            determinism_rows and adversarial_rows
+            and all(row["ok"] for row in determinism_rows)
+            and all(row["ok"] for row in adversarial_rows)
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # largephase (experiment 064): where does each of the two biggest shapes spend
 # its wall clock, phase by phase, and what do the cheap structural variants of
@@ -3904,6 +4035,8 @@ def main():
         result = run_e62stress(filter_ns)
     elif mode == "e62maskprobe":
         result = run_e62maskprobe(filter_ns)
+    elif mode == "stressgrid":
+        result = run_stressgrid(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)
