@@ -1,0 +1,19 @@
+{
+  "search": "exp072-640x512-launch",
+  "measured_variants": 3,
+  "stress_correct_variants": 3,
+  "strict_all_gate_fast_0": null,
+  "strict_all_gate_fast_0_reason": "six-family gate was intentionally reserved for a positive timing finalist; none existed",
+  "stress_fast_0": 1.0,
+  "fast_1": 0.0,
+  "fast_targ": 0.0,
+  "research_target": 2.0,
+  "speedups": {
+    "V1": 0.8494523782644923,
+    "V2": 0.8508725101047863,
+    "V3": 0.7477883467569254
+  },
+  "excluded_drafts": [
+    "initial multi-CTA draft rejected by code audit for an inter-CTA race"
+  ]
+}

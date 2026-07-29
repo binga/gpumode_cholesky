@@ -1,0 +1,26 @@
+{
+  "experiment": 72,
+  "name": "640x512-launch-fusion",
+  "baseline": {
+    "submission_id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "sha256": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "snapshot": "baseline.py"
+  },
+  "target": "640x512 split32/fused eager path",
+  "lever": "fuse 12 apply+inner launch pairs",
+  "candidate_sources": ["candidate-v1.py", "candidate-v2.py", "candidate-v3.py"],
+  "raw_results": [
+    "../../results/072-640x512-launch/v1-stressgrid.json",
+    "../../results/072-640x512-launch/v2-stressgrid.json",
+    "../../results/072-640x512-launch/v3-stressgrid.json",
+    "../../results/072-640x512-launch/v1-pairedgrid.json",
+    "../../results/072-640x512-launch/v2-pairedgrid.json",
+    "../../results/072-640x512-launch/v3-pairedgrid.json"
+  ],
+  "invalidated_results": {
+    "../../results/072-640x512-launch/v1-stabilitystress.json": "prototype lowrank cond6 row made exact baseline and candidate non-finite; superseded by guaranteed-SPD stressgrid"
+  },
+  "verdict": "SHAPE_EXHAUSTED",
+  "winner": null
+}

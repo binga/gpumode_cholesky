@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "status": "SHAPE_EXHAUSTED",
+  "updated_at": "2026-07-29T14:31:14Z",
+  "goal_baseline": {
+    "ranked_submission_id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_sha256": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "public_geomean_us": 630.403
+  },
+  "current_incumbent": {
+    "ranked_submission_id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_sha256": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "reverified_before_each_paid_gate": true
+  },
+  "target": {
+    "shape": "640x512",
+    "dispatch": "split32/fused-panel eager path only; e62 untouched",
+    "lever": "Ov launch fusion",
+    "research_target_speedup": 2.0,
+    "amdahl": {
+      "source": "results/069-inc-shapediag-mid.json",
+      "wall_us": 1224.3,
+      "device_us": 1080.2,
+      "inter_launch_idle_us": 144.1,
+      "launches": 53,
+      "complete_idle_removal_ceiling_speedup": 1.1334,
+      "twelve_pair_launch_idle_ceiling_speedup": 1.0274
+    }
+  },
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp072-640x512-launch",
+  "branch": "codex/exp072-640x512-launch",
+  "lease": "experiments/.leases/072-640x512.json",
+  "gates": {
+    "free": "passed for V1/V2/V3: py_compile, JSON, diff-check, exact baseline hash, banned-stream scan",
+    "determinism_same_input_repeats_3": "passed V1/V2/V3 using reusable d960e08 stressgrid",
+    "adversarial_cond_6_8_10": "passed V1/V2/V3: 9 guaranteed-SPD cases per shape, zero fallbacks",
+    "six_family_correctness": "not run: parent-directed timing triage found no positive finalist; no candidate was eligible for family promotion",
+    "paired_640x512": "valid and correct for V1/V2/V3; all three decisively slower",
+    "ncu_profile": "unavailable: Nsight Compute failed to initialize counters with LibraryNotLoaded; no CSV emitted"
+  },
+  "variants": [
+    {
+      "id": "draft-multicta-v1",
+      "status": "rejected_code_audit",
+      "reason": "inter-CTA read/write race on in-place panel factors; its early bitwise pass is invalidated and excluded"
+    },
+    {
+      "id": "V1",
+      "source": "candidate-v1.py",
+      "config": {"tile_c": 32, "warps": 4},
+      "stressgrid": "passed",
+      "baseline_us": 1229.7760248184204,
+      "candidate_us": 1447.7280378341675,
+      "speedup": 0.8494523782644923,
+      "ci95": [0.8491690484331198, 0.8498417005321008],
+      "status": "REJECTED_SLOW"
+    },
+    {
+      "id": "V2",
+      "source": "candidate-v2.py",
+      "config": {"tile_c": 64, "warps": 8},
+      "stressgrid": "passed",
+      "baseline_us": 1302.079975605011,
+      "candidate_us": 1530.4800271987915,
+      "speedup": 0.8508725101047863,
+      "ci95": [0.8493894810223577, 0.8587234467542475],
+      "status": "REJECTED_SLOW"
+    },
+    {
+      "id": "V3",
+      "source": "candidate-v3.py",
+      "config": {"tile_c": 32, "warps": 8},
+      "stressgrid": "passed",
+      "baseline_us": 1308.2559704780579,
+      "candidate_us": 1749.5999932289124,
+      "speedup": 0.7477883467569254,
+      "ci95": [0.7466764107769688, 0.7483402017557275],
+      "status": "REJECTED_SLOW"
+    }
+  ],
+  "artifacts": {
+    "stressgrid": [
+      "results/072-640x512-launch/v1-stressgrid.json",
+      "results/072-640x512-launch/v2-stressgrid.json",
+      "results/072-640x512-launch/v3-stressgrid.json"
+    ],
+    "pairedgrid": [
+      "results/072-640x512-launch/v1-pairedgrid.json",
+      "results/072-640x512-launch/v2-pairedgrid.json",
+      "results/072-640x512-launch/v3-pairedgrid.json"
+    ],
+    "ncu": "attempted on V2; no JSON because profiler initialization failed LibraryNotLoaded",
+    "fast_p": "experiments/072-640x512-launch/fast_p.json"
+  },
+  "budget": {
+    "max_serious_variants": 3,
+    "consumed_serious_variants": 3,
+    "transient_retries": 0
+  },
+  "decision": "bounded rejection: one-CTA launch fusion loses 15-25% whole-shape latency; no finalist, no integration, no Popcorn",
+  "next_action": "parent may use this closed negative to avoid one-CTA fusion on 640x512; choose a different shape/lever"
+}

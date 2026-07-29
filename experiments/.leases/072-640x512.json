@@ -1,0 +1,15 @@
+{
+  "owner": "/root/shape_640",
+  "task": "exp072-640x512-launch",
+  "baseline_commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "target_region": "640x512 only: split32/fused-panel eager path; no e62 source",
+  "lever": "Ov launch fusion: fuse each diagonal-block panel apply and rank-32 inner update with 3 distinct Triton tile/warp variants",
+  "created_at": "2026-07-29T13:59:07Z",
+  "last_heartbeat": "2026-07-29T14:31:14Z",
+  "status": "released",
+  "phase": "I8-recorded-shape-exhausted",
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp072-640x512-launch",
+  "branch": "codex/exp072-640x512-launch",
+  "outcome": "bounded rejection: V1 0.8495x, V2 0.8509x, V3 0.7478x; all stress-correct, no positive finalist"
+}

@@ -1,0 +1,131 @@
+{
+  "mode": "stabilitystress",
+  "determinism": {
+    "shape": "640x512",
+    "same_input_repeats": 3,
+    "pairwise_bitwise_equal": [
+      true,
+      true
+    ],
+    "max_abs_diffs": [
+      0.0,
+      0.0
+    ],
+    "checker_rows": [
+      {
+        "repeat": 0,
+        "checker_ok": true,
+        "message": "scaled_reconstruction_residual=2.65; batch=640; n=512"
+      },
+      {
+        "repeat": 1,
+        "checker_ok": true,
+        "message": "scaled_reconstruction_residual=2.65; batch=640; n=512"
+      },
+      {
+        "repeat": 2,
+        "checker_ok": true,
+        "message": "scaled_reconstruction_residual=2.65; batch=640; n=512"
+      }
+    ],
+    "counters": {
+      "_MICRO32_HITS": 48,
+      "_BMM_TRAILING_HITS": 6,
+      "_FUSED_PANEL_HITS": 9,
+      "_EXP072_FUSED_HITS": 36,
+      "_FUSED_CTA_HITS": 3
+    },
+    "passed": true
+  },
+  "adversarial": [
+    {
+      "name": "near_singular_lowrank",
+      "batch": 640,
+      "n": 512,
+      "case": "lowrank",
+      "cond_exponent": 6,
+      "candidate_checker_ok": false,
+      "candidate_message": "output contains NaN or Inf",
+      "candidate_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_EXP072_FUSED_HITS": 12,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "candidate_fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "baseline_checker_ok": false,
+      "baseline_message": "output contains NaN or Inf",
+      "baseline_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "baseline_fallbacks": {
+        "_FUSED_CTA_FALLBACKS": 1
+      },
+      "new_fallbacks": {},
+      "ok": false
+    },
+    {
+      "name": "mixed_dynamic_rowscale",
+      "batch": 640,
+      "n": 512,
+      "case": "rowscale",
+      "cond_exponent": 8,
+      "candidate_checker_ok": true,
+      "candidate_message": "scaled_reconstruction_residual=0.0234; batch=640; n=512",
+      "candidate_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_EXP072_FUSED_HITS": 12,
+        "_FUSED_CTA_HITS": 1
+      },
+      "candidate_fallbacks": {},
+      "baseline_checker_ok": true,
+      "baseline_message": "scaled_reconstruction_residual=0.0234; batch=640; n=512",
+      "baseline_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_FUSED_CTA_HITS": 1
+      },
+      "baseline_fallbacks": {},
+      "new_fallbacks": {},
+      "ok": true
+    },
+    {
+      "name": "tiny_diagonal",
+      "batch": 640,
+      "n": 512,
+      "case": "diagonal",
+      "cond_exponent": 10,
+      "candidate_checker_ok": true,
+      "candidate_message": "scaled_reconstruction_residual=0.00195; batch=640; n=512",
+      "candidate_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_EXP072_FUSED_HITS": 12,
+        "_FUSED_CTA_HITS": 1
+      },
+      "candidate_fallbacks": {},
+      "baseline_checker_ok": true,
+      "baseline_message": "scaled_reconstruction_residual=0.00195; batch=640; n=512",
+      "baseline_counters": {
+        "_MICRO32_HITS": 16,
+        "_BMM_TRAILING_HITS": 2,
+        "_FUSED_PANEL_HITS": 3,
+        "_FUSED_CTA_HITS": 1
+      },
+      "baseline_fallbacks": {},
+      "new_fallbacks": {},
+      "ok": true
+    }
+  ],
+  "passed": false
+}
