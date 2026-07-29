@@ -1,0 +1,14 @@
+{
+  "submission_id": 926716,
+  "leaderboard": "cholesky",
+  "mode": "test",
+  "status": "succeeded",
+  "passed": true,
+  "passed_specs": 17,
+  "total_specs": 17,
+  "runner": "B200",
+  "start_time": "2026-07-29T14:54:32.828297Z",
+  "end_time": "2026-07-29T14:55:09.745033Z",
+  "source": "submission.py",
+  "source_sha256": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36"
+}

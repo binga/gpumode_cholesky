@@ -18,8 +18,8 @@
     "verify_family": "PASS exp071; 48/48 checker_ok and zero new fallbacks",
     "full_grid": "PASS results/074-fullgrid.json: 15/15, zero new fallbacks, geomean 1.003750x CI95[1.002814,1.004687]; four changed shapes CI95 above parity",
     "cold_build": "PASS results/074-cold-verify.json: clean Modal sandbox 57/57; image 1.22s; end-to-end about 91s < 288s (80% of observed 360s service boundary)",
-    "popcorn_test": "PENDING",
+    "popcorn_test": "PASS #926716 17/17 on exact SHA-256 26dfc03f...8f8f36",
     "ranked": "PENDING"
   },
-  "next_action": "Reverify incumbent and ranked slot, then Popcorn test exact submission.py and require 17/17."
+  "next_action": "Reverify origin/main and ranked slot; submit exactly one leaderboard candidate and monitor public+secret terminal results."
 }

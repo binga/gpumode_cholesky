@@ -55,3 +55,8 @@ passed**. Image assembly was 1.22s; the CUDA extension compiled from an empty
 sandbox cache (warp4 mask 15 registers, incumbent row mask 19 registers, zero
 spills/barriers). End-to-end build plus validation was about 91s, comfortably
 under 80% of the observed six-minute Popcorn service boundary (288s).
+
+## Popcorn test
+
+Exact `submission.py` test `#926716`: **17/17 passed**, B200, terminal
+`succeeded` in 30s. See `results/074-popcorn-test.json`.
