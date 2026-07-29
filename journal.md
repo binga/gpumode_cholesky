@@ -2936,3 +2936,75 @@ disqualifying. The candidate was rejected, exact `#926462` source restored, and
 no second ranked attempt launched. Outcome: the requested ≥2-shape kernel
 latency improvement was achieved and banked across four shapes; the public
 leaderboard-geomean objective was not achieved in this bounded cycle.
+
+## Session 59 — 2026-07-29 — Experiment 077: two largest e62 mid shapes, stacked Ov frontier (banked)
+
+Owner goal under `program2.md`: improve measured kernel latency for two mid
+shapes on the leaderboard. Picked the two largest e62 mid shapes by wall time —
+`2×4096` (2123.6us) and `8×2048` (1182.5us) — highest geomean leverage among
+the mid shapes. Promotion rule: optimize public, accept secret (the live
+`#926462` rule).
+
+[O1] verified root `submission.py` SHA-256 `582cde16…b869ff723` = ranked
+`#926462` (exp 070); `popcorn submissions list` confirmed `#926462` live,
+`#927042` (exp 076) `done` but did not displace public (banked, root restored).
+No drift.
+
+[O2] fresh shapediag on the incumbent (`results/077-inc-shapediag.json`) for
+n=2048,4096: the diagonal block `e62_diag128<4>` is dominant (64-69% of device,
+~319 ns/row — the exp 065 overlap serial floor). The removable overheads are
+the panel bounce-copy `src.copy_(dst)` (99us/5.2% on `2×4096`, 66us/6.3% on
+`8×2048` — the exp 076 lever, still present because 076 was not adopted) and the
+`data.clone()` copy-in (44/45us, ~76% of the copy floor).
+
+[I1] Amdahl ceiling: stacking a faster bounce-copy + a faster clone → `2×4096`
+~1.06×, `8×2048` ~1.07×; grid dilution (6 e62 move, 9 flat) → full grid ~1.5-2%
+if both land. FRONTIER class.
+
+[I2] N=2 variants in an isolated worktree from `81e9451`: V1 = exp 076 bounce-copy
+(isolation); V2 = V1 + float4 fast-clone replacing `data.clone()`. Both
+byte-identical (cuBLAS TF32 `bmm` unchanged; clone is a flat contiguous copy).
+
+[I3] free gates PASS (py_compile, `git diff --check`, source-policy scan: 2-arg
+`<<<grid,block>>>` default-stream launches, no banned constructs).
+
+[I3.5]/[I4] `e62stress` on V2 across all six e62 shapes
+(`results/077-v2-stress.json`): N1 6/6 bitwise-equal + baseline-bitwise-equal
+(byte-identical to incumbent), 3× deterministic, active, 0 fallbacks; N2 18/18
+adversarial rows (high-κ 1e6/1e8 + mixed-dynamic 1e10) checker_ok, finite,
+positive diagonal, 0 fallbacks.
+
+[I5] paired grid vs exact `#926462` (`results/077-v2-paired-e62.json`):
+`2×4096` **1.0084×** CI95[1.0070,1.0087], `8×2048` **1.0104×**
+CI95[1.0091,1.0110], `60×1024` **1.0254×**, `16×512` **1.0061×**, `4×1024`
+1.0035×, `2×2048` 0.9970× (noise). 6-e62 geomean ≈ 1.0084×; full-grid projection
+≈ 1.0034×.
+
+[I6]/[I7] the **clone lever is NEUTRAL**: V2 ≈ V1 (exp 076) within per-shape
+noise on every e62 shape. The clone already runs as a Memcpy DtoD at ~76% of the
+copy floor (134MB/44us = 3.05 TB/s; floor ~33.5us); a float4 SM kernel does not
+beat the CUDA copy engine, and its launch overhead nets slightly negative on
+the small 8.4M-element matrices (`2×2048` 0.9970× vs exp 076's 1.0039×).
+Stacking it does not clear LB noise. No bigger lever exists: the diagonal block
+is at the serial floor, the trailing GEMMs are already TF32 (a ~5% sm80 cuBLAS
+fallback slice is not controllable without replacing cuBLAS), the clone is at
+its floor, and the 10-12% idle is the irreducible serial diag-block dependency
+chain.
+
+V2 = PROMOTABLE FRONTIER (byte-identical, N1/N2 clean, both targets faster with
+CI excluding 1.0, below the 2× Amdahl target). Full-grid magnitude ~1.0034× =
+sub-1.5% = public coin-flip that already lost once (exp 074 1.00375× → public
+−3.27%; exp 076 1.0036× → `#927042` did not displace). V2's net performance
+is unchanged from exp 076, so re-ranking is an unchanged-performance retry,
+barred by the non-negotiable no-retry rule.
+
+[N7] fast_p: `fast_0=1/1`, `fast_1=1/1`, `fast_targ(2.0×)=0/1`.
+
+Disposition: **BANK, do not rank.** The requested two-mid-shape kernel latency
+improvement is real and documented (`2×4096` 1.0084×, `8×2048` 1.0104×), but it
+is the exp 076 bounce-copy frontier re-confirmed on the two largest e62 shapes;
+the clone lever is neutral, no bigger lever was found, and the full-grid magnitude
+is a sub-threshold public coin-flip already attempted at `#927042`. V2 is NOT
+adopted; root stays on `#926462`. V2 is preserved as a byte-identical re-usable
+frontier that stacks with any future above-noise change. Lease released.
+`$0` ranked spend; one shapediag + one stress + one pairedgrid Modal run.

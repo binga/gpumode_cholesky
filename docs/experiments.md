@@ -102,12 +102,13 @@ experiment, ranked public geomean for an integration.
 | 073 | | | | | | | | | | ✓ | reusable N1 3× bitwise determinism + N2 guaranteed-SPD cond 1e6/1e8/1e10 stressgrid | harness complete |
 | 074 | | | | ✓ | | | | | ✓ | ✓ | grid **1.00375×**; public 630.403→651.017us, secret 670.301→626.486us | **rejected at LB #926737** |
 | 076 | | | | ✓ | | ✓ | | | ✓ | | replace `_exp062_factor`'s strided `src.copy_(dst)` panel bounce-copy (73.6us / 8.5% of `60×1024`, ~2.6× bandwidth floor) with a **float4 flat grid-stride write-back kernel**; byte-identical L; N4 found geometry decides (per-row blocks V1/V3 **0.98×** on occupancy, flat grid-stride V2 wins); full grid **1.0036×** CI95[1.0030,1.0041] excludes 1.0, `60×1024` **1.0300×**, `8×2048` **1.0118×**, `2×4096` **1.0097×**, 12 shapes flat, 0 fallbacks; N1/N2 clean; Popcorn test 17/17; ranked #927042 submitted | **frontier; ranked #927042 — adoption pending #927042 public geomean read (root restored to #926462)** |
+| 077 | | | | ✓ | | ✓ | | | ✓ | | two largest e62 mid shapes `2×4096`+`8×2048`: stack exp 076 bounce-copy with a **float4 fast-clone** replacing `data.clone()`; byte-identical, N1/N2 clean; `2×4096` **1.0084×**, `8×2048` **1.0104×**, `60×1024` **1.0254×** (CI excl 1.0); clone lever NEUTRAL (Memcpy DtoD at ~76% of copy floor; float4 SM kernel does not beat the copy engine, slightly negative on small shapes from launch overhead); full grid ~1.0034× = sub-1.5% coin-flip already attempted at #927042 | **PROMOTABLE FRONTIER banked; V2 NOT adopted (root stays #926462); no ranked retry (unchanged-performance retry barred)** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 13 | 17 | 8 | 29 | 22 | 12 | 4 | 5 | **9** | 12 |
+| experiments | 13 | 17 | 8 | 30 | 22 | 13 | 4 | 5 | **10** | 12 |
 
 ## What the matrix says
 

@@ -1,0 +1,14 @@
+{
+  "owner": "cursor-agent-exp077",
+  "task": "midshape-2x4096-8x2048-overhead",
+  "baseline_commit": "81e9451",
+  "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "ranked_incumbent": 926462,
+  "target_shapes": ["2x4096", "8x2048"],
+  "promotion_rule": "optimize public, accept secret",
+  "created_at": "2026-07-29T17:15:00Z",
+  "status": "released",
+  "phase": "I7-banked-frontier",
+  "outcome": "PROMOTABLE FRONTIER banked. V2 (exp076 bounce-copy + float4 fast-clone) is byte-identical, N1/N2 clean, both targets faster (2x4096 1.0084x, 8x2048 1.0104x, CI excl 1.0). Clone lever NEUTRAL (Memcpy DtoD already at ~76% of copy floor; float4 SM kernel does not beat the copy engine; slightly negative on small shapes from launch overhead). Full-grid ~1.0034x = sub-1.5% public coin-flip, already attempted as exp076 #927042. No bigger lever found (diag block at serial floor, trailing TF32, clone at floor, idle = serial dep chain). V2 NOT adopted; root stays #926462. No ranked submission (unchanged-performance retry barred).",
+  "released_at": "2026-07-29T17:50:00Z"
+}

@@ -98,6 +98,22 @@ regressed public 630.403→651.017us while improving secret 670.301→626.486us,
 the public-optimization rule restored `#926462`. Do not resubmit the same mask
 composition; it needs a larger independently measured public-positive lever.
 
+**Exp 077 probed the two largest e62 mid shapes (`2×4096`, `8×2048`) and found
+the copy-in clone lever NEUTRAL.** A fresh shapediag
+(`results/077-inc-shapediag.json`) confirmed the diagonal block is 64-69% at
+the ~319 ns/row serial floor and the removable overheads are the exp 076
+bounce-copy (still present) and the `data.clone()` copy-in (44/45us). A float4
+fast-clone kernel does NOT beat torch's contiguous clone (Memcpy DtoD at ~76% of
+the copy floor; the CUDA copy engine wins, and the kernel's launch overhead nets
+slightly negative on the small 8.4M-element matrices). Stacking it with the
+exp 076 bounce-copy gave `2×4096` 1.0084×, `8×2048` 1.0104× (both CI excl 1.0,
+byte-identical, N1/N2 clean) but a full-grid ~1.0034× = the same sub-1.5% public
+coin-flip already attempted at `#927042`. The two largest e62 mid shapes are
+now harvested to their floor on the `Ov` axis: diag = serial, trailing = TF32,
+clone = copy-engine, bounce-copy = the one banked frontier. Do not reopen the
+clone or the diagonal-block levers on these shapes without a new above-noise
+lever to stack with.
+
 **Large-shape diagonal `potrf` is a cuSOLVER wall (exp 070 profile).**
 `results/070-largephase.json` puts the diagonal `potrf` at **64.6% of `1×16384`**
 and **52.2% of `1×32768`**; `070-nocusolver.json` measures cuSOLVER's 4096³ potrf

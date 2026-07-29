@@ -1,0 +1,27 @@
+{
+  "experiment": "077-midshape-2x4096-8x2048",
+  "program": "program2.md",
+  "goal": "Improve measured kernel latency for 2 mid shapes (2x4096, 8x2048) on the leaderboard. Promotion rule: optimize public, accept secret.",
+  "goal_baseline_incumbent": {
+    "id": 926462,
+    "commit": "81e9451",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723"
+  },
+  "lever": "Stack exp 076 panel bounce-copy fusion (banked frontier) with a faster float4 copy-in clone (both byte-identical Ov).",
+  "amdahl_ceiling": "2x4096 ~1.06x, 8x2048 ~1.07x (both removable overheads); grid dilution (6 e62 move, 9 flat) -> full grid ~1.5-2% if both land.",
+  "gates": {
+    "free": "PASS (py_compile, git diff --check, source-policy scan: 2-arg <<<grid,block>>> default-stream launches, no banned constructs)",
+    "N1_determinism": "PASS 6/6 e62 shapes (3x bitwise-equal, baseline_bitwise_equal=True, active, 0 fallbacks)",
+    "N2_adversarial": "PASS 18/18 (high_kappa 1e6/1e8 + mixed_dynamic 1e10, all checker_ok, finite, strict_upper_exact_zero, positive_diagonal, 0 fallbacks)",
+    "paired_latency_e62": "6-e62 geomean 1.0084x. 2x4096 1.0084x CI[1.0070,1.0087], 8x2048 1.0104x CI[1.0091,1.0110], 60x1024 1.0254x, 16x512 1.0061x, 4x1024 1.0035x, 2x2048 0.9970x (noise). Full-grid projection ~1.0034x."
+  },
+  "verdict": {
+    "v2_classification": "PROMOTABLE FRONTIER (byte-identical, N1/N2 clean, both targets faster with CI excluding 1.0, below 2x Amdahl target)",
+    "clone_lever": "NEUTRAL - the float4 fast-clone does NOT beat torch's contiguous clone (Memcpy DtoD at ~76% of copy floor). V2 ~= V1 (exp 076 bounce-copy alone) within per-shape noise. Stacking does not clear LB noise.",
+    "grid_magnitude": "~1.0034x full grid = sub-1.5% = public coin-flip (exp 074 1.00375x lost public -3.27%, exp 076 1.0036x did not displace #926462). Below the reliable-public-win threshold (~1.5-1.7% per exp 070 win)."
+  },
+  "fast_p": {"fast_0": "1/1 (V2 correct+byte-identical)", "fast_1": "1/1 (e62 aggregate faster)", "fast_targ_2x": "0/1 (Amdahl ruled out)"},
+  "ranked_decision": "PENDING - grid is sub-threshold coin-flip on public. Need a bigger lever to justify a ranked slot, OR accept the frontier as a re-usable banked frontier (byte-identical, stacks with any future above-noise change).",
+  "next_action": "Look for a bigger lever on 2x4096/8x2048 (diagonal block is 64-69% but at serial floor; trailing GEMM already TF32; idle 10-12% launch overhead). If none >= 1.5% grid, bank V2 as frontier and do not rank.",
+  "root_state": "submission.py = #926462 (582cde1), unchanged. candidate_v2.py preserved in experiments/077-.../."
+}
