@@ -1,0 +1,38 @@
+{
+  "experiment": "070-lb-stack",
+  "goal": "Improve our PUBLIC leaderboard rank by stacking exp065 (named-barrier overlap, our live LB entry #914341/646.868us) with exp067 (60x1024 e62) + exp069 (write-only mask), which are already in root #926130.",
+  "goal_baseline_incumbent": {
+    "id": 926130,
+    "commit": "0021ec772a1eb228da9c908c22d068ac70af1726",
+    "source_hash": "e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae"
+  },
+  "lb_context": {
+    "our_live_lb_entry": {"id": 914341, "exp": "065", "public_us": 646.868, "secret_us": 692.860, "rank": 32},
+    "neighbors": {"kdpisda_31": 632.306, "badelsteinlelbach_33": 656.445, "ellocsys_30": 596.913},
+    "note": "board ranks by public; #926130 (~651us public) did NOT beat exp065 -> root does not set our rank. exp065 does."
+  },
+  "lever": "Named-barrier overlap (VAR=4) in the e62 128x128 diagonal block kernel, layered onto root (which already has exp067+exp069). exp065 measured VAR=4 at 45.669->39.742us/block (356.8->310.5 ns/row), abs/inv err identical to VAR=3. Disjoint from the 60x1024 dispatch add and the final write-only mask, so all three compose.",
+  "hypothesis": "Public geomean drops below exp065's 646.868us: exp065 overlap lifts the batched e62 shapes (2x2048 1.045x, 2x4096 1.041x, 4x1024 1.038x, 16x512 1.029x, 8x2048 1.028x from exp065's paired grid), and 067+069 add 60x1024 1.31x + the mask win on top. Estimated public ~620-630us -> passes kdpisda into #31.",
+  "candidate": "experiments/070-lb-stack/candidate.py",
+  "construction": "cp experiments/065-midshape-overlap/ship-v1.py; patch --fuzz=3 with diff(baseline-913511 -> root submission.py) = exp067+exp069. Verified: ast OK, 5 exp065 markers, (60,1024):1024 present, 6 exp069 markers, 0 banned stream constructs.",
+  "promotion_rule": "optimize-public-accept-secret (owner-selected 2026-07-29). exp065's secret regressed +5.71%; owner accepted this to grab the public rank before the competition closes today.",
+  "gates": {
+    "free": "PASS (ast parse; all three change-sets present; no banned constructs)",
+    "correctness_familygrid": "PASS results/070-family.json (48/48 checker_ok on 512/1024/2048/4096; VAR=4 active; only pre-existing spectrum/lowrank/1x4096 fallbacks; no new fallbacks)",
+    "full_grid": "PASS results/070-fullgrid.json geomean 1.0171 CI95[1.0167,1.0176] excludes 1.0; 6 e62 shapes 1.037-1.051x; 9 others flat (<=0.06%); 0 new fallbacks; identical counters",
+    "popcorn_test": "PASS #926455 17/17 (cold build, torch 2.12.0+cu130)",
+    "ranked": "PASS #926462 both public+secret splits"
+  },
+  "outcome": {
+    "ranked_submission": 926462,
+    "test_submission": 926455,
+    "official_public_us": 630.403,
+    "prev_public_us": 646.868,
+    "board_rank": 31,
+    "prev_rank": 32,
+    "adopted_root_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "secret_safe": false,
+    "secret_safe_fallback": "#926130 (e187bfa9...282c5fae)"
+  },
+  "next_action": "DONE - adopted #926462 into root; STATUS/experiments/journal/levers updated; committed and pushed."
+}

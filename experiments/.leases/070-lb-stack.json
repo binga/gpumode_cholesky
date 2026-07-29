@@ -1,0 +1,15 @@
+{
+  "owner": "cursor-agent-exp070",
+  "task": "lb-public-stack-065-067-069",
+  "baseline_commit": "0021ec772a1eb228da9c908c22d068ac70af1726",
+  "source_hash": "e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae",
+  "target_region": "e62 diagonal block kernel (named-barrier overlap, VAR=4) layered onto current root (already has exp067 60x1024 + exp069 write-only mask)",
+  "lever": "PUBLIC LB rank. Combine exp065 (#914341, our live LB entry at 646.868us public) named-barrier overlap with exp067+exp069 which are already in root. Disjoint code paths -> stacked public win on the e62 shapes. Owner-selected promotion rule: optimize public, ACCEPT exp065's secret regression (board ranks by public; competition ends today).",
+  "created_at": "2026-07-29T13:00:00Z",
+  "last_heartbeat": "2026-07-29T13:45:00Z",
+  "status": "released",
+  "phase": "O8-adopted",
+  "promotion_rule": "optimize-public-accept-secret (owner-selected 2026-07-29)",
+  "outcome": "ADOPTED ranked #926462 (test #926455 17/17, both splits passed). Official public 646.868->630.403us, board #32->#31. Root SHA 582cde16...b869ff723. NOT secret-safe; #926130 is the secret-safe fallback.",
+  "released_at": "2026-07-29T13:45:00Z"
+}

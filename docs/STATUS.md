@@ -8,27 +8,30 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 
 ## Current ranked winner
 
-- **Current ranked winner `#926130`** (exp 069): `done`, both ranked splits
-  (public+secret) **passed** (test `#926123` 17/17). Replaces the shared
-  `_exp062_factor` final `work.tril_()` (a full-matrix read+rewrite upper mask,
-  measured 145us / 16.8% of `60×1024` and running at ~2.4× its own bandwidth
-  floor) with a **write-only `e62_zero_upper` CUDA kernel** that touches only the
-  strict-upper elements. The L factor is **byte-identical** to `#922201` (lower
-  triangle untouched; both zero the strict upper), so this is a pure,
-  value-independent latency reorchestration that carries to the secret split
-  (exp-067 class, distinct from the exp-065 precision-secret risk). Exact root
-  SHA-256: `e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae`.
-  Adopted on the authoritative same-process Modal paired grid: full 15-shape
-  geomean **1.0136** CI95 [1.0131, 1.0140] (excludes 1.0), driven by the six
-  e62 shapes — `60×1024` **1.0979×** (936.1→852.6us), `8×2048` **1.0478×**,
-  `2×4096` **1.0282×**, `2×2048` **1.0153×**, `4×1024` **1.0139×**, `16×512`
-  **1.0062×** — with all nine other shapes flat (≤0.23% off-target, inside the
-  0.57% A-vs-A floor), **0 new fallbacks**, and identical per-shape residuals
-  and counters (byte-identical evidence). See `experiments/069-midshape-ov/` and
-  `results/069-fullgrid.json`.
-  - Official public/secret geomean is **not exposed by the popcorn CLI** (`Score`
-    `-`); adopted on the paired-grid + byte-identity + passing-ranked-runs
-    evidence per the exp-067 precedent and owner authorization.
+- **Current ranked winner `#926462`** (exp 070): `done`, both ranked splits
+  (public+secret) **passed** (test `#926455` 17/17). **Official public geomean
+  630.403us — verified on the gpumode.com board (rank #31), up from #32 /
+  646.868us** (kdpisda fell to #32 at 632.306us). Exact root SHA-256:
+  `582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723`.
+  - **What it is: the public-LB stack.** Layers exp 065's **named-barrier
+    overlap** (VAR=4) in the e62 128×128 diagonal block kernel onto the current
+    root, which already carried exp 067 (`60×1024` e62 enroll) and exp 069
+    (write-only upper mask). The three touch disjoint code paths, so they
+    compose. Authoritative same-process Modal paired grid vs `#926130`: full
+    15-shape geomean **1.0171** CI95 [1.0167, 1.0176] (excludes 1.0), driven by
+    the six e62 shapes — `2×2048` **1.0507×**, `2×4096` **1.0474×**, `4×1024`
+    **1.0455×**, `16×512` **1.0393×**, `8×2048` **1.0393×**, `60×1024`
+    **1.0369×** — with all nine other shapes flat (≤0.06%, incl. the untouched
+    large shapes), **0 new fallbacks**, identical per-shape counters and
+    accuracy. See `experiments/070-lb-stack/` and `results/070-fullgrid.json`.
+  - **Promotion rule (owner-selected 2026-07-29): optimize public, ACCEPT
+    secret.** exp 065's overlap regressed the secret split (+5.71% on `#914341`),
+    so this winner is **not secret-safe**. It was adopted because the live board
+    ranks by *public* and the competition closed the same day; the owner chose
+    the visible rank over the secret split. `#926130` remains the **secret-safe
+    fallback** (revert to it if final standings recompute on secret). This
+    reverses the exp-065 rejection under the named rule — see `program.md`'s
+    secret-split section.
 
 - **Previous ranked winner `#922201`** (exp 067): `done`, all six ranked runs
   (test/benchmark/leaderboard × public+secret) **passed**. One-line enrollment
@@ -76,12 +79,19 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 Older winners are in `docs/experiments.md` (per experiment) and `journal.md`
 (narrative). The full history was removed from `README.md`; nothing was lost.
 
-## Pending official score (not yet adopted)
+## Secret-safe fallback (not the live ranked winner)
 
-- None. `#926130` was adopted into root (see Current ranked winner above).
+- **`#926130`** (exp 069): public ~651us / secret ~643us, byte-identical to
+  `#922201` on all shapes. This is the last **secret-safe** incumbent; revert
+  root to its SHA-256
+  `e187bfa93b27a8c31f7615e387078bf8692f1b4917b89736282227fa282c5fae` if the goal
+  returns to protecting the secret split (e.g. final standings recompute on
+  secret). See `experiments/069-midshape-ov/`.
 
-## Rejected since the current winner
+## Note on exp 065
 
-- **`#914341`** (exp 065, named-barrier overlap): public **646.868us**
-  (-3.79%) but secret **692.860us** (+5.71%). Not adopted; root stays on
-  `#913511`. See `program.md`'s secret-split section.
+- **`#914341`** (exp 065, named-barrier overlap): public **646.868us** (-3.79%)
+  but secret **692.860us** (+5.71%). Originally rejected (secret). Its overlap
+  kernel was **re-adopted inside exp 070** under the owner's public-optimization
+  rule — the public win it delivers is what set our board rank. See
+  `experiments/070-lb-stack/` and `program.md`'s secret-split section.

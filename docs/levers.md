@@ -91,6 +91,22 @@ pivot is absorbed into a zero column and never reaches `L[n-1][n-1]` (S29). The
 open variant is an in-kernel flag written at *pivot* time, which is both cheaper
 and strictly stronger than the shipped full-diagonal reduction.
 
+**Large-shape diagonal `potrf` is a cuSOLVER wall (exp 070 profile).**
+`results/070-largephase.json` puts the diagonal `potrf` at **64.6% of `1×16384`**
+and **52.2% of `1×32768`**; `070-nocusolver.json` measures cuSOLVER's 4096³ potrf
+at **1566us (~381 ns/row, latency-bound)**. Every exp-064 structural variant (nb
+widths, strided-move v2, trsm-free inverse, upper-block fill) ties or loses the
+shipped driver, and the custom potrf kernels were removed from the source in a
+cleanup. So the only remaining large-shape lever is a **from-scratch overlapped
+blocked FP32 potrf** (exp-065 class, secret-risky, ~1–1.5% geomean ceiling). Do
+not expect a cheap large-shape win.
+
+**exp 065 overlap is now shipped (exp 070).** The named-barrier overlap (VAR=4)
+in the e62 128×128 diagonal block was adopted via the public-LB stack `#926462`
+(with exp 067 + exp 069). Board rank #32→#31 (646.868→630.403us public). It is
+**not secret-safe** (inherits exp 065's +5.71% secret); `#926130` is the
+secret-safe fallback. See `experiments/070-lb-stack/`.
+
 ### Transfer opportunities — build and leaderboard-test queue
 
 Build each opportunity in priority order against the exact current ranked

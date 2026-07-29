@@ -2858,3 +2858,47 @@ byte-identity + passing ranked runs, as authorized.
 **Next levers on these shapes.** The `data.clone()` copy-in (82us efficient
 memcpy on `60×1024`) and `640×512`'s ~144us inter-launch idle (53 launches, not
 an e62 shape) remain unharvested Ov.
+
+## Session 57 — 2026-07-29 — Experiment 070: the public-LB stack → #31 (630.403us)
+
+**The board read that reframed everything.** Pulled the live gpumode board: we
+(`binga`) sat at **#32 / 646.868us** — and that number is **exp 065 (`#914341`)**,
+the named-barrier overlap we *rejected internally* for a +5.71% secret regression.
+The board ranks by **public**, and our adopted lineage (`#913511→#922201→#926130`)
+is built on a *slower public base*: `#926130`'s public (~651us) is actually
+~5us **worse** than exp 065, so it never set our rank. We'd been optimizing
+mid-shapes on the wrong base as far as the public board is concerned.
+
+**Owner picked the large-shape lever first; profiling closed it.** `largephase`
+(`results/070-largephase.json`) put the diagonal `potrf` at **64.6% of 16384**
+and **52.2% of 32768**, cuSOLVER latency-bound at ~340–380 ns/row (1566us per
+4096³ block, `070-nocusolver.json`). Every exp-064 structural variant tied or
+lost the shipped driver, and the custom potrf kernels were **gone from the
+source** (cleanup) — so a large-shape win meant writing a competitive blocked
+FP32 potrf from scratch, secret-risky (exp-065 class), ~1–1.5% ceiling. Not
+tractable in the window. Reported the wall; owner chose the cheap proven stack.
+
+**The stack.** exp 065 (overlap, e62 diag block) + exp 067 (`60×1024` enroll) +
+exp 069 (write-only mask) touch **disjoint** code, so they compose. Built the
+candidate by patching the 067+069 diff onto exp 065's `ship-v1.py`
+(`experiments/070-lb-stack/candidate.py`): ast OK, all three change-sets present,
+0 banned constructs. familygrid (`070-family.json`) 48/48 `checker_ok` with VAR=4
+active, only the pre-existing spectrum/lowrank/`1×4096` fallbacks. Same-process
+paired grid vs root (`070-fullgrid.json`): **1.0171×** CI95[1.0167,1.0176], the
+six e62 shapes 1.037–1.051×, the other nine flat (≤0.06%, large shapes exactly
+untouched), 0 new fallbacks, identical counters/accuracy.
+
+**Ranked and adopted (public rule).** Popcorn test `#926455` 17/17; ranked
+`#926462` both splits passed. The board updated to **#31 / 630.403us** (was #32 /
+646.868us); kdpisda fell to #32 (632.306us). Root advanced to SHA-256
+`582cde16…b869ff723`. This is the **first time the repo optimized public over
+secret by explicit owner choice**: the candidate inherits exp 065's secret
+regression and is **not secret-safe**, adopted only because the live board ranks
+by public and the competition closed the same day. `#926130` is retained as the
+secret-safe fallback. Distinct from every prior adoption, which required a
+secret-neutral-or-better change.
+
+**Why top-30 wasn't reachable here.** The leaders (201–597us) win across the
+whole grid, especially the diagonal potrf we can't crack without a from-scratch
+kernel. This stack banked the one clean rank available from parts already proven;
+the next real jump needs the diagonal wall broken.
