@@ -1,0 +1,38 @@
+{
+  "experiment": "071-e62-mask-v2",
+  "baseline_commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+  "baseline_source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+  "selected_candidate": "candidate_v4_hybrid.py",
+  "selected_source_hash": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36",
+  "classification": "PROMOTABLE FRONTIER",
+  "e62_geomean_speedup": 1.0067636182098771,
+  "filtered_8row_geomean_speedup": 1.0050886529578464,
+  "filtered_8row_ci95": [1.0044538757702992, 1.0057238313007753],
+  "improved_e62_shapes_ci_above_1": ["16x512", "4x1024", "60x1024", "8x2048"],
+  "new_fallbacks": 0,
+  "unchanged_path_context_noise": {
+    "2x2048_percent": 0.1276,
+    "2x4096_percent": 0.0726,
+    "paired_run_max_ava_percent": 0.3317,
+    "interpretation": "both batch-2 shapes execute the preserved shipped row kernel; sub-0.2% cross-module deltas are below the run-level A-vs-A floor"
+  },
+  "artifacts": {
+    "n1_n2": [
+      "results/071-v1-stress.json",
+      "results/071-v2-stress.json",
+      "results/071-v3-stress.json",
+      "results/071-v4-stress.json"
+    ],
+    "kernel_probe": "results/071-maskprobe.json",
+    "verify": "results/071-v4-verify.json",
+    "candidate_family": "results/071-v4-family.json",
+    "baseline_family": "results/071-baseline-family.json",
+    "family_diff": "results/071-family-diff.json",
+    "paired": "results/071-v4-paired.json"
+  },
+  "fast_p": {
+    "fast_0": "4/4",
+    "fast_1": "1/1 whole-path paired finalists",
+    "fast_targ": "0/1 at 2.00x"
+  }
+}

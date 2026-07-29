@@ -1,0 +1,23 @@
+{
+  "baseline": "071-baseline-family.json",
+  "candidate": "071-v4-family.json",
+  "rows_each": 48,
+  "candidate_checker_ok": 48,
+  "baseline_checker_ok": 48,
+  "candidate_fallback_rows": 14,
+  "baseline_fallback_rows": 14,
+  "compared_fields": [
+    "batch",
+    "n",
+    "case",
+    "checker_ok",
+    "active_backend",
+    "counters",
+    "fallbacks",
+    "errors",
+    "message"
+  ],
+  "different_rows": 0,
+  "new_candidate_fallbacks": 0,
+  "passed": true
+}

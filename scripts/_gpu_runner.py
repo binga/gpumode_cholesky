@@ -3029,6 +3029,348 @@ def run_familygrid(filter_ns=None):
     }
 
 
+def _e62_tolerance_fraction(data, output):
+    """Return the exact reconstruction-gate fraction without changing it."""
+    eps = torch.finfo(torch.float32).eps
+    scale = torch.linalg.matrix_norm(data, ord=1, dim=(-2, -1)).clamp_min(
+        torch.finfo(torch.float32).tiny
+    )
+    old_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        reconstruction = output @ output.transpose(-1, -2)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = old_tf32
+    residual = torch.linalg.matrix_norm(
+        reconstruction - data, ord=1, dim=(-2, -1)
+    )
+    allowed = 20.0 * data.shape[-1] * eps * scale
+    return float((residual / allowed).amax().item())
+
+
+def _e62_adversarial_diagonal(batch, n, exponent):
+    """Exact-shape SPD with kappa=10**exponent, cheap even at n=4096.
+
+    The exponent-10 case interleaves the largest and smallest eigenvalues so it
+    is simultaneously near-singular, tiny-diagonal, and mixed-dynamic-range.
+    """
+    values = torch.logspace(
+        0.0, -float(exponent), n, device="cuda", dtype=torch.float32
+    )
+    case = f"high_kappa_1e{exponent}"
+    if exponent == 10:
+        order = torch.empty(n, device="cuda", dtype=torch.long)
+        half = n // 2
+        order[0::2] = torch.arange(half, device="cuda")
+        order[1::2] = torch.arange(n - 1, half - 1, -1, device="cuda")
+        values = values[order]
+        case = "mixed_dynamic_near_singular_1e10"
+    diagonal = values.unsqueeze(0).expand(batch, -1)
+    return torch.diag_embed(diagonal).contiguous(), case
+
+
+def run_e62stress(filter_ns=None):
+    """Program2 N1 determinism + N2 adversarial gate for the e62 region."""
+    base_mod = _load_submission_module("sub_e62_stress_base", "/root/submission.py")
+    cand_mod = _load_submission_module("sub_e62_stress_cand", "/root/candidate.py")
+    e62_specs = [
+        s for s in BENCH_SPECS
+        if (s["batch"], s["n"]) in {
+            (16, 512), (4, 1024), (60, 1024),
+            (2, 2048), (8, 2048), (2, 4096),
+        }
+        and (not filter_ns or s["n"] in filter_ns)
+    ]
+    determinism_rows = []
+    adversarial_rows = []
+
+    for spec in e62_specs:
+        data = generate_input(**spec)
+        pristine = data.clone()
+        before = _counters(cand_mod)
+        first = cand_mod.custom_kernel(data.clone())
+        torch.cuda.synchronize()
+        checker_ok, message = check_implementation(pristine, first)
+        repeat_equal = []
+        for _ in range(2):
+            output = cand_mod.custom_kernel(data.clone())
+            torch.cuda.synchronize()
+            repeat_equal.append(bool(torch.equal(first, output)))
+            del output
+        baseline_output = base_mod.custom_kernel(data.clone())
+        torch.cuda.synchronize()
+        counters = _counter_deltas(before, _counters(cand_mod))
+        fallbacks = {
+            key: value for key, value in counters.items()
+            if key.endswith("_FALLBACKS") and value > 0
+        }
+        active = counters.get("_EXP062_HITS", 0) == 3
+        row = {
+            "batch": spec["batch"],
+            "n": spec["n"],
+            "repeats": 3,
+            "same_input": True,
+            "bitwise_equal": bool(all(repeat_equal)),
+            "repeat_equal_to_first": repeat_equal,
+            "baseline_bitwise_equal": bool(torch.equal(first, baseline_output)),
+            "checker_ok": bool(checker_ok),
+            "message": message,
+            "active_backend": bool(active),
+            "counters": counters,
+            "fallbacks": fallbacks,
+        }
+        row["ok"] = bool(
+            row["bitwise_equal"] and row["baseline_bitwise_equal"]
+            and row["checker_ok"] and row["active_backend"] and not fallbacks
+        )
+        determinism_rows.append(row)
+        print(
+            f"e62stress N1 batch={spec['batch']} n={spec['n']} "
+            f"bitwise={row['bitwise_equal']} baseline_equal={row['baseline_bitwise_equal']} "
+            f"active={active} fallbacks={fallbacks} ok={row['ok']}",
+            flush=True,
+        )
+        del data, pristine, first, baseline_output
+        torch.cuda.empty_cache()
+
+    for spec in e62_specs:
+        for exponent in (6, 8, 10):
+            data, case = _e62_adversarial_diagonal(
+                spec["batch"], spec["n"], exponent
+            )
+            pristine = data.clone()
+            before = _counters(cand_mod)
+            output = cand_mod.custom_kernel(data.clone())
+            torch.cuda.synchronize()
+            checker_ok, message = check_implementation(pristine, output)
+            counters = _counter_deltas(before, _counters(cand_mod))
+            fallbacks = {
+                key: value for key, value in counters.items()
+                if key.endswith("_FALLBACKS") and value > 0
+            }
+            upper_zero = bool(torch.count_nonzero(torch.triu(output, diagonal=1)).item() == 0)
+            finite = bool(torch.isfinite(output).all().item())
+            positive_diagonal = bool(
+                (torch.diagonal(output, dim1=-2, dim2=-1) > 0).all().item()
+            )
+            active = counters.get("_EXP062_HITS", 0) == 1
+            tolerance_fraction = (
+                _e62_tolerance_fraction(pristine, output) if finite else None
+            )
+            row = {
+                "batch": spec["batch"],
+                "n": spec["n"],
+                "case": case,
+                "target_condition": 10 ** exponent,
+                "condition_exponent": exponent,
+                "checker_ok": bool(checker_ok),
+                "message": message,
+                "finite": finite,
+                "strict_upper_exact_zero": upper_zero,
+                "positive_diagonal": positive_diagonal,
+                "tolerance_fraction": tolerance_fraction,
+                "active_backend": bool(active),
+                "counters": counters,
+                "fallbacks": fallbacks,
+            }
+            row["ok"] = bool(
+                row["checker_ok"] and row["finite"]
+                and row["strict_upper_exact_zero"] and row["positive_diagonal"]
+                and row["active_backend"] and not fallbacks
+            )
+            adversarial_rows.append(row)
+            print(
+                f"e62stress N2 batch={spec['batch']} n={spec['n']} case={case} "
+                f"checker={checker_ok} tol_frac={tolerance_fraction} "
+                f"active={active} fallbacks={fallbacks} ok={row['ok']}",
+                flush=True,
+            )
+            del data, pristine, output
+            torch.cuda.empty_cache()
+
+    passed = bool(
+        determinism_rows and adversarial_rows
+        and all(row["ok"] for row in determinism_rows)
+        and all(row["ok"] for row in adversarial_rows)
+    )
+    return {
+        "mode": "e62stress",
+        "device": torch.cuda.get_device_name(0),
+        "determinism": determinism_rows,
+        "adversarial": adversarial_rows,
+        "passed": passed,
+    }
+
+
+def _load_e62_mask_probe():
+    from torch.utils.cpp_extension import load_inline
+
+    cpp = r"""
+void e62_mask_probe_launch(torch::Tensor A, int64_t variant);
+"""
+    cuda = r"""
+#include <torch/extension.h>
+#include <cuda_runtime.h>
+
+__global__ void mask_shipped(float* __restrict__ A, int n) {
+    const long long row_block = blockIdx.x;
+    const int r = (int)(row_block % (long long)n);
+    float* row = A + row_block * (long long)n;
+    for (int c = r + 1 + (int)threadIdx.x; c < n; c += (int)blockDim.x)
+        row[c] = 0.0f;
+}
+
+template<int ROWS>
+__global__ void mask_warp_rows(float* __restrict__ A, int n) {
+    const int warp = (int)threadIdx.x >> 5;
+    const int lane = (int)threadIdx.x & 31;
+    const int groups = (n + ROWS - 1) / ROWS;
+    const long long group = (long long)blockIdx.x;
+    const int b = (int)(group / (long long)groups);
+    const int r = (int)(group % (long long)groups) * ROWS + warp;
+    if (r >= n) return;
+    float* row = A + ((long long)b * n + r) * (long long)n;
+    for (int c = r + 1 + lane; c < n; c += 32) row[c] = 0.0f;
+}
+
+__global__ void mask_tile64(float* __restrict__ A, int n) {
+    const int r0 = (int)blockIdx.y * 64;
+    const int c0 = (int)blockIdx.x * 64;
+    if (c0 + 63 <= r0) return;
+    const int b = (int)blockIdx.z;
+    for (int idx = (int)threadIdx.x; idx < 4096; idx += (int)blockDim.x) {
+        const int r = r0 + (idx >> 6);
+        const int c = c0 + (idx & 63);
+        if (r < n && c < n && c > r)
+            A[((long long)b * n + r) * (long long)n + c] = 0.0f;
+    }
+}
+
+void e62_mask_probe_launch(torch::Tensor A, int64_t variant) {
+    const int batch = (int)A.size(0);
+    const int n = (int)A.size(1);
+    if (variant == 0) {
+        mask_shipped<<<(unsigned int)((long long)batch * n), 256>>>(
+            A.data_ptr<float>(), n);
+    } else if (variant == 1) {
+        mask_warp_rows<8><<<(unsigned int)((long long)batch * ((n + 7) / 8)), 256>>>(
+            A.data_ptr<float>(), n);
+    } else if (variant == 2) {
+        mask_warp_rows<4><<<(unsigned int)((long long)batch * ((n + 3) / 4)), 128>>>(
+            A.data_ptr<float>(), n);
+    } else {
+        const unsigned int tiles = (unsigned int)((n + 63) / 64);
+        mask_tile64<<<dim3(tiles, tiles, (unsigned int)batch), 256>>>(
+            A.data_ptr<float>(), n);
+    }
+    cudaError_t status = cudaGetLastError();
+    TORCH_CHECK(status == cudaSuccess, cudaGetErrorString(status));
+}
+"""
+    return load_inline(
+        name="chol_exp071_mask_probe",
+        cpp_sources=cpp,
+        cuda_sources=cuda,
+        functions=["e62_mask_probe_launch"],
+        extra_cuda_cflags=["-O3", "-Xptxas", "-v"],
+        verbose=True,
+    )
+
+
+def run_e62maskprobe(filter_ns=None):
+    """Same-extension, kernel-only four-way timing for exp071 mask variants."""
+    mod = _load_e62_mask_probe()
+    names = ["shipped", "v1_warp8", "v2_warp4", "v3_tile64"]
+    specs = [
+        s for s in BENCH_SPECS
+        if (s["batch"], s["n"]) in {
+            (16, 512), (4, 1024), (60, 1024),
+            (2, 2048), (8, 2048), (2, 4096),
+        }
+        and (not filter_ns or s["n"] in filter_ns)
+    ]
+    rows = []
+    by_variant = {name: [] for name in names[1:]}
+    for spec in specs:
+        batch, n = spec["batch"], spec["n"]
+        source = torch.ones((batch, n, n), device="cuda", dtype=torch.float32)
+        outputs = []
+        for variant in range(4):
+            output = source.clone()
+            mod.e62_mask_probe_launch(output, variant)
+            torch.cuda.synchronize()
+            outputs.append(output)
+        correct = [bool(torch.equal(outputs[0], output)) for output in outputs]
+        strict_upper_zero = [
+            bool(torch.count_nonzero(torch.triu(output, diagonal=1)).item() == 0)
+            for output in outputs
+        ]
+        lower_untouched = [
+            bool(torch.equal(torch.tril(output), torch.tril(source)))
+            for output in outputs
+        ]
+        del outputs
+
+        buffers = [source.clone(), source.clone()]
+        samples = {name: [] for name in names}
+        for variant in range(4):
+            for _ in range(3):
+                mod.e62_mask_probe_launch(buffers[0], variant)
+        torch.cuda.synchronize()
+        for repeat in range(7):
+            order = range(4) if repeat % 2 == 0 else range(3, -1, -1)
+            for variant in order:
+                durations = []
+                for iteration in range(20):
+                    _l2_flush()
+                    start = torch.cuda.Event(enable_timing=True)
+                    end = torch.cuda.Event(enable_timing=True)
+                    start.record()
+                    mod.e62_mask_probe_launch(buffers[iteration & 1], variant)
+                    end.record()
+                    torch.cuda.synchronize()
+                    durations.append(start.elapsed_time(end) * 1e3)
+                samples[names[variant]].append(_median(durations))
+        medians = {name: _median(values) for name, values in samples.items()}
+        speedups = {
+            name: medians["shipped"] / medians[name] for name in names[1:]
+        }
+        for name, speedup in speedups.items():
+            by_variant[name].append(speedup)
+        row = {
+            "batch": batch,
+            "n": n,
+            "correct_equal_to_shipped": dict(zip(names, correct)),
+            "strict_upper_exact_zero": dict(zip(names, strict_upper_zero)),
+            "lower_triangle_untouched": dict(zip(names, lower_untouched)),
+            "median_us": medians,
+            "speedup_vs_shipped": speedups,
+            "samples_us": samples,
+            "ok": bool(all(correct) and all(strict_upper_zero) and all(lower_untouched)),
+        }
+        rows.append(row)
+        print(
+            f"e62maskprobe batch={batch} n={n} shipped={medians['shipped']:.3f}us "
+            f"v1={medians['v1_warp8']:.3f}us/{speedups['v1_warp8']:.3f}x "
+            f"v2={medians['v2_warp4']:.3f}us/{speedups['v2_warp4']:.3f}x "
+            f"v3={medians['v3_tile64']:.3f}us/{speedups['v3_tile64']:.3f}x "
+            f"ok={row['ok']}",
+            flush=True,
+        )
+        del source, buffers
+        torch.cuda.empty_cache()
+    aggregate = {name: _geomean(values) for name, values in by_variant.items()}
+    winner = max(aggregate, key=aggregate.get)
+    return {
+        "mode": "e62maskprobe",
+        "device": torch.cuda.get_device_name(0),
+        "rows": rows,
+        "aggregate_kernel_speedup": aggregate,
+        "winner": winner,
+        "passed": bool(rows and all(row["ok"] for row in rows)),
+    }
+
+
 # ---------------------------------------------------------------------------
 # largephase (experiment 064): where does each of the two biggest shapes spend
 # its wall clock, phase by phase, and what do the cheap structural variants of
@@ -3558,6 +3900,10 @@ def main():
         result = run_pairedgrid(filter_ns)
     elif mode == "familygrid":
         result = run_familygrid(filter_ns)
+    elif mode == "e62stress":
+        result = run_e62stress(filter_ns)
+    elif mode == "e62maskprobe":
+        result = run_e62maskprobe(filter_ns)
     else:
         result = run_verify(filter_ns)
     print("RESULT_JSON:" + json.dumps(result), flush=True)

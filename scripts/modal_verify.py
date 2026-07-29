@@ -129,6 +129,8 @@ def main() -> int:
             "mxprobe",
             "pairedgrid",
             "familygrid",
+            "e62stress",
+            "e62maskprobe",
             "shapediag",
             "largephase",
             "midprobe",

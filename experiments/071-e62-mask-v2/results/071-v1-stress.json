@@ -1,0 +1,471 @@
+{
+  "mode": "e62stress",
+  "device": "NVIDIA B200",
+  "determinism": [
+    {
+      "batch": 16,
+      "n": 512,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=5.5; batch=16; n=512",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=3.22; batch=4; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=3.31; batch=60; n=1024",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 2048,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=1.65; batch=2; n=2048",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 8,
+      "n": 2048,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=1.74; batch=8; n=2048",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 4096,
+      "repeats": 3,
+      "same_input": true,
+      "bitwise_equal": true,
+      "repeat_equal_to_first": [
+        true,
+        true
+      ],
+      "baseline_bitwise_equal": true,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.893; batch=2; n=4096",
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 3
+      },
+      "fallbacks": {},
+      "ok": true
+    }
+  ],
+  "adversarial": [
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00195; batch=16; n=512",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 9.765625145519152e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00293; batch=16; n=512",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 0.0001464843808207661,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 16,
+      "n": 512,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00195; batch=16; n=512",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 9.765625145519152e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=4; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 7.324219041038305e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=4; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 4,
+      "n": 1024,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=4; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.00146; batch=60; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 7.324219041038305e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=60; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 60,
+      "n": 1024,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=60; n=1024",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 2048,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000732; batch=2; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 3.662109520519152e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 2048,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000488; batch=2; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 2.441406286379788e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 2048,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=2; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 8,
+      "n": 2048,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000732; batch=8; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 3.662109520519152e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 8,
+      "n": 2048,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000488; batch=8; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 2.441406286379788e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 8,
+      "n": 2048,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000977; batch=8; n=2048",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 4.882812572759576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 4096,
+      "case": "high_kappa_1e6",
+      "target_condition": 1000000,
+      "condition_exponent": 6,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000366; batch=2; n=4096",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 1.831054760259576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 4096,
+      "case": "high_kappa_1e8",
+      "target_condition": 100000000,
+      "condition_exponent": 8,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000366; batch=2; n=4096",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 1.831054760259576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    },
+    {
+      "batch": 2,
+      "n": 4096,
+      "case": "mixed_dynamic_near_singular_1e10",
+      "target_condition": 10000000000,
+      "condition_exponent": 10,
+      "checker_ok": true,
+      "message": "scaled_reconstruction_residual=0.000366; batch=2; n=4096",
+      "finite": true,
+      "strict_upper_exact_zero": true,
+      "positive_diagonal": true,
+      "tolerance_fraction": 1.831054760259576e-05,
+      "active_backend": true,
+      "counters": {
+        "_EXP062_HITS": 1
+      },
+      "fallbacks": {},
+      "ok": true
+    }
+  ],
+  "passed": true
+}

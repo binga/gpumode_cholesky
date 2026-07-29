@@ -1,0 +1,91 @@
+{
+  "experiment": "071-e62-mask-v2",
+  "owner": "/root/e62_mask",
+  "goal": "Bounded program2 shared e62 output-mask search; improve latency on at least two shapes, prioritizing 60x1024 and 8x2048, against exact ranked incumbent #926462.",
+  "goal_baseline_incumbent": {
+    "id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "public_score_us": 630.4029288615614
+  },
+  "current_incumbent": {
+    "id": 926462,
+    "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
+    "verified_at": "2026-07-29T14:08:00Z"
+  },
+  "worktree": "/Users/phani/projects/gpumode_cholesky/.codex/worktrees/exp071-e62-mask-v2",
+  "branch": "codex/exp071-e62-mask-v2",
+  "lease": "released 2026-07-29T14:40:00Z (experiments/.leases/071-e62-mask-v2.json removed)",
+  "target_region": "shared e62_zero_upper output mask on 16x512, 4x1024, 60x1024, 2x2048, 8x2048, 2x4096",
+  "lever": "Reduce exp069 one-CTA-per-row launch/scheduling overhead without changing its write-only strict-upper semantics.",
+  "hypothesis": "Grouping rows by warp or writing 64x64 output tiles cuts tiny-CTA scheduling overhead while preserving the exact lower triangle and default-stream legality.",
+  "amdahl_ceiling": {
+    "60x1024": "about 1.08x from exp069's 936.1->852.6us and 145us torch-mask measurement, assuming the current mask is about 61.5us and can be eliminated entirely",
+    "8x2048": "below the 60x1024 ceiling; exp069's whole-path mask win was 1.0478x",
+    "classification_implication": "The 2.00x research target is structurally unreachable for this sub-lever; a reproducible multi-shape positive is a FRONTIER/PROMOTABLE FRONTIER."
+  },
+  "variants": [
+    {
+      "id": "v1_warp8",
+      "file": "candidate_v1_warp8.py",
+      "source_hash": "0fc94e230d1ab1dee6ba02bc39740c3da2dc9358a7b1d7d2def7e496b713771e",
+      "mechanism": "256-thread CTA, one warp per row, eight rows per block (8x fewer CTAs)"
+    },
+    {
+      "id": "v2_warp4",
+      "file": "candidate_v2_warp4.py",
+      "source_hash": "b45baf9ecc14afe206aff82450c52ec9078294eea92b939ac1d23d5780ad6824",
+      "mechanism": "128-thread CTA, one warp per row, four rows per block (4x fewer CTAs, smaller residency footprint)"
+    },
+    {
+      "id": "v3_tile64",
+      "file": "candidate_v3_tile64.py",
+      "source_hash": "c4791a643a12c0e0fff7741dce19c7db29a34467f1d89ee46bb5430b057078e3",
+      "mechanism": "256-thread 64x64 output tiles with diagonal predicates and below-diagonal tile culling"
+    },
+    {
+      "id": "v4_hybrid",
+      "file": "candidate_v4_hybrid.py",
+      "source_hash": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36",
+      "mechanism": "v2 warp4 on 16x512, 4x1024, 60x1024, and 8x2048; shipped row kernel on batch-2 n>=2048 siblings",
+      "status": "selected finalist"
+    }
+  ],
+  "gates": {
+    "free": "PASS: AST/py_compile, whitespace, strict-upper coverage properties, candidate diff audit, default-stream policy; exact baseline hash verified",
+    "determinism_n1": "PASS all variants: results/071-v{1,2,3}-stress.json; each 6/6 shapes, 3 same-input outputs bitwise equal and exact-baseline equal, active e62, 0 fallbacks",
+    "adversarial_n2": "PASS all variants: results/071-v{1,2,3}-stress.json; each 18/18 shape/cond rows at exponents 6/8/10, cond10 interleaved mixed range/tiny diagonal, checker_ok, exact upper zero, active e62, 0 fallbacks, max tolerance fraction 0.01465%",
+    "kernel_probe": "PASS results/071-maskprobe.json; same-extension aggregate speedups v1=1.24871x, v2=1.24978x, v3=1.04989x; v2 selected (priority 8x2048 1.110x, 60x1024 1.895x); v1 banked tied, v3 rejected",
+    "verify": "PASS results/071-v4-verify.json: 24/24 official-checker specs",
+    "familygrid": "PASS by baseline attribution: results/071-v4-family.json and 071-baseline-family.json are mechanically identical across all 48 ordered rows for checker_ok, active backend, counters, fallbacks, errors, and checker message; 48/48 checker_ok and zero new fallback rows",
+    "paired_e62": "PASS results/071-v4-paired.json: exact-source same-process 8-row filtered geomean 1.00509 CI95[1.00445,1.00572]; exact six e62 geomean 1.00676; all rows checker_ok and zero new fallbacks"
+  },
+  "selected_candidate": {
+    "id": "v4_hybrid",
+    "file": "experiments/071-e62-mask-v2/candidate_v4_hybrid.py",
+    "source_hash": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36"
+  },
+  "promotion_rule": "No integration or Popcorn action in this worker. Return only a correct same-process paired multi-shape frontier to the parent; outer campaign applies the owner-selected optimize-public/accept-secret rule and all integration gates.",
+  "consumed": {
+    "variants": "3 sampled + 1 v2 refinement",
+    "modal_runs": 9,
+    "retries": 0
+  },
+  "fast_p": {
+    "fast_0": "4/4 correct including the refinement (all N1/N2; finalist also verify/family)",
+    "fast_1": "1/1 whole-path paired finalist faster on the exact six-shape e62 aggregate; initial kernel-probe batch 3/3 aggregate kernel-faster",
+    "fast_targ": "0/1 whole-path paired finalist reaches 2.00x (Amdahl-impossible for this lever)",
+    "research_target": 2.0
+  },
+  "classification": "PROMOTABLE FRONTIER — correct, deterministic, adversarial-clean, and reproducibly 1.00676x on the six-shape e62 paired aggregate; improves four shapes; parent retains the full 15-shape integration gate",
+  "shape_results": [
+    {"shape": "16x512", "control_us": 284.5519930124283, "candidate_us": 282.3200076818466, "speedup": 1.0057652823991357, "ci95": [1.0032557137140263, 1.0130510930528243]},
+    {"shape": "4x1024", "control_us": 509.5840096473694, "candidate_us": 509.0920031070709, "speedup": 1.0009507063680116, "ci95": [1.000345326857719, 1.0013993964103558]},
+    {"shape": "60x1024", "control_us": 821.5960115194321, "candidate_us": 794.4120019674301, "speedup": 1.034057886347612, "ci95": [1.033307475662865, 1.034370086362781]},
+    {"shape": "2x2048", "control_us": 995.295986533165, "candidate_us": 996.755987405777, "speedup": 0.9987238672875798, "ci95": [0.9976052506154536, 0.9990848007800577], "interpretation": "unchanged shipped row-kernel path; 0.128% cross-module context delta, below the run's 0.33% maximum A-vs-A floor"},
+    {"shape": "8x2048", "control_us": 1182.2800040245056, "candidate_us": 1179.8640191555023, "speedup": 1.0022612718616704, "ci95": [1.0013248814652822, 1.0025665942956898]},
+    {"shape": "2x4096", "control_us": 2124.6559619903564, "candidate_us": 2125.9440183639526, "speedup": 0.9992738388387566, "ci95": [0.9990290969794459, 0.9995823424783827], "interpretation": "unchanged shipped row-kernel path; 0.073% cross-module context delta, below the run's 0.33% maximum A-vs-A floor"}
+  ],
+  "next_action": "Parent may integrate candidate_v4_hybrid.py onto the exact incumbent and run the full 15-shape gate; this worker must not integrate root or submit Popcorn."
+}
