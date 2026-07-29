@@ -110,6 +110,15 @@ Each of these cost a session or a paid gate.
    top-line geomean across days. This is the measurement-side twin of failure
    mode 1 (verify the incumbent against reality, not against a stale record).
 
+8. **A bit-identical latency reorchestration can still invert public and secret
+   leaderboard movement.** Exp 074 changed only strict-upper zeroing, improved
+   four exact shapes and the paired 15-shape geomean by 1.00375×, yet ranked
+   public regressed 3.27% while secret improved 6.54%. Correctness, N1/N2, cold
+   build, and same-process timing qualify a candidate; they do not predict a
+   sub-percent aggregate across hidden split composition and runner variance.
+   Name the promotion rule before spending, monitor both splits, and restore
+   mechanically when the optimized split loses.
+
 ---
 
 # Part 2 — Transferred from the QR project

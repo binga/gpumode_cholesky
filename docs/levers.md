@@ -52,7 +52,7 @@ every stage-specific control exceeds 2x.
 | 256×128  | ✗ | ✗ | ✗ split32 superseded (S28) | **✓ eight-warp blocked-16 CUDA** (S39, 2.216× stage control) | **✓ FP32 rank-16** (S39) | ✗ (tf32x3) | TBD | TBD | ✗ superseded (S39) |
 | 64×256   | ✗ (S15) | ✗ | ✗ superseded (S21) | **✓ packed-tile CUDA/WMMA** (S41, 2.018×) | **✓ FP32 rank-16** (S41) | **✓ TF32 WMMA + FP32 retry** (S41) | ✗ | ✗ | ✗ superseded (S41) |
 | 16×512   | ✗ | TBD | **✓** (S21, panel-inner 64×64); fused resident panel locally gated but B200-pending (S45/exp049) | ✗ full-resident cluster, one-CTA persistent, atomic CTA groups, and rank-128 superpanels (S45; best 0.697×) | **✓** (S21) | ✗ (tf32x3) | TBD | TBD | ✓ (S9→S15 in-path) |
-| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | ✗ e62_diag128 enroll (exp066, **0.606× / 1.651× slower** — occupancy: batch 640 = ~4.3 waves; do NOT re-enroll) | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
+| 640×512  | ✗ (S5/S15) | ✗ (S5) | ✓ panel-inner (S21) + **✓ CUDA rank-4 diagonal micro** (S40, 1.098×) + **✓ fused resident panel** (S43, 1.098×) | ✗ e62_diag128 enroll (exp066, **0.606×**) and one-CTA launch fusion (exp072, **0.748–0.851×**) — occupancy/serialization; do NOT reopen | **✓** (S21) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 4×1024   | ✗ | ✗ (S15) | **✓** (S20, panel-inner 64×64) | ✗ CUDA micro not graph-capturable (S40b); cooperative + cluster/DSM persistent paths rejected (S44/exp048, best dense 1.167× and family-invalid) | **✓** (S20) | **✓** TF32 (S15); ✗ persistent FP16 trailing (S44/exp048, 0.883×) | TBD | TBD | ✓ (in-path S15) |
 | 60×1024  | ✗ (S15) | ✗ (S4) | ✓ (S15, 1.99×) + fused resident panel + merged diag step (S43, 1.092×, superseded by e62 pending) | **✓ CUDA rank-4 diagonal micro** (S40, 1.106×); **◐ e62_diag128 enroll** (exp067, paired **1.2426×** vs the S43 route; ranked #922201 public+secret passed, adoption PENDING secret score) | **✓** (S15) | **✓** (S15) | TBD | TBD | ✓ (in-path S15) |
 | 2×2048   | ✗ | **✓** (S4) | ✗ (S15, 0.65×) | ✗ (S35, cluster 0.063–0.595×) | ✗ (S15/S35) | TBD | TBD | TBD | TBD |
@@ -90,6 +90,13 @@ to the last diagonal entry is invalid — `finite/Inf == 0`, so an overflowed
 pivot is absorbed into a zero column and never reaches `L[n-1][n-1]` (S29). The
 open variant is an in-kernel flag written at *pivot* time, which is both cheaper
 and strictly stronger than the shipped full-diagonal reduction.
+
+**Exp 071 banked a narrower mask frontier but exp 074 rejected it at LB.** Four
+row-owned warps per CTA improved `16×512`, `4×1024`, `60×1024`, and `8×2048`
+with bit-identical output; the full grid was 1.00375×. Ranked `#926737` then
+regressed public 630.403→651.017us while improving secret 670.301→626.486us, so
+the public-optimization rule restored `#926462`. Do not resubmit the same mask
+composition; it needs a larger independently measured public-positive lever.
 
 **Large-shape diagonal `potrf` is a cuSOLVER wall (exp 070 profile).**
 `results/070-largephase.json` puts the diagonal `potrf` at **64.6% of `1×16384`**

@@ -1,0 +1,28 @@
+{
+  "submission_id": 926737,
+  "leaderboard": "cholesky",
+  "gpu": "B200",
+  "status": "succeeded",
+  "source_hash": "26dfc03f86fc04fbf998b7605998c62ea77a34876847682599e4d7ce5f8f8f36",
+  "public": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "geomean_s": 0.0006510174839528274,
+    "geomean_us": 651.0174839528274
+  },
+  "secret": {
+    "test_passed": true,
+    "benchmark_passed": true,
+    "leaderboard_passed": true,
+    "geomean_s": 0.0006264858643719003,
+    "geomean_us": 626.4858643719003
+  },
+  "control": {
+    "submission_id": 926462,
+    "public_geomean_us": 630.4029288615614,
+    "secret_geomean_us": 670.3010407048192
+  },
+  "decision": "rejected: public geomean regressed under optimize-public-accept-secret; root restored to exact control",
+  "terminal_after_s": 185
+}

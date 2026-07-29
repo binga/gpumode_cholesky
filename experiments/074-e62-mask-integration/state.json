@@ -6,7 +6,8 @@
     "ranked_id": 926462,
     "commit": "1ec14b72694dceed3d91cbf5ecff303c4ca5be80",
     "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723",
-    "public_geomean_us": 630.4029288615614
+    "public_geomean_us": 630.4029288615614,
+    "secret_geomean_us": 670.3010407048192
   },
   "candidate": {
     "source": "submission.py (byte-identical to experiments/071-e62-mask-v2/candidate_v4_hybrid.py)",
@@ -19,7 +20,12 @@
     "full_grid": "PASS results/074-fullgrid.json: 15/15, zero new fallbacks, geomean 1.003750x CI95[1.002814,1.004687]; four changed shapes CI95 above parity",
     "cold_build": "PASS results/074-cold-verify.json: clean Modal sandbox 57/57; image 1.22s; end-to-end about 91s < 288s (80% of observed 360s service boundary)",
     "popcorn_test": "PASS #926716 17/17 on exact SHA-256 26dfc03f...8f8f36",
-    "ranked": "PENDING"
+    "ranked": "PASS #926737 both splits; public 651.017us (regressed from 630.403us), secret 626.486us (improved from 670.301us); rejected under optimize-public-accept-secret"
   },
-  "next_action": "Reverify origin/main and ranked slot; submit exactly one leaderboard candidate and monitor public+secret terminal results."
+  "decision": "REJECTED_AT_LEADERBOARD",
+  "root_source_restored": {
+    "ranked_id": 926462,
+    "source_hash": "582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723"
+  },
+  "next_action": "Preserve the four-shape frontier for a future differently composed candidate; do not adopt exp074 because public geomean regressed."
 }

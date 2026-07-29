@@ -5072,29 +5072,17 @@ void e62_diag128_launch_var(torch::Tensor A, torch::Tensor Dinv,
     e62_run(A, Dinv, n, j, Prof, (int)variant);
 }
 
-// Experiment 071 refinement: four rows per 128-thread block on the four shapes
-// where the same-extension probe wins. The batch-2 n>=2048 siblings keep the
-// shipped one-block-per-row geometry, which was 0.998x/0.893x under warp4.
-// Both kernels preserve the exact write-only strict-upper semantics.
+// Experiment 069 (Ov lever / QR-ladder lever 7): write-only masking of the
+// strict upper triangle of a (batch, n, n) contiguous fp32 tensor. Replaces
+// torch's `tril_()`, which is memory-bound at ~2.4x its own bandwidth floor on
+// 60x1024 (measured 145us) because it reads AND rewrites every element. This
+// kernel WRITES ONLY the strict-upper elements (col > row) and never touches
+// the lower triangle at all, so it moves ~n^2/2 bytes instead of ~2*n^2 and is
+// arithmetic-neutral: the L factor in the lower triangle is byte-identical.
+// One block per (matrix, row); threads stride over that row's upper columns.
 __global__ void e62_zero_upper_kernel(float* __restrict__ A, int n)
 {
-    const int warp = (int)threadIdx.x >> 5;
-    const int lane = (int)threadIdx.x & 31;
-    const int row_groups = (n + 3) >> 2;
-    const long long group = (long long)blockIdx.x;
-    const int b = (int)(group / (long long)row_groups);
-    const int r = (int)(group % (long long)row_groups) * 4 + warp;
-    if (r >= n) return;
-    float* __restrict__ rowptr =
-        A + ((long long)b * (long long)n + r) * (long long)n;
-    for (int c = r + 1 + lane; c < n; c += 32) {
-        rowptr[c] = 0.0f;
-    }
-}
-
-__global__ void e62_zero_upper_row_kernel(float* __restrict__ A, int n)
-{
-    const long long row_block = blockIdx.x;
+    const long long row_block = blockIdx.x;   // = b * n + r
     const int r = (int)(row_block % (long long)n);
     float* __restrict__ rowptr = A + row_block * (long long)n;
     for (int c = r + 1 + (int)threadIdx.x; c < n; c += (int)blockDim.x) {
@@ -5106,17 +5094,10 @@ void e62_zero_upper_launch(torch::Tensor A)
 {
     const int64_t batch = A.size(0);
     const int64_t n = A.size(1);
-    if (batch <= 0 || n <= 0) return;
-    if (batch == 2 && n >= 2048) {
-        const long long blocks = (long long)batch * (long long)n;
-        e62_zero_upper_row_kernel<<<(unsigned int)blocks, 256>>>(
-            A.data_ptr<float>(), (int)n);
-    } else {
-        const long long blocks =
-            (long long)batch * (long long)((n + 3) >> 2);
-        e62_zero_upper_kernel<<<(unsigned int)blocks, 128>>>(
-            A.data_ptr<float>(), (int)n);
-    }
+    const long long blocks = (long long)batch * (long long)n;
+    if (blocks <= 0) return;
+    e62_zero_upper_kernel<<<(unsigned int)blocks, 256>>>(
+        A.data_ptr<float>(), (int)n);
 }
 """
 
@@ -5132,7 +5113,7 @@ def _load_exp062():
         from torch.utils.cpp_extension import load_inline
 
         _EXP062 = load_inline(
-            name="chol_exp071_mask_hybrid",
+            name="chol_exp063_diag128_v7",
             cpp_sources=(
                 "void e62_diag128_launch(torch::Tensor, torch::Tensor, "
                 "int64_t, int64_t, torch::Tensor);\n"

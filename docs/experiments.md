@@ -97,12 +97,16 @@ experiment, ranked public geomean for an integration.
 | 067 | ✓ | | | ✓ | | | | | | | e62_diag128 enroll 60x1024: paired **1.2426–1.3101x** (1186/1253→956us), 14 other shapes flat, 0 new fallbacks, more accurate (resid 3.31 vs 9.33); ranked #922201 public+secret passed; re-confirm grid **1.0180x** CI95 excludes 1.0; Popcorn test 17/17 | **adopted (current best #922201); pure-latency win carries to secret, distinct from #914341 precision class** |
 | 068 | | | | ✓ | ✓ | | | | | ✓ | tcgen05 GEMM via **ThunderKittens** (level_06 class, 293 TFLOPs @4096³ = TK's published number); **0.19–0.28× cuBLAS bf16, 0.36–0.56× cuBLAS tf32** on 4 large-n/trailing shapes; correct (rel_err 0.2–0.3%) | **rejected: GEMM primitive not the bottleneck. TK's production ceiling (~1540 TF) only ties cuBLAS bf16 (1330–1588 measured), which is reachable via torch.matmul and still loses to shipped TF32/MXFP8 trailing. Closes lever #3** |
 | 069 | | | | ✓ | | | | | ✓ | | replace `_exp062_factor`'s full-matrix `tril_()` (145us / 16.8% of `60×1024`, ~2.4× its bandwidth floor) with a **write-only `e62_zero_upper` CUDA kernel**; byte-identical L; grid **1.0136×** CI95[1.0131,1.0140] excludes 1.0; `60×1024` **1.0979×**, `8×2048` **1.0478×**, `2×4096` **1.0282×**, `2×2048`/`4×1024`/`16×512` 1.014–1.015×; 0 new fallbacks; ranked #926130 public+secret passed; test #926123 17/17 | **adopted (current best #926130); first clean `Ov` measurement — value-independent, carries to secret (exp-067 class)** |
+| 071 | | | | ✓ | | | | | ✓ | | warp4 strict-upper mask: four shapes faster, led by `60×1024` **1.0341×**; six-e62 geomean **1.00676×** | frontier; rejected via 074 |
+| 072 | | | | ✓ | | ✓ | | | ✓ | | 640×512 one-CTA launch fusion **0.748–0.851×** across three correct variants | **exhausted** |
+| 073 | | | | | | | | | | ✓ | reusable N1 3× bitwise determinism + N2 guaranteed-SPD cond 1e6/1e8/1e10 stressgrid | harness complete |
+| 074 | | | | ✓ | | | | | ✓ | ✓ | grid **1.00375×**; public 630.403→651.017us, secret 670.301→626.486us | **rejected at LB #926737** |
 
 ## Column totals — where effort has gone
 
 | | Rt | Bk | Tr | CU | LP | Fu | Gr | Pe | Ov | Hn |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| experiments | 13 | 17 | 8 | 25 | 22 | 10 | 4 | 5 | **5** | 10 |
+| experiments | 13 | 17 | 8 | 28 | 22 | 11 | 4 | 5 | **8** | 12 |
 
 ## What the matrix says
 
@@ -111,16 +115,17 @@ experiment, ranked public geomean for an integration.
    product measured at 3,466 TFLOP/s, FP16 panel apply at ~1,766 TFLOP/s.
    Another precision experiment is very unlikely to pay.
 
-2. **`Ov` finally has a clean win (exp 069).** For a long time the lever with the
+2. **`Ov` has one shipped win and one banked frontier (exps 069/071).** For a long time the lever with the
    largest modelled payoff (7–23% geomean, `levers.md` lever 7) had zero clean
    direct measurements — exp 031 refuted on a free gate, exp 027 regressed 0.336x,
    exps 017/061 only touched overhead as a side effect. Exp 069 landed the first
    clean one: replacing `_exp062_factor`'s inefficient full-matrix `tril_()` with
    a write-only strict-upper CUDA mask lifted the six e62 shapes (grid 1.0136×,
    `60×1024` 1.098×) with byte-identical output. The remaining `Ov` on those
-   shapes is the `data.clone()` copy-in (82us on `60×1024`, an efficient memcpy)
-   and, on `640×512`, ~144us of inter-launch idle across 53 launches — still
-   untried.
+   shapes is the `data.clone()` copy-in (82us on `60×1024`, an efficient memcpy).
+   Exp 071's warp4 mask improved four shapes locally but was rejected through
+   exp 074 when the public split regressed. Exp 072 tried `640×512`'s ~144us of
+   inter-launch idle directly; serializing the work into one CTA lost 15–25%.
 
 3. **`Pe` is 5-for-5 negative.** Persistent, cooperative, cluster, and DSM paths
    have never produced a shippable win (028, 038, 040, 048, 049; best 0.697x
@@ -147,13 +152,15 @@ experiment, ranked public geomean for an integration.
    keep the split32 + cuBLAS-trailing route. This also means the two shapes are
    individually exhausted for this lever — do not re-enroll either.
 
-6. **Device-time wins do not automatically survive the secret split.** Exp 065
+6. **Device-time wins do not automatically predict either leaderboard split.** Exp 065
    is the cleanest instance on the board: 1.149x on the kernel, 1.0122 on the
    full grid with CI95 excluding 1.0, identical counters, zero fallbacks,
    correctness bit-identical to the control — and the secret split still
-   regressed 5.71% while public improved 3.79%. Three experiments now show this
-   (022, 035, 065), and 035 was *adopted* on the same signature 065 was rejected
-   on. Read `program.md`'s secret-split section before spending a ranked slot.
+   regressed 5.71% while public improved 3.79%. Exp 074 produced the inverse:
+   public regressed 3.27% while secret improved 6.54%, despite bit-identical
+   arithmetic and a 1.00375× paired grid. Four experiments now show split
+   inversion (022, 035, 065, 074). Read `program.md`'s secret-split section
+   before spending a ranked slot.
 
 ---
 
@@ -220,3 +227,7 @@ experiment, ranked public geomean for an integration.
 | 068 | tcgen05 Blackwell GEMM built on **ThunderKittens 2.0** (educational_b200/level_06 class: tcgen05 + TMA, FP32 TMEM accumulate, generalized to M×N×K), compiled via `load_inline` on cuda13-devel + torch 2.13.0+cu130 at `sm_100a`; benchmarked vs `torch.matmul` bf16/tf32 on 4 large-n/trailing shapes | TK **293 TFLOPs @4096³** (= TK's published level_06 number), **0.19–0.28× cuBLAS bf16, 0.36–0.56× cuBLAS tf32**; correct (rel_err 0.2–0.3%). TK production ceiling (~1540) only ties cuBLAS bf16 (1330–1588 measured) which loses to shipped TF32/MXFP8 trailing | — | **rejected: the GEMM primitive is not the bottleneck (serial diagonal factorization is); a faster trailing GEMM cannot move the geomean. Toolchain recipe banked. Closes lever #3** |
 | 069 | `Ov` lever (QR-ladder lever 7). Fresh incumbent shapediag showed `_exp062_factor`'s final `work.tril_()` costing 145us (16.8%) on `60×1024` — a full-matrix read+rewrite at ~2.4× its bandwidth floor. Replaced with a **write-only `e62_zero_upper` CUDA kernel** (one block per matrix-row; threads stride the strict-upper columns writing 0, never touching the lower triangle). Kept `data.clone()` copy-in so the factorization reads/arithmetic are unchanged → L byte-identical. Shared across the six e62 shapes | same-process paired full grid **1.0136×** CI95[1.0131,1.0140] excludes 1.0; `60×1024` **1.0979×** (936.1→852.6us), `8×2048` **1.0478×**, `2×4096` **1.0282×**, `2×2048` **1.0153×**, `4×1024` **1.0139×**, `16×512` **1.0062×**; nine other shapes flat (≤0.23% off-target, inside 0.57% A-vs-A); identical residuals + counters, 0 new fallbacks; six-family checker_ok on 512/1024/2048/4096; test #926123 17/17 | #926130 | **adopted (current best); first clean `Ov` win — value-independent byte-identical latency reorchestration, carries to secret (exp-067 class, not exp-065 precision risk)** |
 | 070 | **public-LB stack.** Owner goal: improve the *public* board rank before the competition closed. Profiling (`results/070-largephase.json`, `070-nocusolver.json`) confirmed the large-shape diagonal `potrf` (52–65%) is a cuSOLVER wall with no custom kernel left in the source to build on → no tractable large-shape win. Pivoted to combining exp 065's **named-barrier overlap** (VAR=4 in the e62 128×128 diagonal block, our live LB entry `#914341`'s public win) with exp 067 + exp 069, which were already in root. Disjoint code paths → composes. Built by patching the 067+069 diff onto exp 065's `ship-v1.py` | same-process paired full grid vs `#926130` **1.0171×** CI95[1.0167,1.0176]; six e62 shapes `2×2048` **1.0507×**, `2×4096` **1.0474×**, `4×1024` **1.0455×**, `16×512`/`8×2048` **1.0393×**, `60×1024` **1.0369×**; nine others flat (≤0.06%, large shapes untouched); 0 new fallbacks, identical counters/accuracy; six-family 48/48 checker_ok; test #926455 17/17. **Official public 646.868→630.403us, board rank #32→#31** | #926462 | **adopted as ranked winner under owner's public-optimization rule; NOT secret-safe (inherits exp 065's +5.71% secret). `#926130` kept as secret-safe fallback** |
+| 071 | bounded N=3 search over strict-upper mask launch geometry. Warp4 (four row-owned warps per 128-thread CTA) won the kernel probe; the v4 hybrid retained the incumbent row kernel for batch-2 n≥2048 | N1 3× bitwise and N2 18/18 per variant; family 48/48; four whole-shape CIs above parity: `16×512` 1.00577×, `4×1024` 1.00095×, `60×1024` 1.03406×, `8×2048` 1.00226×; six-e62 geomean 1.00676× | — (integrated in 074) | **promotable frontier; final LB rejection via 074** |
+| 072 | `640×512` launch-overhead fusion: three race-free one-CTA-per-matrix variants after rejecting an initial multi-CTA data race on audit | V1/V2/V3 all N1/N2-correct but 0.8495× / 0.8509× / 0.7478×; ncu unavailable (`LibraryNotLoaded`) | — | **shape exhausted: serialization dominates launch saving** |
+| 073 | reusable `stressgrid` harness for program2 N1/N2: three retained same-input outputs plus guaranteed-SPD tiny-diagonal, near-singular banded, and mixed-dynamic cases at cond exponents 6/8/10 | B200 smoke 3/3 bitwise + 9/9 adversarial; consumed by exps 071/072 without changing checker or timing paths | — | **harness complete** |
+| 074 | integrated exp071 hybrid against exact `#926462`; full 15-shape paired, clean cold build, Popcorn test, then one ranked attempt | grid **1.003750×** CI95[1.002814,1.004687], four changed-shape CIs above parity, 15/15 and 0 new fallbacks; clean 57/57; test #926716 17/17. Ranked public **630.403→651.017us** (3.27% slower), secret **670.301→626.486us** (6.54% faster) | #926737 | **rejected under optimize-public rule; exact #926462 root restored** |

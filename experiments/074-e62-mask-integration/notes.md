@@ -29,8 +29,7 @@ See `experiments/071-e62-mask-v2/`:
 - paired eight-row geomean `1.00509x`, CI95 `[1.00445,1.00572]`;
 - four whole-shape CIs above parity, led by `60x1024` at `1.03406x`.
 
-Full-grid, cold-build, Popcorn, adoption, and ranked evidence are recorded here
-as the outer-loop gates complete.
+Full-grid, cold-build, Popcorn, adoption, and ranked evidence are recorded here.
 
 ## Full 15-shape paired gate
 
@@ -60,3 +59,26 @@ under 80% of the observed six-minute Popcorn service boundary (288s).
 
 Exact `submission.py` test `#926716`: **17/17 passed**, B200, terminal
 `succeeded` in 30s. See `results/074-popcorn-test.json`.
+
+## Ranked result and verdict
+
+The single ranked attempt `#926737` reached terminal `succeeded` after 185s;
+test, benchmark, and leaderboard phases passed on both public and secret splits.
+The CLI now exposes both component geomeans:
+
+| Split | `#926462` control | `#926737` candidate | Change |
+|---|---:|---:|---:|
+| Public | 630.403us | 651.017us | **3.27% slower** |
+| Secret | 670.301us | 626.486us | **6.54% faster** |
+
+See `results/074-popcorn-ranked.json`. This is the inverse of exp065: a fully
+qualified, bit-identical latency reorchestration improved secret substantially
+but regressed the public board. Under the named **optimize public, accept
+secret** rule, the public regression is disqualifying. The candidate is
+therefore **REJECTED AT LEADERBOARD**, and root `submission.py` is restored to
+the exact `#926462` SHA-256 `582cde16...b869ff723`.
+
+The local kernel outcome remains valid: four shapes improved with per-shape
+CI95 above parity, satisfying the requested multi-shape latency objective. The
+leaderboard objective did not close because the public split moved against the
+same-process evidence; no second ranked attempt was launched.

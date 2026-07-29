@@ -9,8 +9,9 @@ incumbent". Update this on adoption; do not restate scores anywhere else.
 ## Current ranked winner
 
 - **Current ranked winner `#926462`** (exp 070): `done`, both ranked splits
-  (public+secret) **passed** (test `#926455` 17/17). **Official public geomean
-  630.403us — verified on the gpumode.com board (rank #31), up from #32 /
+  (public+secret) **passed** (test `#926455` 17/17). **Official geomeans:
+  630.403us public / 670.301us secret.** The public score was verified on the
+  gpumode.com board (rank #31), up from #32 /
   646.868us** (kdpisda fell to #32 at 632.306us). Exact root SHA-256:
   `582cde1648b8b3e9d77a36173dd59cd36588123ae28800ca00e5342b869ff723`.
   - **What it is: the public-LB stack.** Layers exp 065's **named-barrier

@@ -12,5 +12,10 @@
     "diff_check": "PASS",
     "b200_smoke": "PASS results/073-stressgrid-smoke-v2.json"
   },
-  "next_action": "Run stressgrid against the selected kernel finalist before full-grid promotion."
+  "status": "COMPLETE",
+  "consumers": [
+    "exp071 finalist: N1/N2 passed",
+    "exp072 V1/V2/V3: N1/N2 passed"
+  ],
+  "next_action": "Reuse stressgrid for future program2 finalists; no candidate or benchmark path changed."
 }

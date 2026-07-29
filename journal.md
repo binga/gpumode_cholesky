@@ -2902,3 +2902,37 @@ secret-neutral-or-better change.
 whole grid, especially the diagonal potrf we can't crack without a from-scratch
 kernel. This stack banked the one clean rank available from parts already proven;
 the next real jump needs the diagonal wall broken.
+
+## Session 58 — 2026-07-29 — Experiments 071–074: four-shape mask frontier, split inversion
+
+`program2.md` was run against exact ranked `#926462` (commit `1ec14b7`, source
+SHA-256 `582cde16…ff723`) with two non-overlapping shape workers and a reusable
+N1/N2 harness. Exp 071 searched three strict-upper-mask geometries. A warp4
+hybrid grouped four matrix rows per CTA on `16×512`, `4×1024`, `60×1024`, and
+`8×2048`, while retaining the incumbent row kernel for the two batch-2 shapes.
+All outputs were bit-identical to the incumbent. N1 passed three retained
+same-input repetitions; N2 passed every guaranteed-SPD tiny-diagonal, banded,
+and mixed-dynamic case at condition exponents 6/8/10. Family attribution was
+48/48 checker-ok with zero new fallbacks.
+
+The exact six-e62-shape paired geomean was **1.00676×**. Four whole shapes had
+CI95 above parity: `16×512` **1.00577×**, `4×1024` **1.00095×**, `60×1024`
+**1.03406×**, and `8×2048` **1.00226×**. Exp 072 separately tested three
+race-free one-CTA launch-fusion variants on `640×512`; all passed N1/N2 but
+regressed to 0.748–0.851× because CTA serialization dominated the launch saving.
+An earlier multi-CTA draft was invalidated on code audit for an inter-CTA
+read/write race and never counted as evidence.
+
+Exp 073 added the evidence-only `stressgrid` mode used by both searches. Exp 074
+integrated the mask finalist: full 15-shape paired geomean **1.003750×** CI95
+[1.002814,1.004687], 15/15 checker passes, zero new fallbacks; a clean Modal
+sandbox compiled the extension and passed 57/57 in about 91s. Popcorn test
+`#926716` passed 17/17. The single ranked attempt `#926737` passed every public
+and secret phase but inverted the local prediction: public **630.403→651.017us**
+(3.27% slower), secret **670.301→626.486us** (6.54% faster).
+
+Under the predeclared **optimize public, accept secret** rule, the public loss is
+disqualifying. The candidate was rejected, exact `#926462` source restored, and
+no second ranked attempt launched. Outcome: the requested ≥2-shape kernel
+latency improvement was achieved and banked across four shapes; the public
+leaderboard-geomean objective was not achieved in this bounded cycle.

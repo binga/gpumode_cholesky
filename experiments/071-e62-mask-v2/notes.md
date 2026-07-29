@@ -101,3 +101,8 @@ whose same-extension device timing already isolates the mechanism.
 **PROMOTABLE FRONTIER: return `candidate_v4_hybrid.py` to integration.** The parent owns
 the full 15-shape, cold-build, Popcorn, leaderboard, adoption, and root-doc
 gates. This worker does not touch root `submission.py` or submit a ranked job.
+
+Parent disposition: exp074 confirmed the full-grid win, clean cold build, and
+17/17 Popcorn test, but ranked `#926737` regressed public 630.403→651.017us
+while improving secret 670.301→626.486us. Rejected under the named public rule;
+the four-shape frontier remains banked here and root stays on `#926462`.
